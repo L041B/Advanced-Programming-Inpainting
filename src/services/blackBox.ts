@@ -1,7 +1,7 @@
 // Import the 'sharp' library for image processing module.
-import sharp from 'sharp';
+import sharp from "sharp";
 // Import custom logger utilities.
-import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
+import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 // Define a TypeScript interface for the result of the inpainting operation.
 export interface InpaintingResult {
@@ -39,8 +39,8 @@ export class BlackBoxService {
         originalImageBuffer: Buffer, // The buffer containing the original image data.
         maskImageBuffer: Buffer // The buffer containing the mask image data.
     ): Promise<InpaintingResult> {
-        this.executionLogger.log('Starting inpainting process', {
-            component: 'BlackBoxService',
+        this.executionLogger.log("Starting inpainting process", {
+            component: "BlackBoxService",
             originalImageSize: originalImageBuffer.length,
             maskImageSize: maskImageBuffer.length
         });
@@ -53,11 +53,11 @@ export class BlackBoxService {
 
             // Check if metadata was retrieved successfully.
             if (!originalMetadata.width || !originalMetadata.height) {
-                throw new Error('Could not retrieve metadata from the original image.');
+                throw new Error("Could not retrieve metadata from the original image.");
             }
 
-            this.executionLogger.log('Image metadata retrieved', {
-                component: 'BlackBoxService',
+            this.executionLogger.log("Image metadata retrieved", {
+                component: "BlackBoxService",
                 width: originalMetadata.width,
                 height: originalMetadata.height,
                 format: originalMetadata.format
@@ -80,13 +80,13 @@ export class BlackBoxService {
             const outputImageBuffer = await originalImage
                 .composite([{
                     input: processedMask,
-                    blend: 'lighten' 
+                    blend: "lighten" 
                 }])
                 .png()
                 .toBuffer();
 
-            this.executionLogger.log('Inpainting process completed successfully', {
-                component: 'BlackBoxService',
+            this.executionLogger.log("Inpainting process completed successfully", {
+                component: "BlackBoxService",
                 outputImageSize: outputImageBuffer.length
             });
 
@@ -97,9 +97,9 @@ export class BlackBoxService {
             };
         } catch (error) {
             // This is a error handling block.
-            const err = error instanceof Error ? error : new Error('Unknown error during image processing');
-            this.errorLogger.log('Inpainting process failed', {
-                component: 'BlackBoxService',
+            const err = error instanceof Error ? error : new Error("Unknown error during image processing");
+            this.errorLogger.log("Inpainting process failed", {
+                component: "BlackBoxService",
                 errorMessage: err.message,
                 stack: err.stack
             });
@@ -117,9 +117,9 @@ export class BlackBoxService {
         originalImageBuffer: Buffer,
         maskImageBuffer: Buffer
     ): Promise<InpaintingResult> {
-        this.executionLogger.log('Generating preview', {
-            component: 'BlackBoxService',
-            operation: 'preview'
+        this.executionLogger.log("Generating preview", {
+            component: "BlackBoxService",
+            operation: "preview"
         });
 
         // The preview is generated using the exact same logic as the main process.

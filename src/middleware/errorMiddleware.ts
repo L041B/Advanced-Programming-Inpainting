@@ -1,8 +1,8 @@
 // Import necessary types from Express and custom factory modules.
-import { Request, Response, NextFunction } from 'express';
-import { ErrorManager } from '../factory/errorManager';
-import { ErrorStatus } from '../factory/status';
-import { loggerFactory, ErrorRouteLogger } from '../factory/loggerFactory';
+import { Request, Response, NextFunction } from "express";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
+import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 
 // Initialize instances of loggers and the error manager.
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -31,7 +31,7 @@ interface ErrorResponse {
  * @param res The Express response object.
  */
 export function logErrors(err: CustomError, req: Request, res: Response, next: NextFunction) {    
-    errorLogger.log('Application error occurred', {
+    errorLogger.log("Application error occurred", {
         errorName: err.name,
         errorMessage: err.message,
         statusCode: err.status || err.statusCode || 500,
@@ -49,9 +49,9 @@ export function logErrors(err: CustomError, req: Request, res: Response, next: N
 export function classifyError(err: CustomError, req: Request, res: Response, next: NextFunction) {
     if (!err.errorType) {
         // This logic maps HTTP statuses and error names to our internal enum.
-        if (err.name === 'ValidationError' || err.status === 400) {
+        if (err.name === "ValidationError" || err.status === 400) {
             err.errorType = ErrorStatus.invalidFormat;
-        } else if (err.name === 'UnauthorizedError' || err.status === 401) {
+        } else if (err.name === "UnauthorizedError" || err.status === 401) {
             err.errorType = ErrorStatus.jwtNotValid;
         } else if (err.status === 403) {
             err.errorType = ErrorStatus.userNotAuthorized;
@@ -62,7 +62,7 @@ export function classifyError(err: CustomError, req: Request, res: Response, nex
         }
 
         // Log the classification result.
-        errorLogger.log('Error classified', {
+        errorLogger.log("Error classified", {
             originalErrorType: err.name,
             classifiedAs: ErrorStatus[err.errorType],
             statusCode: err.status || err.statusCode
@@ -74,7 +74,7 @@ export function classifyError(err: CustomError, req: Request, res: Response, nex
 // Format the error response.
 export function formatErrorResponse(err: CustomError, req: Request, res: Response, next: NextFunction) {
     // If the error already has a custom response generator, we don't overwrite it.
-    if (err.getResponse && typeof err.getResponse === 'function') {
+    if (err.getResponse && typeof err.getResponse === "function") {
         next(err);
     } else {
         // Get the template response message from our error manager based on the classified error type.
@@ -93,7 +93,7 @@ export function formatErrorResponse(err: CustomError, req: Request, res: Respons
 // This middleware handles requests for routes that do not exist.
 export function routeNotFound(req: Request, res: Response, next: NextFunction) {
     // Log the request for a non-existent route.
-    errorLogger.log('Route not found', { requestedRoute: `${req.method} ${req.path}`, ip: req.ip });
+    errorLogger.log("Route not found", { requestedRoute: `${req.method} ${req.path}`, ip: req.ip });
 
     // Create a specific "route not found" error using the error manager and pass it to the error handlers.
     const errorResponse = errorManager.getErrorResponse(ErrorStatus.routeNotFound);
@@ -111,7 +111,7 @@ export function generalErrorHandler(err: CustomError, req: Request, res: Respons
     const response = err.getResponse!();
 
     // Log the error response details.
-    errorLogger.log('Error response sent to client', {
+    errorLogger.log("Error response sent to client", {
         statusCode: response.status,
         message: response.message,
         requestUrl: req.url,

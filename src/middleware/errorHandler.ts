@@ -1,8 +1,8 @@
 // Import necessary modules from Express and project factories.
-import { Request, Response, NextFunction } from 'express';
-import { ErrorManager } from '../factory/errorManager';
-import { ErrorStatus, HttpStatus } from '../factory/status';
-import { loggerFactory, ErrorRouteLogger } from '../factory/loggerFactory';
+import { Request, Response, NextFunction } from "express";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus, HttpStatus } from "../factory/status";
+import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 
 // Initialize the error logger and error manager instances.
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -19,7 +19,7 @@ interface CustomError extends Error {
 
 // Log Errors is a part of the error handling chain that logs error details.
 function logErrors(err: CustomError, req: Request, res: Response, next: NextFunction) {
-    errorLogger.log('Application error occurred', {
+    errorLogger.log("Application error occurred", {
         errorName: err.name,
         errorMessage: err.message,
         statusCode: err.status || err.statusCode || 500, 

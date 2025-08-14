@@ -1,5 +1,5 @@
 // Import necessary modules from LoggerDecorator.
-import { ApiRouteLogger, ExecutionRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger } from '../utils/loggerDecorator';
+import { ApiRouteLogger, ExecutionRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger } from "../utils/loggerDecorator";
 
 // Factory for creating logger decorators
 export class LoggerFactory {

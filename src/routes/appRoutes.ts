@@ -1,22 +1,22 @@
 // Import the Router from Express to create modular route handlers.
-import { Router } from 'express';
+import { Router } from "express";
 
 // Create a new router instance.
 const router = Router();
 
 // A route for the API root.
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
     res.json({
-        message: 'Advanced Programming - Inpainting API',
-        version: '1.0.0',
-        status: 'running'
+        message: "Advanced Programming - Inpainting API",
+        version: "1.0.0",
+        status: "running"
     });
 });
 
 // A route for health checks.
-router.get('/health', (req, res) => {
+router.get("/health", (req, res) => {
     res.status(200).json({
-        status: 'OK',
+        status: "OK",
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
     });

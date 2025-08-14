@@ -1,8 +1,8 @@
 // Import necessary modules and models
-import { User } from '../models/User';
-import { Sequelize } from 'sequelize';
-import { DbConnection } from '../config/database';
-import bcrypt from 'bcrypt';
+import { User } from "../models/User";
+import { Sequelize } from "sequelize";
+import { DbConnection } from "../config/database";
+import bcrypt from "bcrypt";
 
 // Define a interface for user data used in mutations.
 interface UserMutationData {
@@ -36,7 +36,7 @@ export class UserDao {
         return await this.sequelize.transaction(async (t) => {
             const existingUser = await User.findOne({ where: { email: userData.email }, transaction: t });
             if (existingUser) {
-                throw new Error('User with this email already exists');
+                throw new Error("User with this email already exists");
             }
 
             const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -53,14 +53,14 @@ export class UserDao {
         return await this.sequelize.transaction(async (t) => {
             const user = await User.findByPk(id, { transaction: t });
             if (!user) {
-                throw new Error('User not found');
+                throw new Error("User not found");
             }
 
             // If the email is being changed, check if the new email is already taken.
             if (userData.email && userData.email !== user.email) {
                 const existingUser = await User.findOne({ where: { email: userData.email }, transaction: t });
                 if (existingUser) {
-                    throw new Error('Email already in use by another account');
+                    throw new Error("Email already in use by another account");
                 }
             }
 
@@ -80,7 +80,7 @@ export class UserDao {
         return await this.sequelize.transaction(async (t) => {
             const user = await User.findByPk(id, { transaction: t });
             if (!user) {
-                throw new Error('User not found');
+                throw new Error("User not found");
             }
             await user.destroy({ transaction: t });
             return true;
@@ -90,7 +90,7 @@ export class UserDao {
     // Finds a user by their ID.
     public async findById(id: string): Promise<User | null> {
         return await User.findByPk(id, {
-            attributes: { exclude: ['password'] }
+            attributes: { exclude: ["password"] }
         });
     }
 
@@ -101,7 +101,7 @@ export class UserDao {
     
     // Checks if a user exists by their email address.
     public async existsByEmail(email: string): Promise<boolean> {
-        const user = await User.findOne({ where: { email }, attributes: ['id'] });
+        const user = await User.findOne({ where: { email }, attributes: ["id"] });
         return !!user;
     }
 

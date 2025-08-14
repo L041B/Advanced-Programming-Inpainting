@@ -1,5 +1,5 @@
 // Assuming './status' defines the HttpStatus enum, ErrorStatus enum, and the Response/Message interfaces.
-import { HttpStatus, ErrorStatus, Response, Message, MessageFactory } from './status';
+import { HttpStatus, ErrorStatus, Response, Message, MessageFactory } from "./status";
 
 // This Map stores the template for each type of error response.
 const errorResponseMap: Map<ErrorStatus, Response> = new Map([

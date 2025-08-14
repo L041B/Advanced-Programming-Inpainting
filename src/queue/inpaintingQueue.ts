@@ -1,8 +1,8 @@
 // Import necessary modules from bullmq, ioredis, and project files.
-import { Queue } from 'bullmq';
-import Redis from 'ioredis';
-import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
-import dotenv from 'dotenv';
+import { Queue } from "bullmq";
+import Redis from "ioredis";
+import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -40,18 +40,18 @@ export class InpaintingQueue {
 
         // Connect to Redis. 
         this.redis = new Redis({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: parseInt(process.env.REDIS_PORT || '6379'),
+            host: process.env.REDIS_HOST || "localhost",
+            port: parseInt(process.env.REDIS_PORT || "6379"),
             maxRetriesPerRequest: null, // Retry indefinitely
         });
 
         // Initialize the BullMQ queue.
-        this.queue = new Queue('inpainting-queue', {
+        this.queue = new Queue("inpainting-queue", {
             connection: this.redis,
             defaultJobOptions: {
                 attempts: 3, // Retry failed jobs up to 3 times.
                 backoff: {   // Use exponential backoff between retries.
-                    type: 'exponential',
+                    type: "exponential",
                     delay: 2000,
                 },
                 removeOnComplete: 1000, // Keep the last 1000 completed jobs.
@@ -70,18 +70,18 @@ export class InpaintingQueue {
 
     // Adds a new inpainting job to the queue.
     public async addJob(jobData: InpaintingJobData): Promise<string> {
-        this.executionLogger.log('Adding job to inpainting queue', {
-            component: 'InpaintingQueue',
+        this.executionLogger.log("Adding job to inpainting queue", {
+            component: "InpaintingQueue",
             executionId: jobData.executionId,
         });
 
         // Add the job to the queue.
-        const job = await this.queue.add('inpainting-task', jobData, {
+        const job = await this.queue.add("inpainting-task", jobData, {
         });
 
         // Log the successful addition of the job.
-        this.executionLogger.log('Job added successfully to queue', {
-            component: 'InpaintingQueue',
+        this.executionLogger.log("Job added successfully to queue", {
+            component: "InpaintingQueue",
             jobId: job.id,
             executionId: jobData.executionId,
         });
@@ -91,12 +91,12 @@ export class InpaintingQueue {
 
     // Retrieves the current status of a job from the queue.
     public async getJobStatus(jobId: string): Promise<JobStatusResponse | null> {
-        this.executionLogger.log('Retrieving job status', { component: 'InpaintingQueue', jobId });
+        this.executionLogger.log("Retrieving job status", { component: "InpaintingQueue", jobId });
 
         // Get the job from the queue.
         const job = await this.queue.getJob(jobId);
         if (!job) {
-            this.errorLogger.log('Job not found in queue', { component: 'InpaintingQueue', jobId });
+            this.errorLogger.log("Job not found in queue", { component: "InpaintingQueue", jobId });
             return null;
         }
 

@@ -1,11 +1,11 @@
 // Import necessary modules from bullmq, ioredis, and project files.
-import { Worker, Job } from 'bullmq';
-import Redis from 'ioredis';
-import { BlackBoxService } from '../services/blackBox';
-import { ExecutionRepository } from '../repository/executionRepository';
-import { InpaintingJobData } from '../queue/inpaintingQueue';
-import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
-import { DbConnection } from '../config/database';
+import { Worker, Job } from "bullmq";
+import Redis from "ioredis";
+import { BlackBoxService } from "../services/blackBox";
+import { ExecutionRepository } from "../repository/executionRepository";
+import { InpaintingJobData } from "../queue/inpaintingQueue";
+import { loggerFactory, ExecutionRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { DbConnection } from "../config/database";
 
 // The InpaintingWorker class is responsible for processing jobs from the 'inpainting-queue'.
 export class InpaintingWorker {
@@ -18,7 +18,7 @@ export class InpaintingWorker {
 
     constructor() {
         try {
-            console.log('InpaintingWorker: Initializing dependencies...');
+            console.log("InpaintingWorker: Initializing dependencies...");
             // Initialize all necessary singletons and configurations.
             this.executionLogger = loggerFactory.createExecutionLogger();
             this.errorLogger = loggerFactory.createErrorLogger();
@@ -27,25 +27,25 @@ export class InpaintingWorker {
 
             // Initialize Redis connection
             this.redis = new Redis({
-                host: process.env.REDIS_HOST || 'localhost',
-                port: parseInt(process.env.REDIS_PORT || '6379'),
+                host: process.env.REDIS_HOST || "localhost",
+                port: parseInt(process.env.REDIS_PORT || "6379"),
                 maxRetriesPerRequest: null, 
             });
-            console.log('InpaintingWorker: Dependencies initialized.');
+            console.log("InpaintingWorker: Dependencies initialized.");
 
-            console.log('InpaintingWorker: Creating BullMQ worker...');
+            console.log("InpaintingWorker: Creating BullMQ worker...");
 
             // Create the worker
-            this.worker = new Worker('inpainting-queue', this.processJob.bind(this), {
+            this.worker = new Worker("inpainting-queue", this.processJob.bind(this), {
                 connection: this.redis,
                 // Concurrency determines how many jobs this worker can process in parallel.
-                concurrency: parseInt(process.env.WORKER_CONCURRENCY || '5'),
+                concurrency: parseInt(process.env.WORKER_CONCURRENCY || "5"),
             });
-            console.log('InpaintingWorker: Worker created.');
+            console.log("InpaintingWorker: Worker created.");
 
             this.setupEventListeners();
         } catch (error) {
-            console.error('InpaintingWorker: Failed to initialize.', error);
+            console.error("InpaintingWorker: Failed to initialize.", error);
             throw error;
         }
     }
@@ -57,24 +57,24 @@ export class InpaintingWorker {
         }
         
         // Handle case where buffer was serialized/deserialized by Redis/BullMQ
-        if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: unknown }).data)) {
+        if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: unknown }).data)) {
             return Buffer.from((data as { data: number[] }).data);
         }
         
         // Handle case where buffer is a plain object with a 'length' property
-        if (data && typeof data === 'object' && 'length' in data) {
+        if (data && typeof data === "object" && "length" in data) {
             return Buffer.from(data as ArrayLike<number>);
         }
         
-        throw new Error('Invalid buffer data format');
+        throw new Error("Invalid buffer data format");
     }
 
     // The processJob method is responsible for handling the inpainting job.
     private async processJob(job: Job<InpaintingJobData>) {
         const { executionId, userId, originalImage: rawOriginalImage, maskImage: rawMaskImage, isPreview = false } = job.data;
         
-        this.executionLogger.log('Processing inpainting job', {
-            component: 'InpaintingWorker',
+        this.executionLogger.log("Processing inpainting job", {
+            component: "InpaintingWorker",
             jobId: job.id,
             executionId,
             isPreview
@@ -92,11 +92,11 @@ export class InpaintingWorker {
                 
                 // Validate that we have non-empty buffers
                 if (originalImage.length === 0 || maskImage.length === 0) {
-                    throw new Error('Reconstructed buffers are empty');
+                    throw new Error("Reconstructed buffers are empty");
                 }
                 
-                this.executionLogger.log('Buffers reconstructed successfully', { 
-                    component: 'InpaintingWorker', 
+                this.executionLogger.log("Buffers reconstructed successfully", { 
+                    component: "InpaintingWorker", 
                     jobId: job.id,
                     originalImageSize: originalImage.length,
                     maskImageSize: maskImage.length
@@ -111,14 +111,14 @@ export class InpaintingWorker {
             // Only update database for non-preview jobs
             if (!isPreview) {
                 // Update the execution status in the database to 'processing'.
-                await this.executionRepository.updateExecutionStatus(executionId, userId, 'processing');
+                await this.executionRepository.updateExecutionStatus(executionId, userId, "processing");
             }
 
             // Update job progress
             await job.updateProgress(25);
 
             // Call the BlackBox service for inpainting
-            this.executionLogger.log('Calling BlackBox service', { component: 'InpaintingWorker', jobId: job.id });
+            this.executionLogger.log("Calling BlackBox service", { component: "InpaintingWorker", jobId: job.id });
             const inpaintingResult = await this.blackBoxService.processInpainting(originalImage, maskImage);
 
             // Update job progress
@@ -126,24 +126,24 @@ export class InpaintingWorker {
 
             // Check if the inpainting result is valid
             if (!inpaintingResult.success || !inpaintingResult.outputImage) {
-                throw new Error(inpaintingResult.error || 'Inpainting process failed in BlackBoxService');
+                throw new Error(inpaintingResult.error || "Inpainting process failed in BlackBoxService");
             }
 
             // Log the successful inpainting result
-            this.executionLogger.log('BlackBox service succeeded', { component: 'InpaintingWorker', jobId: job.id });
+            this.executionLogger.log("BlackBox service succeeded", { component: "InpaintingWorker", jobId: job.id });
             
             if (!isPreview) {
                 // Update the execution record with the output image and set status to 'completed'.
                 await this.executionRepository.updateExecution(
                     executionId,
                     userId,
-                    { outputImage: inpaintingResult.outputImage, status: 'completed' }
+                    { outputImage: inpaintingResult.outputImage, status: "completed" }
                 );
             }
             await job.updateProgress(100);
 
             // Log the successful completion of the job
-            this.executionLogger.log('Job completed successfully', { component: 'InpaintingWorker', jobId: job.id });
+            this.executionLogger.log("Job completed successfully", { component: "InpaintingWorker", jobId: job.id });
             
             // Return the result with success flag and output image
             return { 
@@ -155,9 +155,9 @@ export class InpaintingWorker {
 
         } catch (error) {
             // Log the error
-            const err = error instanceof Error ? error : new Error('Unknown error');
-            this.errorLogger.log('Job processing failed', {
-                component: 'InpaintingWorker',
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.log("Job processing failed", {
+                component: "InpaintingWorker",
                 jobId: job.id,
                 executionId,
                 errorMessage: err.message,
@@ -167,9 +167,9 @@ export class InpaintingWorker {
             if (!isPreview) {
                 try {
                     // Attempt to mark the execution as 'failed' in the database.
-                    await this.executionRepository.updateExecutionStatus(executionId, userId, 'failed');
+                    await this.executionRepository.updateExecutionStatus(executionId, userId, "failed");
                 } catch (updateError) {
-                    this.errorLogger.logDatabaseError('UPDATE_STATUS_ON_FAIL', 'executions', (updateError as Error).message);
+                    this.errorLogger.logDatabaseError("UPDATE_STATUS_ON_FAIL", "executions", (updateError as Error).message);
                 }
             }
 
@@ -181,42 +181,42 @@ export class InpaintingWorker {
     // Sets up event listeners for the worker to log key lifecycle events.
     private setupEventListeners() {
         // Log when a job is completed
-        this.worker.on('completed', (job: Job) => {
-            this.executionLogger.log('Worker job completed', { component: 'InpaintingWorker', jobId: job.id });
+        this.worker.on("completed", (job: Job) => {
+            this.executionLogger.log("Worker job completed", { component: "InpaintingWorker", jobId: job.id });
         });
 
         // Log when a job fails
-        this.worker.on('failed', (job, err) => {
-            this.errorLogger.log('Worker job failed after retries', {
-                component: 'InpaintingWorker',
+        this.worker.on("failed", (job, err) => {
+            this.errorLogger.log("Worker job failed after retries", {
+                component: "InpaintingWorker",
                 jobId: job?.id,
                 errorMessage: err.message
             });
         });
 
         // Log when a worker encounters an error
-        this.worker.on('error', (err) => {
-            this.errorLogger.log('Worker encountered an error', { component: 'InpaintingWorker', errorMessage: err.message });
+        this.worker.on("error", (err) => {
+            this.errorLogger.log("Worker encountered an error", { component: "InpaintingWorker", errorMessage: err.message });
         });
     }
 
     // Closes the worker and its Redis connection.
     public async close(): Promise<void> {
-        console.log('InpaintingWorker: Shutting down...');
+        console.log("InpaintingWorker: Shutting down...");
         await this.worker.close();
         await this.redis.quit();
-        console.log('InpaintingWorker: Shutdown complete');
+        console.log("InpaintingWorker: Shutdown complete");
     }
 }
 
 // Ensures the worker starts only when the script is executed directly.
 async function startWorker() {
     try {
-        console.log('Starting inpainting worker process...');
+        console.log("Starting inpainting worker process...");
         
         // Ensure database connection is established before starting the worker.
         await DbConnection.connect();
-        console.log('Database connected');
+        console.log("Database connected");
 
         // Initialize the worker
         const worker = new InpaintingWorker();
@@ -226,19 +226,19 @@ async function startWorker() {
             console.log(`Received ${signal}, shutting down gracefully...`);
             await worker.close();
             await DbConnection.close();
-            console.log('Graceful shutdown completed');
+            console.log("Graceful shutdown completed");
             process.exit(0);
         };
 
         // Listen for termination signals
-        process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
-        process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
+        process.on("SIGTERM", () => { void gracefulShutdown("SIGTERM"); });
+        process.on("SIGINT", () => { void gracefulShutdown("SIGINT"); });
 
-        console.log('Worker is ready and listening for jobs on the "inpainting-queue".');
+        console.log("Worker is ready and listening for jobs on the \"inpainting-queue\".");
 
     } catch (error) {
         // Log critical errors during worker startup
-        console.error('CRITICAL: Failed to start the worker process.', error);
+        console.error("CRITICAL: Failed to start the worker process.", error);
         process.exit(1);
     }
 }

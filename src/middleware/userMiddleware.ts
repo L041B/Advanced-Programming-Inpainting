@@ -1,7 +1,7 @@
 // Import necessary types from Express and custom factory modules.
-import { Request, Response, NextFunction } from 'express';
-import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
-import { ErrorStatus } from '../factory/status';
+import { Request, Response, NextFunction } from "express";
+import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ErrorStatus } from "../factory/status";
 
 // Initialize loggers
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -26,15 +26,15 @@ export const checkRequiredFields = (req: Request, res: Response, next: NextFunct
     const body = req.body as { name?: string; surname?: string; email?: string; password?: string };
     const { name, surname, email, password } = body;
     if (!name || !surname || !email || !password) {
-        const missingFields: string[] = [!name && 'name', !surname && 'surname', !email && 'email', !password && 'password'].filter((field): field is string => Boolean(field));
-        errorLogger.log('User creation validation failed', {
-            reason: 'Missing required fields',
+        const missingFields: string[] = [!name && "name", !surname && "surname", !email && "email", !password && "password"].filter((field): field is string => Boolean(field));
+        errorLogger.log("User creation validation failed", {
+            reason: "Missing required fields",
             missingFields,
             ip: req.ip
         });
         
         const error = createValidationError(
-            `The following fields are required: ${missingFields.join(', ')}`,
+            `The following fields are required: ${missingFields.join(", ")}`,
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -48,16 +48,16 @@ export const checkUpdateFields = (req: Request, res: Response, next: NextFunctio
     const body = req.body as { name?: string; surname?: string; email?: string };
     const { name, surname, email } = body;
     if (!name || !surname || !email) {
-        const missingFields: string[] = [!name && 'name', !surname && 'surname', !email && 'email'].filter((field): field is string => Boolean(field));
-        errorLogger.log('User update validation failed', { 
-            reason: 'Missing required fields', 
+        const missingFields: string[] = [!name && "name", !surname && "surname", !email && "email"].filter((field): field is string => Boolean(field));
+        errorLogger.log("User update validation failed", { 
+            reason: "Missing required fields", 
             missingFields,
             userId: req.params.userId,
             ip: req.ip 
         });
         
         const error = createValidationError(
-            'Name, surname, and email are required',
+            "Name, surname, and email are required",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -73,9 +73,9 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
     const nameRegex = /^[a-zA-Z\s'-]+$/; 
     
     if (!name || !surname || !nameRegex.test(name) || !nameRegex.test(surname)) {
-        errorLogger.log('Name format validation failed', { name, surname, ip: req.ip });
+        errorLogger.log("Name format validation failed", { name, surname, ip: req.ip });
         const error = createValidationError(
-            'Name and surname must contain only letters, spaces, hyphens, or apostrophes',
+            "Name and surname must contain only letters, spaces, hyphens, or apostrophes",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -91,8 +91,8 @@ export const validateEmailFormat = (req: Request, res: Response, next: NextFunct
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
     
     if (!email || !emailRegex.test(email)) {
-        errorLogger.log('Email format validation failed', { email, ip: req.ip });
-        const error = createValidationError('Invalid email format', ErrorStatus.emailNotValid);
+        errorLogger.log("Email format validation failed", { email, ip: req.ip });
+        const error = createValidationError("Invalid email format", ErrorStatus.emailNotValid);
         next(error);
         return;
     }
@@ -105,10 +105,10 @@ export const validatePasswordStrength = (req: Request, res: Response, next: Next
     const { password } = body;
 
     // If the password field exists, validate its length.
-    if (typeof password === 'string' && password.length < 8) {
-        errorLogger.log('Password strength validation failed', { passwordLength: password.length, ip: req.ip });
+    if (typeof password === "string" && password.length < 8) {
+        errorLogger.log("Password strength validation failed", { passwordLength: password.length, ip: req.ip });
         const error = createValidationError(
-            'Password must be at least 8 characters long',
+            "Password must be at least 8 characters long",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -120,17 +120,17 @@ export const validatePasswordStrength = (req: Request, res: Response, next: Next
 // sanitizeUserData is a middleware function that sanitizes user data before processing.
 export const sanitizeUserData = (req: Request, res: Response, next: NextFunction): void => {
     const body = req.body as { name?: string; surname?: string; email?: string };
-    apiLogger.log('User data sanitized', {
-        originalEmail: typeof body.email === 'string' ? body.email : undefined,
-        sanitizedEmail: typeof body.email === 'string' ? body.email.trim().toLowerCase() : undefined,
+    apiLogger.log("User data sanitized", {
+        originalEmail: typeof body.email === "string" ? body.email : undefined,
+        sanitizedEmail: typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined,
         ip: req.ip
     });
 
     // Sanitize user input by trimming whitespace.
     const userBody = req.body as { name?: string; surname?: string; email?: string };
-    if (typeof userBody.name === 'string') userBody.name = userBody.name.trim();
-    if (typeof userBody.surname === 'string') userBody.surname = userBody.surname.trim();
-    if (typeof userBody.email === 'string') userBody.email = userBody.email.trim().toLowerCase();
+    if (typeof userBody.name === "string") userBody.name = userBody.name.trim();
+    if (typeof userBody.surname === "string") userBody.surname = userBody.surname.trim();
+    if (typeof userBody.email === "string") userBody.email = userBody.email.trim().toLowerCase();
     req.body = userBody;
     
     next();
@@ -141,9 +141,9 @@ export const checkLoginFields = (req: Request, res: Response, next: NextFunction
     const body = req.body as { email?: string; password?: string };
     const { email, password } = body;
     if (!email || !password) {
-        errorLogger.log('Login validation failed', { reason: 'Missing fields', ip: req.ip });
+        errorLogger.log("Login validation failed", { reason: "Missing fields", ip: req.ip });
         const error = createValidationError(
-            'Email and password are required',
+            "Email and password are required",
             ErrorStatus.loginBadRequest
         );
         next(error);
@@ -155,8 +155,8 @@ export const checkLoginFields = (req: Request, res: Response, next: NextFunction
 // sanitizeLoginData is a middleware function that sanitizes login data before processing.
 export const sanitizeLoginData = (req: Request, res: Response, next: NextFunction): void => {
     const body = req.body as { email?: string };
-    apiLogger.log('Login data sanitized', { email: typeof body.email === 'string' ? body.email : undefined, ip: req.ip });
-    if (typeof body.email === 'string') {
+    apiLogger.log("Login data sanitized", { email: typeof body.email === "string" ? body.email : undefined, ip: req.ip });
+    if (typeof body.email === "string") {
         (req.body as { email?: string }).email = body.email.trim().toLowerCase();
     }
     next();
@@ -168,9 +168,9 @@ export const validateUUIDFormat = (req: Request, res: Response, next: NextFuncti
     if (userId) {
         const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
         if (!uuidRegex.test(userId)) {
-            errorLogger.log('UUID validation failed', { providedUserId: userId, ip: req.ip });
+            errorLogger.log("UUID validation failed", { providedUserId: userId, ip: req.ip });
             const error = createValidationError(
-                'Invalid user ID format',
+                "Invalid user ID format",
                 ErrorStatus.invalidFormat
             );
             next(error);

@@ -1,8 +1,8 @@
 // Import Node.js built-in modules for file system (fs) and path manipulation (path).
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 // Import custom logger utilities.
-import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
+import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 // A Singleton service class to handle all file system operations related to images.
 export class FileService {
@@ -14,8 +14,8 @@ export class FileService {
     private readonly errorLogger: ErrorRouteLogger;
 
     private constructor() {
-        this.staticDir = process.env.STATIC_FILES_DIR || '/var/www/html/images';
-        this.baseUrl = process.env.STATIC_FILES_URL || 'http://localhost:8080/images';
+        this.staticDir = process.env.STATIC_FILES_DIR || "/var/www/html/images";
+        this.baseUrl = process.env.STATIC_FILES_URL || "http://localhost:8080/images";
         this.apiLogger = loggerFactory.createApiLogger();
         this.errorLogger = loggerFactory.createErrorLogger();
     }
@@ -44,14 +44,14 @@ export class FileService {
             // If access fails, assume the directory needs to be created.
             try {
                 await fs.promises.mkdir(this.staticDir, { recursive: true });
-                this.apiLogger.log('Created static directory', {
-                    component: 'FileService',
+                this.apiLogger.log("Created static directory", {
+                    component: "FileService",
                     directory: this.staticDir
                 });
             } catch (error) {
-                const err = error instanceof Error ? error : new Error('Unknown error');
-                this.errorLogger.log('Failed to create static directory', {
-                    component: 'FileService',
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                this.errorLogger.log("Failed to create static directory", {
+                    component: "FileService",
                     directory: this.staticDir,
                     error: err.message
                 });
@@ -70,8 +70,8 @@ export class FileService {
             
             const imageUrl = `${this.baseUrl}/${filename}`;
             
-            this.apiLogger.log('Image saved to static storage', {
-                component: 'FileService',
+            this.apiLogger.log("Image saved to static storage", {
+                component: "FileService",
                 filename,
                 imageSize: imageBuffer.length,
                 imageUrl
@@ -79,14 +79,14 @@ export class FileService {
             
             return imageUrl;
         } catch (error) {
-            const err = error instanceof Error ? error : new Error('Unknown error');
-            this.errorLogger.log('Failed to save image to static storage', {
-                component: 'FileService',
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.log("Failed to save image to static storage", {
+                component: "FileService",
                 executionId,
                 userId,
                 error: err.message
             });
-            throw new Error('Failed to save image to static storage');
+            throw new Error("Failed to save image to static storage");
         }
     }
     // This method returns the full path to an image file in the static directory.
@@ -111,8 +111,8 @@ export class FileService {
             const filepath = path.join(this.staticDir, filename);
             await fs.promises.unlink(filepath);
             
-            this.apiLogger.log('Image deleted successfully', {
-                component: 'FileService',
+            this.apiLogger.log("Image deleted successfully", {
+                component: "FileService",
                 filename
             });
             
@@ -121,13 +121,13 @@ export class FileService {
             const err = error as NodeJS.ErrnoException; 
             
             // If the error is that the file doesn't exist, it's not a failure state.   
-            if (err.code === 'ENOENT') {
-                this.apiLogger.log('Attempted to delete non-existent file', { component: 'FileService', filename });
+            if (err.code === "ENOENT") {
+                this.apiLogger.log("Attempted to delete non-existent file", { component: "FileService", filename });
                 return false;
             }
             
-            this.errorLogger.log('Failed to delete image', {
-                component: 'FileService',
+            this.errorLogger.log("Failed to delete image", {
+                component: "FileService",
                 filename,
                 error: err.message
             });
@@ -154,26 +154,26 @@ export class FileService {
                     }
                 } catch (error) {
                     // Log individual file errors but continue with the rest of the cleanup.
-                    const err = error instanceof Error ? error : new Error('Unknown error');
-                    this.errorLogger.log('Error deleting individual file during cleanup', {
-                        component: 'FileService',
+                    const err = error instanceof Error ? error : new Error("Unknown error");
+                    this.errorLogger.log("Error deleting individual file during cleanup", {
+                        component: "FileService",
                         filename: file,
                         error: err.message
                     });
                 }
             }
 
-            this.apiLogger.log('Cleanup completed', {
-                component: 'FileService',
+            this.apiLogger.log("Cleanup completed", {
+                component: "FileService",
                 deletedCount,
                 olderThanDays
             });
 
             return deletedCount;
         } catch (error) {
-            const err = error instanceof Error ? error : new Error('Unknown error');
-            this.errorLogger.log('Error during cleanup', {
-                component: 'FileService',
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.log("Error during cleanup", {
+                component: "FileService",
                 error: err.message
             });
             throw new Error(`Failed to cleanup old images: ${err.message}`);

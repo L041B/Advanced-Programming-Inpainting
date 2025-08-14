@@ -1,11 +1,11 @@
 // Import necessary modules from Node.js, Express, and project files
-import { Request, Response } from 'express';
-import * as fs from 'fs/promises'; 
-import { ExecutionRepository } from '../repository/executionRepository';
-import { BlackBoxProxy } from '../proxy/blackBoxProxy';
-import { loggerFactory, ExecutionRouteLogger, ApiRouteLogger, ErrorRouteLogger } from '../factory/loggerFactory';
-import { FileService } from '../services/fileService';    
-import { ExecutionDao } from '../dao/executionDao';              
+import { Request, Response } from "express";
+import * as fs from "fs/promises"; 
+import { ExecutionRepository } from "../repository/executionRepository";
+import { BlackBoxProxy } from "../proxy/blackBoxProxy";
+import { loggerFactory, ExecutionRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { FileService } from "../services/fileService";    
+import { ExecutionDao } from "../dao/executionDao";              
 
 // Define a custom Request interface for type safety with authenticated users.
 interface AuthenticatedRequest extends Request {
@@ -17,7 +17,7 @@ interface AuthenticatedRequest extends Request {
 
 // Define an interface for the structure of data used in execution updates.
 interface ExecutionUpdateData {
-    status?: 'pending' | 'processing' | 'completed' | 'failed';
+    status?: "pending" | "processing" | "completed" | "failed";
     originalImage?: Buffer;
     maskImage?: Buffer;
     outputImage?: Buffer;
@@ -50,8 +50,8 @@ export class ExecutionController {
 
             // Validate the presence of required files.
             if (!files?.originalImage?.[0] || !files?.maskImage?.[0]) {
-                this.errorLogger.logValidationError('files', 'missing', 'Both original image and mask image are required');
-                res.status(400).json({ success: false, message: 'Both original image and mask image are required' });
+                this.errorLogger.logValidationError("files", "missing", "Both original image and mask image are required");
+                res.status(400).json({ success: false, message: "Both original image and mask image are required" });
                 return;
             }
 
@@ -69,11 +69,11 @@ export class ExecutionController {
                 // Ensure we have valid, non-empty buffers
                 if (!Buffer.isBuffer(originalImageBuffer) || !Buffer.isBuffer(maskImageBuffer) || 
                     originalImageBuffer.length === 0 || maskImageBuffer.length === 0) {
-                    throw new Error('Image files cannot be empty or invalid');
+                    throw new Error("Image files cannot be empty or invalid");
                 }
             } catch (error) {
                 this.errorLogger.logFileUploadError(undefined, undefined, `Failed to read image files: ${(error as Error).message}`);
-                res.status(400).json({ success: false, message: 'Failed to read image files or files are corrupted.' });
+                res.status(400).json({ success: false, message: "Failed to read image files or files are corrupted." });
                 return;
             }
 
@@ -82,10 +82,10 @@ export class ExecutionController {
                 originalImage: originalImageBuffer,
                 maskImage: maskImageBuffer,
                 outputImage: Buffer.alloc(0),
-                status: 'pending'
+                status: "pending"
             }, userId);
 
-            this.executionLogger.log('Execution record created', { executionId: execution.id, userId });
+            this.executionLogger.log("Execution record created", { executionId: execution.id, userId });
 
             // Queue the inpainting job for processing.
             const queueResult = await this.blackBoxProxy.queueProcessingJob({
@@ -98,13 +98,13 @@ export class ExecutionController {
             // Clean up temporary files.
             Promise.all([fs.unlink(originalImageFile.path), fs.unlink(maskImageFile.path)])
                 .catch(cleanupError => {
-                    this.errorLogger.log('Failed to cleanup temporary files', { error: (cleanupError as Error).message });
+                    this.errorLogger.log("Failed to cleanup temporary files", { error: (cleanupError as Error).message });
                 });
 
             // Check if the job was queued successfully.
             if (!queueResult.success) {
-                await this.executionRepository.updateExecutionStatus(execution.id, userId, 'failed');
-                res.status(500).json({ success: false, message: queueResult.error || 'Failed to queue inpainting job' });
+                await this.executionRepository.updateExecutionStatus(execution.id, userId, "failed");
+                res.status(500).json({ success: false, message: queueResult.error || "Failed to queue inpainting job" });
                 return;
             }
 
@@ -112,17 +112,17 @@ export class ExecutionController {
             this.executionLogger.logExecutionCreation(execution.id, userId, execution.status);
             res.status(202).json({
                 success: true,
-                message: 'Inpainting job queued successfully',
+                message: "Inpainting job queued successfully",
                 data: { executionId: execution.id, jobId: queueResult.jobId, status: execution.status, createdAt: execution.createdAt }
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('CREATE_EXECUTION', 'executions', err.message);
+            this.errorLogger.logDatabaseError("CREATE_EXECUTION", "executions", err.message);
             this.apiLogger.logError(req, err);
             res.status(500).json({ success: false, message: err.message });
         }
-    }
+    };
 
     // Retrieves the current status of a background job from the processing queue.
     public getJobStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -131,18 +131,18 @@ export class ExecutionController {
         try {
             const jobStatus = await this.blackBoxProxy.getJobStatus(req.params.jobId);
             if (!jobStatus) {
-                res.status(404).json({ success: false, message: 'Job not found' });
+                res.status(404).json({ success: false, message: "Job not found" });
                 return;
             }
             res.status(200).json({ success: true, data: jobStatus });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('GET_JOB_STATUS', 'queue', err.message);
+            this.errorLogger.logDatabaseError("GET_JOB_STATUS", "queue", err.message);
             this.apiLogger.logError(req, err);
-            res.status(500).json({ success: false, message: 'Error retrieving job status' });
+            res.status(500).json({ success: false, message: "Error retrieving job status" });
         }
-    }
+    };
 
     // Retrieves a single, complete execution record from the database.
     public getExecution = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -152,7 +152,7 @@ export class ExecutionController {
             // Retrieve the execution record from the database.
             const execution = await this.executionRepository.getExecutionWithUser(req.params.id);
             if (!execution) {
-                res.status(404).json({ success: false, message: 'Execution not found' });
+                res.status(404).json({ success: false, message: "Execution not found" });
                 return;
             }
             this.executionLogger.logExecutionRetrieval(req.params.id);
@@ -160,11 +160,11 @@ export class ExecutionController {
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('GET_EXECUTION', 'executions', err.message);
+            this.errorLogger.logDatabaseError("GET_EXECUTION", "executions", err.message);
             this.apiLogger.logError(req, err);
-            res.status(500).json({ success: false, message: 'Error retrieving execution' });
+            res.status(500).json({ success: false, message: "Error retrieving execution" });
         }
-    }
+    };
 
     // Retrieves all executions belonging to the authenticated user.
     public getUserExecutions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -178,11 +178,11 @@ export class ExecutionController {
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('GET_USER_EXECUTIONS', 'executions', err.message);
+            this.errorLogger.logDatabaseError("GET_USER_EXECUTIONS", "executions", err.message);
             this.apiLogger.logError(req, err);
             res.status(400).json({ success: false, message: err.message });
         }
-    }
+    };
 
     // Updates an execution, potentially with new images, and requeues it for processing.
     public updateExecution = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -216,12 +216,12 @@ export class ExecutionController {
             if (needsReprocessing) {
                 const currentExecution = await this.executionRepository.getExecutionImages(executionId);
                 if (!currentExecution) {
-                    res.status(404).json({ success: false, message: 'Execution not found' });
+                    res.status(404).json({ success: false, message: "Execution not found" });
                     return;
                 }
 
                 // Prepare the update data.
-                updateData.status = 'pending';
+                updateData.status = "pending";
                 updateData.outputImage = Buffer.alloc(0);
 
                 // Update the execution in the database.
@@ -235,27 +235,27 @@ export class ExecutionController {
 
                 // Check if the job was queued successfully.
                 if (!queueResult.success) {
-                    await this.executionRepository.updateExecutionStatus(executionId, userId, 'failed');
-                    throw new Error(queueResult.error || 'Failed to queue reprocessing job');
+                    await this.executionRepository.updateExecutionStatus(executionId, userId, "failed");
+                    throw new Error(queueResult.error || "Failed to queue reprocessing job");
                 }
 
                 res.status(200).json({
                     success: true,
-                    message: 'Execution updated and queued for reprocessing',
+                    message: "Execution updated and queued for reprocessing",
                     data: { id: updatedExecution.id, status: updatedExecution.status, jobId: queueResult.jobId }
                 });
 
             } else {
-                res.status(200).json({ success: true, message: 'No image files provided for update. No changes made.' });
+                res.status(200).json({ success: true, message: "No image files provided for update. No changes made." });
             }
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('UPDATE_EXECUTION', 'executions', err.message);
+            this.errorLogger.logDatabaseError("UPDATE_EXECUTION", "executions", err.message);
             this.apiLogger.logError(req, err);
             res.status(500).json({ success: false, message: err.message });
         }
-    }
+    };
 
     // Deletes an execution record from the database.
     public deleteExecution = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -264,19 +264,19 @@ export class ExecutionController {
         try {
             const deleted = await this.executionRepository.deleteExecution(req.params.id, req.user!.userId);
             if (!deleted) {
-                res.status(404).json({ success: false, message: 'Execution not found or access denied' });
+                res.status(404).json({ success: false, message: "Execution not found or access denied" });
                 return;
             }
             this.executionLogger.logExecutionDeletion(req.params.id, req.user!.userId);
-            res.status(200).json({ success: true, message: 'Execution deleted successfully' });
+            res.status(200).json({ success: true, message: "Execution deleted successfully" });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('DELETE_EXECUTION', 'executions', err.message);
+            this.errorLogger.logDatabaseError("DELETE_EXECUTION", "executions", err.message);
             this.apiLogger.logError(req, err);
             res.status(400).json({ success: false, message: err.message });
         }
-    }
+    };
 
     // Retrieves the status of an execution record from the database.
     public getExecutionStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -285,18 +285,18 @@ export class ExecutionController {
         try {
             const execution = await this.executionRepository.getExecutionBasicInfo(req.params.id);
             if (!execution) {
-                res.status(404).json({ success: false, message: 'Execution not found' });
+                res.status(404).json({ success: false, message: "Execution not found" });
                 return;
             }
             res.status(200).json({ success: true, data: { id: execution.id, status: execution.status } });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('GET_EXECUTION_STATUS', 'executions', err.message);
+            this.errorLogger.logDatabaseError("GET_EXECUTION_STATUS", "executions", err.message);
             this.apiLogger.logError(req, err);
-            res.status(500).json({ success: false, message: 'Error retrieving execution status' });
+            res.status(500).json({ success: false, message: "Error retrieving execution status" });
         }
-    }
+    };
 
     // Generates a temporary, publicly accessible URL for downloading a result image.
     public downloadResult = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -312,18 +312,18 @@ export class ExecutionController {
             const execution = await executionDao.findByIdForDownload(executionId);
             
             if (!execution) {
-                res.status(404).json({ success: false, message: 'Execution not found' });
+                res.status(404).json({ success: false, message: "Execution not found" });
                 return;
             }
 
-            if (execution.status !== 'completed') {
+            if (execution.status !== "completed") {
                 const message = `Execution is ${execution.status}. Result is not available.`;
                 res.status(202).json({ success: false, message, data: { status: execution.status } });
                 return;
             }
 
             if (!execution.outputImage || execution.outputImage.length === 0) {
-                res.status(404).json({ success: false, message: 'Result image not found or is corrupted.' });
+                res.status(404).json({ success: false, message: "Result image not found or is corrupted." });
                 return;
             }
 
@@ -333,17 +333,17 @@ export class ExecutionController {
 
             res.status(200).json({
                 success: true,
-                message: 'Download URL generated successfully',
+                message: "Download URL generated successfully",
                 data: { executionId, imageUrl, imageSize: execution.outputImage.length, status: execution.status }
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             const err = error as Error;
-            this.errorLogger.logDatabaseError('DOWNLOAD_RESULT', 'executions', err.message);
+            this.errorLogger.logDatabaseError("DOWNLOAD_RESULT", "executions", err.message);
             this.apiLogger.logError(req, err);
-            res.status(500).json({ success: false, message: 'Error generating download URL' });
+            res.status(500).json({ success: false, message: "Error generating download URL" });
         }
-    }
+    };
 
     // Modified generateInpainting method for asynchronous preview processing
     public generateInpainting = async (req: Request, res: Response): Promise<void> => {
@@ -352,7 +352,7 @@ export class ExecutionController {
         try {
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
             if (!files?.originalImage?.[0] || !files?.maskImage?.[0]) {
-                res.status(400).json({ success: false, message: 'Both original and mask images are required' });
+                res.status(400).json({ success: false, message: "Both original and mask images are required" });
                 return;
             }
 
@@ -368,7 +368,7 @@ export class ExecutionController {
             // Validate buffers before queueing
             if (!Buffer.isBuffer(originalImageBuffer) || !Buffer.isBuffer(maskImageBuffer) || 
                 originalImageBuffer.length === 0 || maskImageBuffer.length === 0) {
-                res.status(400).json({ success: false, message: 'Invalid or empty image files' });
+                res.status(400).json({ success: false, message: "Invalid or empty image files" });
                 return;
             }
 
@@ -381,19 +381,19 @@ export class ExecutionController {
             // Cleanup temporary files
             Promise.all([fs.unlink(originalImageFile.path), fs.unlink(maskImageFile.path)])
                 .catch(cleanupError => {
-                    this.errorLogger.log('Failed to cleanup temporary preview files', { error: (cleanupError as Error).message });
+                    this.errorLogger.log("Failed to cleanup temporary preview files", { error: (cleanupError as Error).message });
                 });
 
             // Check if the job was queued successfully
             if (!result.success || !result.jobId) {
-                res.status(500).json({ success: false, message: result.error || 'Error queueing preview job' });
+                res.status(500).json({ success: false, message: result.error || "Error queueing preview job" });
                 return;
             }
 
             // Respond immediately with the job ID
             res.status(202).json({
                 success: true,
-                message: 'Preview job queued successfully',
+                message: "Preview job queued successfully",
                 data: {
                     jobId: result.jobId
                 }
@@ -403,10 +403,10 @@ export class ExecutionController {
             const err = error as Error;
             this.apiLogger.logError(req, err);
             if (!res.headersSent) {
-                res.status(500).json({ success: false, message: 'Error queueing preview job' });
+                res.status(500).json({ success: false, message: "Error queueing preview job" });
             }
         }
-    }
+    };
 
     // New method: Get preview status and result (Refactored)
     public getPreviewStatus = async (req: Request, res: Response): Promise<void> => {
@@ -419,13 +419,13 @@ export class ExecutionController {
             // The switch statement is now simple and delegates to helper methods.
             // This significantly reduces the cognitive complexity.
             switch (previewResult.status) {
-                case 'completed':
+                case "completed":
                     this.handleCompletedPreview(res, previewResult.result);
                     break;
-                case 'failed':
+                case "failed":
                     this.handleFailedPreview(res, previewResult.result);
                     break;
-                case 'not_found':
+                case "not_found":
                     this.handleNotFoundPreview(res);
                     break;
                 default:
@@ -435,14 +435,14 @@ export class ExecutionController {
             }
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error('Unknown error');
-            this.errorLogger.log('Error getting preview status', { jobId: req.params.jobId, errorMessage: err.message });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.log("Error getting preview status", { jobId: req.params.jobId, errorMessage: err.message });
             this.apiLogger.logError(req, err);
             if (!res.headersSent) {
-                res.status(500).json({ success: false, message: 'Error retrieving preview status' });
+                res.status(500).json({ success: false, message: "Error retrieving preview status" });
             }
         }
-    }
+    };
 
     // --- Private Helper Methods for getPreviewStatus ---
 
@@ -451,11 +451,11 @@ export class ExecutionController {
      */
     private handleCompletedPreview(res: Response, result: unknown): void {
         if (
-            typeof result !== 'object' || result === null ||
-            !('success' in result) || !(result as { success: boolean }).success
+            typeof result !== "object" || result === null ||
+            !("success" in result) || !(result as { success: boolean }).success
         ) {
-            const errorMessage = (result as { error?: string })?.error || 'Preview generation failed';
-            res.status(200).json({ status: 'failed', message: errorMessage });
+            const errorMessage = (result as { error?: string })?.error || "Preview generation failed";
+            res.status(200).json({ status: "failed", message: errorMessage });
             return;
         }
 
@@ -463,15 +463,15 @@ export class ExecutionController {
 
         if (outputImage && outputImage.length > 0) {
             res.set({
-                'Content-Type': 'image/png',
-                'Content-Disposition': 'inline; filename="preview.png"',
-                'Content-Length': outputImage.length.toString()
+                "Content-Type": "image/png",
+                "Content-Disposition": "inline; filename=\"preview.png\"",
+                "Content-Length": outputImage.length.toString()
             });
             res.send(outputImage);
         } else {
             res.status(200).json({
-                status: 'failed',
-                message: 'Preview output image is empty or invalid'
+                status: "failed",
+                message: "Preview output image is empty or invalid"
             });
         }
     }
@@ -480,22 +480,22 @@ export class ExecutionController {
      * Handles the 'failed' state for a preview job.
      */
     private handleFailedPreview(res: Response, result: unknown): void {
-        const errorMessage = (result as { error?: string })?.error || 'Preview job failed';
-        res.status(200).json({ status: 'failed', message: errorMessage });
+        const errorMessage = (result as { error?: string })?.error || "Preview job failed";
+        res.status(200).json({ status: "failed", message: errorMessage });
     }
 
     /**
      * Handles the 'not_found' state for a preview job.
      */
     private handleNotFoundPreview(res: Response): void {
-        res.status(404).json({ status: 'not_found', message: 'Preview job not found' });
+        res.status(404).json({ status: "not_found", message: "Preview job not found" });
     }
 
     /**
      * Handles any pending or processing states for a preview job.
      */
     private handlePendingPreview(res: Response, status: string): void {
-        res.status(200).json({ status: status, message: 'Preview processing...' });
+        res.status(200).json({ status: status, message: "Preview processing..." });
     }
 
     /**
@@ -517,9 +517,9 @@ export class ExecutionController {
 
         // Case 2: An object like { type: 'Buffer', data: [...] }
         if (
-            typeof outputImage === 'object' &&
+            typeof outputImage === "object" &&
             outputImage !== null &&
-            'data' in outputImage &&
+            "data" in outputImage &&
             Array.isArray((outputImage as { data: unknown }).data)
         ) {
             return Buffer.from((outputImage as { data: number[] }).data);

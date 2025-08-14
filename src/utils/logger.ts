@@ -1,5 +1,5 @@
 // Import necessary modules.
-import winston from 'winston';
+import winston from "winston";
 
 // Singleton Logger using Winston
 export class Logger {
@@ -17,11 +17,11 @@ export class Logger {
 
     // Create a new Winston logger instance
     private static createWinstonLogger(): winston.Logger {
-        const isProduction = process.env.NODE_ENV === 'production';
+        const isProduction = process.env.NODE_ENV === "production";
 
         // Create a new Winston logger instance
         const logger = winston.createLogger({
-            level: 'info',
+            level: "info",
             transports: [
                 new winston.transports.Console({
                     format: isProduction
@@ -31,10 +31,10 @@ export class Logger {
                           )
                         : winston.format.combine(
                             winston.format.colorize(),
-                            winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+                            winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
                             winston.format.printf((info) => {
                                 const { timestamp, level, message, ...meta } = info;
-                                const metaString = Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : '';
+                                const metaString = Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : "";
                                 return `[${String(timestamp)}] ${level}: ${String(message)}${metaString}`;
                             })
                           )

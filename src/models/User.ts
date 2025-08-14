@@ -1,7 +1,7 @@
 // Import necessary modules from Sequelize and other models.
-import { DataTypes, Model, Sequelize } from 'sequelize';
-import { DbConnection } from '../config/database';
-import { Execution } from './Execution'; 
+import { DataTypes, Model, Sequelize } from "sequelize";
+import { DbConnection } from "../config/database";
+import { Execution } from "./Execution"; 
 
 // User model representing a user in the system.
 export class User extends Model {
@@ -49,8 +49,8 @@ export class User extends Model {
       },
       {
         sequelize,
-        modelName: 'User',
-        tableName: 'users',
+        modelName: "User",
+        tableName: "users",
         timestamps: true, 
         underscored: true,
       }
@@ -61,8 +61,8 @@ export class User extends Model {
   static associate() {
     // A User can have many Executions. This establishes the one-to-many relationship.
     User.hasMany(Execution, { 
-        foreignKey: 'userId', 
-        as: 'executions'      // Alias for accessing the executions of a user.
+        foreignKey: "userId", 
+        as: "executions"      // Alias for accessing the executions of a user.
     });
   }
 }

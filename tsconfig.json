@@ -18,7 +18,7 @@
     "allowSyntheticDefaultImports": true, // Allow default imports from modules with no default export
     "experimentalDecorators": true, // Enable experimental support for decorators
     "emitDecoratorMetadata": true, // Emit design-type metadata for decorated declarations
-    "types": ["node"] // Include type definitions for Node.js
+    "types": ["node", "jest"] // Include type definitions for Node.js
   },
   "include": [
     "src/**/*" // Include all TypeScript files in the src directory

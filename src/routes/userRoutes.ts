@@ -1,15 +1,15 @@
 // Import the Router from Express to create modular route handlers.
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from "express";
 // Import the controller that contains the logic for user operations.
-import { UserController } from '../controllers/userController';
+import { UserController } from "../controllers/userController";
 // Import all the necessary middleware functions.
 import { 
     validateUserCreation, 
     validateLogin, 
     validateUserUpdate, 
     validateUUIDFormat 
-} from '../middleware/userMiddleware';
-import { authenticateToken, authorizeUser } from '../middleware/authMiddleware';
+} from "../middleware/userMiddleware";
+import { authenticateToken, authorizeUser } from "../middleware/authMiddleware";
 
 // Create a new router instance.
 const router = Router();
@@ -27,22 +27,22 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
 //This routes use spread syntax to apply multiple middleware functions.
 
 // CREATE - Register a new user.
-router.post('/register', ...validateUserCreation, asyncHandler(userController.createUser));
+router.post("/register", ...validateUserCreation, asyncHandler(userController.createUser));
 
 // LOGIN - Authenticate a user and return a token.
-router.post('/login', ...validateLogin, asyncHandler(userController.login));
+router.post("/login", ...validateLogin, asyncHandler(userController.login));
 
 // This routes require the requester to be authenticated (`authenticateToken`).
 
 // READ - Get the profile of the currently authenticated user.
-router.get('/profile', ...authenticateToken, asyncHandler(userController.getUser));
+router.get("/profile", ...authenticateToken, asyncHandler(userController.getUser));
 
 // UPDATE - Update a specific user's data.
-router.put('/:userId', validateUUIDFormat, ...authenticateToken, ...authorizeUser, 
+router.put("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, 
     ...validateUserUpdate, asyncHandler(userController.updateUser));
 
 // DELETE - Delete a specific user.
-router.delete('/:userId', validateUUIDFormat, ...authenticateToken, ...authorizeUser, asyncHandler(userController.deleteUser));
+router.delete("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, asyncHandler(userController.deleteUser));
 
 // Export the router to be mounted in the main application file.
 export default router;

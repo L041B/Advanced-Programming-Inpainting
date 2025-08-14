@@ -1,7 +1,7 @@
 // Import necessary modules from Sequelize and other parts of the application.
-import { DataTypes, Model, Sequelize } from 'sequelize';
-import { DbConnection } from '../config/database';
-import { User } from './User';
+import { DataTypes, Model, Sequelize } from "sequelize";
+import { DbConnection } from "../config/database";
+import { User } from "./User";
 
 // Execution model representing an inpainting job.
 export class Execution extends Model {
@@ -10,7 +10,7 @@ export class Execution extends Model {
   public originalImage!: Buffer;
   public maskImage!: Buffer;
   public outputImage!: Buffer;
-  public status!: 'pending' | 'processing' | 'completed' | 'failed'; 
+  public status!: "pending" | "processing" | "completed" | "failed"; 
   
   // Timestamps managed by Sequelize.
   public readonly createdAt!: Date;
@@ -32,7 +32,7 @@ export class Execution extends Model {
           allowNull: false,
           references: { 
             model: User,
-            key: 'id',
+            key: "id",
           },
         },
         
@@ -49,15 +49,15 @@ export class Execution extends Model {
           allowNull: true, 
         },
         status: {
-          type: DataTypes.ENUM('pending', 'processing', 'completed', 'failed'),
+          type: DataTypes.ENUM("pending", "processing", "completed", "failed"),
           allowNull: false,
-          defaultValue: 'pending',
+          defaultValue: "pending",
         },
       },
       {
         sequelize,
-        modelName: 'Execution',
-        tableName: 'executions',
+        modelName: "Execution",
+        tableName: "executions",
         timestamps: true, 
         underscored: true,
       }
@@ -68,8 +68,8 @@ export class Execution extends Model {
   static associate() {
     // An Execution belongs to a single User.
     Execution.belongsTo(User, { 
-        foreignKey: 'userId', 
-        as: 'user' // Alias for accessing the user of an execution
+        foreignKey: "userId", 
+        as: "user" // Alias for accessing the user of an execution
     });
   }
 }

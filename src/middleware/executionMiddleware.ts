@@ -1,10 +1,10 @@
 // Import necessary types from Express and custom factory modules.
-import { Request, Response, NextFunction } from 'express';
-import multer from 'multer';
-import path from 'path';
-import { loggerFactory, ErrorRouteLogger } from '../factory/loggerFactory';
-import { ExecutionRepository } from '../repository/executionRepository';
-import { ErrorStatus } from '../factory/status';
+import { Request, Response, NextFunction } from "express";
+import multer from "multer";
+import path from "path";
+import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ExecutionRepository } from "../repository/executionRepository";
+import { ErrorStatus } from "../factory/status";
 
 // Add interface for authenticated requests to ensure type safety.
 interface AuthenticatedRequest extends Request {
@@ -35,27 +35,27 @@ const createValidationError = (message: string, errorType: ErrorStatus, status: 
 const storage = multer.diskStorage({
     // Destination folder for uploaded files
     destination: (req, file, cb) => {
-        const uploadDir = './uploads';
+        const uploadDir = "./uploads";
         // cb is a callback function provided by multer to indicate the destination folder
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         // Generate a unique filename to prevent overwrites. 
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
         // cb is a callback function provided by multer to indicate the filename
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
     }
 });
 
 // Define a filter to accept only specific image MIME types.
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
     if (allowedMimeTypes.includes(file.mimetype)) {
         // Accept the file.
         cb(null, true);
     } else {
         // Reject the file by passing an error.
-        const error = new Error('Only image files (JPEG, PNG, GIF) are allowed');
+        const error = new Error("Only image files (JPEG, PNG, GIF) are allowed");
         error.name = "MulterFileFilterError"; 
         cb(error);
     }
@@ -72,8 +72,8 @@ const upload = multer({
 
 // uploadImagePair is a middleware for handling image uploads.
 export const uploadImagePair = upload.fields([
-    { name: 'originalImage', maxCount: 1 },
-    { name: 'maskImage', maxCount: 1 }
+    { name: "originalImage", maxCount: 1 },
+    { name: "maskImage", maxCount: 1 }
 ]);
 
 // checksFilePresence is a middleware for validating the presence of required files.
@@ -82,9 +82,9 @@ export const checkFilesPresence = (req: Request, res: Response, next: NextFuncti
 
     // Ensure both originalImage and maskImage are present in the request.
     if (!(files?.originalImage && files?.maskImage)) {
-        errorLogger.log('File presence validation failed', { reason: 'Both files required', ip: req.ip });
+        errorLogger.log("File presence validation failed", { reason: "Both files required", ip: req.ip });
         const error = createValidationError(
-            'Both originalImage and maskImage files are required',
+            "Both originalImage and maskImage files are required",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -99,9 +99,9 @@ export const checkUpdateFilesPresence = (req: Request, res: Response, next: Next
 
     // The request is valid if there are no files or if at least one of the expected files is present.
     if (req.files && Object.keys(req.files).length > 0 && !files.originalImage && !files.maskImage) {
-         errorLogger.log('Update file presence validation failed', { reason: 'At least one file required if files are sent', ip: req.ip });
+         errorLogger.log("Update file presence validation failed", { reason: "At least one file required if files are sent", ip: req.ip });
          const error = createValidationError(
-             'At least one image file (original or mask) is required for update',
+             "At least one image file (original or mask) is required for update",
              ErrorStatus.invalidFormat
          );
          next(error);
@@ -114,7 +114,7 @@ export const checkUpdateFilesPresence = (req: Request, res: Response, next: Next
 export const checkExecutionIdParam = (req: Request, res: Response, next: NextFunction): void => {
     if (!req.params.id) {
         const error = createValidationError(
-            'Execution ID is required',
+            "Execution ID is required",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -127,7 +127,7 @@ export const checkExecutionIdParam = (req: Request, res: Response, next: NextFun
 export const checkUserIdParam = (req: Request, res: Response, next: NextFunction): void => {
     if (!req.params.userId) {
         const error = createValidationError(
-            'User ID is required',
+            "User ID is required",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -140,7 +140,7 @@ export const checkUserIdParam = (req: Request, res: Response, next: NextFunction
 export const checkJobIdParam = (req: Request, res: Response, next: NextFunction): void => {
     if (!req.params.jobId) {
         const error = createValidationError(
-            'Job ID is required',
+            "Job ID is required",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -154,7 +154,7 @@ export const validateExecutionUUID = (req: Request, res: Response, next: NextFun
     const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     if (req.params.id && !uuidRegex.test(req.params.id)) {
         const error = createValidationError(
-            'Invalid Execution ID format',
+            "Invalid Execution ID format",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -168,7 +168,7 @@ export const validateUserUUID = (req: Request, res: Response, next: NextFunction
     const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     if (req.params.userId && !uuidRegex.test(req.params.userId)) {
         const error = createValidationError(
-            'Invalid User ID format',
+            "Invalid User ID format",
             ErrorStatus.invalidFormat
         );
         next(error);
@@ -186,7 +186,7 @@ export const verifyExecutionOwnership = async (req: AuthenticatedRequest, res: R
         // This check is a safeguard, but `authenticateToken` should always run first.
         if (!userId) {
             const error = createValidationError(
-                'Authentication required',
+                "Authentication required",
                 ErrorStatus.jwtNotValid,
                 401
             );
@@ -201,7 +201,7 @@ export const verifyExecutionOwnership = async (req: AuthenticatedRequest, res: R
         // If the execution doesn't exist, it's a 404 Not Found error.
         if (!execution) {
             const error = createValidationError(
-                'Execution not found',
+                "Execution not found",
                 ErrorStatus.resourceNotFoundError,
                 404
             );
@@ -213,7 +213,7 @@ export const verifyExecutionOwnership = async (req: AuthenticatedRequest, res: R
         if (execution.userId !== userId) {
             errorLogger.logAuthorizationError(userId, `execution_${executionId}`);
             const error = createValidationError(
-                'Access denied: You are not the owner of this execution',
+                "Access denied: You are not the owner of this execution",
                 ErrorStatus.userNotAuthorized,
                 403
             );
@@ -224,10 +224,10 @@ export const verifyExecutionOwnership = async (req: AuthenticatedRequest, res: R
         // If all checks pass, proceed to the next handler (the controller).
         next();
     } catch (error) {
-        const err = error instanceof Error ? error : new Error('Unknown error');
-        errorLogger.log('Error verifying execution ownership', { error: err.message });
+        const err = error instanceof Error ? error : new Error("Unknown error");
+        errorLogger.log("Error verifying execution ownership", { error: err.message });
         const validationError = createValidationError(
-            'Error verifying execution ownership',
+            "Error verifying execution ownership",
             ErrorStatus.readInternalServerError,
             500
         );

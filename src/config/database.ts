@@ -1,11 +1,11 @@
 // Import necessary modules
-import { Sequelize } from 'sequelize';
-import logger from '../utils/logger';
+import { Sequelize } from "sequelize";
+import logger from "../utils/logger";
 
 // A configuration function to centralize environment variable checks.
 function getDatabaseConfig() {
     // Ensure all required environment variables are set.
-    const requiredEnvVars = ['DB_HOST', 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'DB_PORT'];
+    const requiredEnvVars = ["DB_HOST", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB", "DB_PORT"];
     for (const v of requiredEnvVars) {
         if (!process.env[v]) {
             throw new Error(`FATAL: Missing required environment variable: ${v}`);
@@ -13,14 +13,14 @@ function getDatabaseConfig() {
     }
 
     return {
-        dialect: 'postgres' as const,
+        dialect: "postgres" as const,
         host: process.env.DB_HOST!,
         port: parseInt(process.env.DB_PORT!),
         username: process.env.POSTGRES_USER!,
         password: process.env.POSTGRES_PASSWORD!,
         database: process.env.POSTGRES_DB!,
-        logging: process.env.NODE_ENV === 'development' 
-            ? (sql: string) => logger.debug('Database Query', { sql }) 
+        logging: process.env.NODE_ENV === "development" 
+            ? (sql: string) => logger.debug("Database Query", { sql }) 
             : false,
         pool: {
             max: 5,
@@ -61,15 +61,15 @@ export class DbConnection {
             await connection.sequelize.authenticate();
 
             // Log the successful connection details.
-            logger.info('Database connection established successfully.', {
+            logger.info("Database connection established successfully.", {
                 database: connection.config.database,
                 host: connection.config.host,
                 port: connection.config.port
             });
         } catch (error) {
             // Log the error details.
-            const err = error instanceof Error ? error : new Error('Unknown database error');
-            logger.error('CRITICAL: Unable to connect to the database.', { errorMessage: err.message });
+            const err = error instanceof Error ? error : new Error("Unknown database error");
+            logger.error("CRITICAL: Unable to connect to the database.", { errorMessage: err.message });
             throw err;
         }
     }
@@ -78,10 +78,10 @@ export class DbConnection {
     public static async sync(): Promise<void> {
         try {
             await DbConnection.getInstance().sequelize.sync();
-            logger.info('Database synchronized successfully.');
+            logger.info("Database synchronized successfully.");
         } catch (error) {
-            const err = error instanceof Error ? error : new Error('Unknown sync error');
-            logger.error('Database synchronization failed.', { errorMessage: err.message });
+            const err = error instanceof Error ? error : new Error("Unknown sync error");
+            logger.error("Database synchronization failed.", { errorMessage: err.message });
             throw err;
         }
     }
@@ -92,7 +92,7 @@ export class DbConnection {
         if (instance) {
             await instance.sequelize.close();
             DbConnection.instance = null;
-            logger.info('Database connection closed.');
+            logger.info("Database connection closed.");
         }
     }
 }
