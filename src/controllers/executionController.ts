@@ -37,7 +37,6 @@ export class ExecutionController {
         this.executionLogger = loggerFactory.createExecutionLogger();
         this.apiLogger = loggerFactory.createApiLogger();
         this.errorLogger = loggerFactory.createErrorLogger();
-        
     }
 
     // performInpainting handles the inpainting process.
@@ -409,7 +408,7 @@ export class ExecutionController {
         }
     }
 
-    // New method: Get preview status and result
+    // New method: Get preview status and result (Refactored)
     public getPreviewStatus = async (req: Request, res: Response): Promise<void> => {
         const startTime = Date.now();
         this.apiLogger.logRequest(req);
@@ -417,57 +416,115 @@ export class ExecutionController {
             const { jobId } = req.params;
             const previewResult = await this.blackBoxProxy.getPreviewResult(jobId);
 
+            // The switch statement is now simple and delegates to helper methods.
+            // This significantly reduces the cognitive complexity.
             switch (previewResult.status) {
                 case 'completed':
-                    if (previewResult.result?.success) {
-                        // Handle buffer reconstruction if needed
-                        let outputImage = previewResult.result.outputImage;
-                        if (!Buffer.isBuffer(outputImage) && outputImage && typeof outputImage === 'object' && 'data' in outputImage) {
-                            outputImage = Buffer.from(outputImage.data);
-                        }
-                        
-                        // Send the image directly
-                        res.set({
-                            'Content-Type': 'image/png',
-                            'Content-Disposition': 'inline; filename="preview.png"',
-                            'Content-Length': outputImage.length.toString()
-                        });
-                        res.send(outputImage);
-                    } else {
-                        res.status(200).json({ 
-                            status: 'failed', 
-                            message: previewResult.result?.error || 'Preview generation failed' 
-                        });
-                    }
+                    this.handleCompletedPreview(res, previewResult.result);
                     break;
                 case 'failed':
-                    res.status(200).json({ 
-                        status: 'failed', 
-                        message: previewResult.result?.error || 'Preview job failed' 
-                    });
+                    this.handleFailedPreview(res, previewResult.result);
                     break;
                 case 'not_found':
-                    res.status(404).json({ 
-                        status: 'not_found', 
-                        message: 'Preview job not found' 
-                    });
+                    this.handleNotFoundPreview(res);
                     break;
                 default:
-                    // 'pending', 'processing', etc.
-                    res.status(200).json({ 
-                        status: previewResult.status, 
-                        message: 'Preview processing...' 
-                    });
+                    // Handles 'pending', 'processing', etc.
+                    this.handlePendingPreview(res, previewResult.status);
                     break;
             }
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
+            const err = error instanceof Error ? error : new Error('Unknown error');
             this.errorLogger.log('Error getting preview status', { jobId: req.params.jobId, errorMessage: err.message });
             this.apiLogger.logError(req, err);
             if (!res.headersSent) {
                 res.status(500).json({ success: false, message: 'Error retrieving preview status' });
             }
         }
+    }
+
+    // --- Private Helper Methods for getPreviewStatus ---
+
+    /**
+     * Handles the 'completed' state for a preview job.
+     */
+    private handleCompletedPreview(res: Response, result: unknown): void {
+        if (
+            typeof result !== 'object' || result === null ||
+            !('success' in result) || !(result as { success: boolean }).success
+        ) {
+            const errorMessage = (result as { error?: string })?.error || 'Preview generation failed';
+            res.status(200).json({ status: 'failed', message: errorMessage });
+            return;
+        }
+
+        const outputImage = this.extractImageBuffer(result as { outputImage?: unknown });
+
+        if (outputImage && outputImage.length > 0) {
+            res.set({
+                'Content-Type': 'image/png',
+                'Content-Disposition': 'inline; filename="preview.png"',
+                'Content-Length': outputImage.length.toString()
+            });
+            res.send(outputImage);
+        } else {
+            res.status(200).json({
+                status: 'failed',
+                message: 'Preview output image is empty or invalid'
+            });
+        }
+    }
+
+    /**
+     * Handles the 'failed' state for a preview job.
+     */
+    private handleFailedPreview(res: Response, result: unknown): void {
+        const errorMessage = (result as { error?: string })?.error || 'Preview job failed';
+        res.status(200).json({ status: 'failed', message: errorMessage });
+    }
+
+    /**
+     * Handles the 'not_found' state for a preview job.
+     */
+    private handleNotFoundPreview(res: Response): void {
+        res.status(404).json({ status: 'not_found', message: 'Preview job not found' });
+    }
+
+    /**
+     * Handles any pending or processing states for a preview job.
+     */
+    private handlePendingPreview(res: Response, status: string): void {
+        res.status(200).json({ status: status, message: 'Preview processing...' });
+    }
+
+    /**
+     * Extracts a Buffer from a potentially complex result object.
+     * This isolates the complex buffer reconstruction logic.
+     * @returns A Buffer or undefined if extraction fails.
+     */
+    private extractImageBuffer(resultObj: { outputImage?: unknown }): Buffer | undefined {
+        const { outputImage } = resultObj;
+
+        if (!outputImage) {
+            return undefined;
+        }
+
+        // Case 1: Already a Buffer
+        if (Buffer.isBuffer(outputImage)) {
+            return outputImage;
+        }
+
+        // Case 2: An object like { type: 'Buffer', data: [...] }
+        if (
+            typeof outputImage === 'object' &&
+            outputImage !== null &&
+            'data' in outputImage &&
+            Array.isArray((outputImage as { data: unknown }).data)
+        ) {
+            return Buffer.from((outputImage as { data: number[] }).data);
+        }
+
+        return undefined;
     }
 }

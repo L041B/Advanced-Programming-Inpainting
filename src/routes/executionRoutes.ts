@@ -1,5 +1,5 @@
 // Import necessary modules from Express and custom middleware/controllers
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { ExecutionController } from '../controllers/executionController';
 import { 
     validateExecutionCreation, 
@@ -18,39 +18,45 @@ const router = Router();
 // Instantiate the controller for execution logic.
 const executionController = new ExecutionController();
 
+function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+    return (req: Request, res: Response, next: NextFunction) => {
+        void Promise.resolve(fn(req, res, next)).catch(next);
+    };
+}
+
 // CREATE - Perform inpainting, creating a new execution record.
 router.post('/', 
     ...authenticateToken,
     uploadImagePair,
     ...validateExecutionCreation,
-    executionController.performInpainting
+    asyncHandler(executionController.performInpainting)
 );
 
 // CREATE - Generate an inpainting preview
 router.post('/preview',
     ...authenticateToken,
     uploadImagePair,
-    executionController.generateInpainting
+    asyncHandler(executionController.generateInpainting)
 );
 
 // READ - Get preview status and result by job ID (returns image when completed)
 router.get('/preview/:jobId',
     ...authenticateToken,
     ...validateJobId,
-    executionController.getPreviewStatus
+    asyncHandler(executionController.getPreviewStatus)
 );
 
 // READ - Get all executions for authenticated user 
 router.get('/user', 
     ...authenticateToken, 
-    executionController.getUserExecutions
+    asyncHandler(executionController.getUserExecutions)
 );
 
 // Get the status of an asynchronous job by its jobId.
 router.get('/job/:jobId/status', 
     ...authenticateToken,
     ...validateJobId,
-    executionController.getJobStatus
+    asyncHandler(executionController.getJobStatus)
 );
 
 // READ - Get a specific execution by its ID.
@@ -59,7 +65,7 @@ router.get('/:id',
     ...authenticateToken, 
     ...validateExecutionId,
     ...authorizeExecution,
-    executionController.getExecution
+    asyncHandler(executionController.getExecution)
 );
 
 // UPDATE - Update execution (modify one or both images)
@@ -70,7 +76,7 @@ router.put('/:id',
     ...authorizeExecution,
     uploadImagePair,
     ...validateExecutionUpdate,
-    executionController.updateExecution
+    asyncHandler(executionController.updateExecution)
 );
 
 // DELETE - Delete a specific execution
@@ -79,7 +85,7 @@ router.delete('/:id',
     ...authenticateToken, 
     ...validateExecutionId,
     ...authorizeExecution,
-    executionController.deleteExecution
+    asyncHandler(executionController.deleteExecution)
 );
 
 // Download the resulting inpainted image.
@@ -88,7 +94,7 @@ router.get('/:id/download',
     ...authenticateToken, 
     ...validateExecutionId,
     ...authorizeExecution,
-    executionController.downloadResult
+    asyncHandler(executionController.downloadResult)
 );
 
 // Get the status of a specific execution.
@@ -97,7 +103,7 @@ router.get('/:id/status',
     ...authenticateToken, 
     ...validateExecutionId,
     ...authorizeExecution,
-    executionController.getExecutionStatus
+    asyncHandler(executionController.getExecutionStatus)
 );
 
 // Export the router to be used in the main app file.

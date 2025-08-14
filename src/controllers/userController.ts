@@ -33,7 +33,7 @@ export class UserController {
 
         try {
             // Validate that all required fields are present in the request body.
-            const { name, surname, email, password } = req.body;
+            const { name, surname, email, password } = req.body as { name: string; surname: string; email: string; password: string };
             const user = await this.userRepository.createUser({ name, surname, email, password });
 
             this.userLogger.logUserCreation(user.id, user.email);
@@ -46,7 +46,7 @@ export class UserController {
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
+            const err = error instanceof Error ? error : new Error('Unknown error');
             // A 400 Bad Request is appropriate if user data is invalid (e.g., duplicate email).
             res.status(400).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError('CREATE_USER', 'users', err.message);
@@ -60,7 +60,7 @@ export class UserController {
         this.apiLogger.logRequest(req);
 
         try {
-            const { email, password } = req.body;
+            const { email, password } = req.body as { email: string; password: string };
             const user = await this.userRepository.validateLogin(email, password);
 
             if (!user) {
@@ -96,8 +96,8 @@ export class UserController {
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
-            res.status(500).json({ success: false, message: 'An unexpected error occurred during login' });
+            const err = error instanceof Error ? error : new Error('An unexpected error occurred during login');
+            res.status(500).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError('USER_LOGIN', 'users', err.message);
             this.apiLogger.logError(req, err);
         }
@@ -113,7 +113,11 @@ export class UserController {
 
         try {
             // Determine the target user ID from URL params or the authenticated user's token.
-            const userId = req.params.userId || req.user!.userId;
+            const userId = req.params.userId || (req.user ? req.user.userId : undefined);
+            if (!userId) {
+                res.status(400).json({ success: false, message: 'User ID not provided' });
+                return;
+            }
             const user = await this.userRepository.getUserById(userId);
 
             if (!user) {
@@ -130,8 +134,8 @@ export class UserController {
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
-            res.status(500).json({ success: false, message: 'Error retrieving user' });
+            const err = error instanceof Error ? error : new Error('Error retrieving user');
+            res.status(500).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError('GET_USER', 'users', err.message);
             this.apiLogger.logError(req, err);
         }
@@ -144,12 +148,12 @@ export class UserController {
 
         try {
             const userId = req.params.userId;
-            const { name, surname, email, password } = req.body;
+            const { name, surname, email, password } = req.body as { name: string; surname: string; email: string; password?: string };
             
             const updatedUser = await this.userRepository.updateUser(userId, { name, surname, email, password });
 
             // Log which fields were part of the update request payload.
-            const updatedFields = Object.keys(req.body).filter(key => ['name', 'surname', 'email', 'password'].includes(key));
+            const updatedFields = Object.keys(req.body as Record<string, unknown>).filter(key => ['name', 'surname', 'email', 'password'].includes(key));
             this.userLogger.logUserUpdate(userId, updatedFields);
 
             res.status(200).json({
@@ -159,7 +163,7 @@ export class UserController {
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
+            const err = error instanceof Error ? error : new Error('Error updating user');
             // A 400 Bad Request is appropriate if the update fails due to invalid data.
             res.status(400).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError('UPDATE_USER', 'users', err.message);
@@ -186,7 +190,7 @@ export class UserController {
             res.status(200).json({ success: true, message: 'User deleted successfully' });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error as Error;
+            const err = error instanceof Error ? error : new Error('Error deleting user');
             res.status(400).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError('DELETE_USER', 'users', err.message);
             this.apiLogger.logError(req, err);

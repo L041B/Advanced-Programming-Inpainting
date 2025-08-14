@@ -128,12 +128,26 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
 // Verifies that the user from the token actually exists in the database.
 export const verifyUserExists = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const user = await User.findByPk(req.user!.userId);
+        const userId = req.user && typeof req.user.userId === 'string' ? req.user.userId : undefined;
+        if (!userId) {
+            authLogger.log('User verification failed', {
+                reason: 'User ID missing from token',
+                ip: req.ip
+            });
+            const error = createAuthError(
+                'Invalid token - user not found',
+                ErrorStatus.jwtNotValid,
+                401
+            );
+            next(error);
+            return;
+        }
+        const user = await User.findByPk(userId);
         if (!user) {
             authLogger.log('User verification failed', {
                 reason: 'User not found in database',
-                userId: req.user!.userId,
-                email: req.user!.email,
+                userId,
+                email: req.user && typeof req.user.email === 'string' ? req.user.email : undefined,
                 ip: req.ip
             });
             
@@ -147,8 +161,8 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
         }
         
         authLogger.log('User verification successful', {
-            userId: req.user!.userId,
-            email: req.user!.email
+            userId,
+            email: req.user && typeof req.user.email === 'string' ? req.user.email : undefined
         });
         
         next();
@@ -168,7 +182,7 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
 // Checks if the authenticated user is the same as the user being requested.
 export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
 
-    const userIdToAccess = req.params.userId || req.body.userId;
+    const userIdToAccess = (req.params as { userId?: string }).userId || (req.body as { userId?: string }).userId;
     
     if (!userIdToAccess) {
         errorLogger.log('Authorization logic error', { 
@@ -209,7 +223,7 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
 export const checkExecutionOwnership = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const executionId = req.params.id; 
-        const userId = req.user?.userId;
+        const userId = req.user && typeof req.user.userId === 'string' ? req.user.userId : undefined;
 
         if (!userId) {
             authLogger.log('Execution ownership check failed', {

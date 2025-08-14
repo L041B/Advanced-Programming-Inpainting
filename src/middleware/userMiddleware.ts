@@ -23,7 +23,8 @@ const createValidationError = (message: string, errorType: ErrorStatus, status: 
 
 // checkRequiredFields is a middleware function that checks for the presence of required fields in the request body.
 export const checkRequiredFields = (req: Request, res: Response, next: NextFunction): void => {
-    const { name, surname, email, password } = req.body;
+    const body = req.body as { name?: string; surname?: string; email?: string; password?: string };
+    const { name, surname, email, password } = body;
     if (!name || !surname || !email || !password) {
         const missingFields: string[] = [!name && 'name', !surname && 'surname', !email && 'email', !password && 'password'].filter((field): field is string => Boolean(field));
         errorLogger.log('User creation validation failed', {
@@ -44,7 +45,8 @@ export const checkRequiredFields = (req: Request, res: Response, next: NextFunct
 
 //checkUpdateFields is a middleware function that checks for the presence of required fields in the request body.
 export const checkUpdateFields = (req: Request, res: Response, next: NextFunction): void => {
-    const { name, surname, email } = req.body;
+    const body = req.body as { name?: string; surname?: string; email?: string };
+    const { name, surname, email } = body;
     if (!name || !surname || !email) {
         const missingFields: string[] = [!name && 'name', !surname && 'surname', !email && 'email'].filter((field): field is string => Boolean(field));
         errorLogger.log('User update validation failed', { 
@@ -66,10 +68,11 @@ export const checkUpdateFields = (req: Request, res: Response, next: NextFunctio
 
 // validateNameFormat is a middleware function that checks the format of the name and surname fields.
 export const validateNameFormat = (req: Request, res: Response, next: NextFunction): void => {
-    const { name, surname } = req.body;
+    const body = req.body as { name?: string; surname?: string };
+    const { name, surname } = body;
     const nameRegex = /^[a-zA-Z\s'-]+$/; 
     
-    if (!nameRegex.test(name) || !nameRegex.test(surname)) {
+    if (!name || !surname || !nameRegex.test(name) || !nameRegex.test(surname)) {
         errorLogger.log('Name format validation failed', { name, surname, ip: req.ip });
         const error = createValidationError(
             'Name and surname must contain only letters, spaces, hyphens, or apostrophes',
@@ -83,10 +86,11 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
 
 // validateEmailFormat is a middleware function that checks the format of the email field.
 export const validateEmailFormat = (req: Request, res: Response, next: NextFunction): void => {
-    const { email } = req.body;
+    const body = req.body as { email?: string };
+    const { email } = body;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
     
-    if (!emailRegex.test(email)) {
+    if (!email || !emailRegex.test(email)) {
         errorLogger.log('Email format validation failed', { email, ip: req.ip });
         const error = createValidationError('Invalid email format', ErrorStatus.emailNotValid);
         next(error);
@@ -97,10 +101,11 @@ export const validateEmailFormat = (req: Request, res: Response, next: NextFunct
 
 // validatePasswordStrength is a middleware function that checks the strength of the password.
 export const validatePasswordStrength = (req: Request, res: Response, next: NextFunction): void => {
-    const { password } = req.body;
+    const body = req.body as { password?: string };
+    const { password } = body;
 
     // If the password field exists, validate its length.
-    if (password && password.length < 8) {
+    if (typeof password === 'string' && password.length < 8) {
         errorLogger.log('Password strength validation failed', { passwordLength: password.length, ip: req.ip });
         const error = createValidationError(
             'Password must be at least 8 characters long',
@@ -114,24 +119,27 @@ export const validatePasswordStrength = (req: Request, res: Response, next: Next
 
 // sanitizeUserData is a middleware function that sanitizes user data before processing.
 export const sanitizeUserData = (req: Request, res: Response, next: NextFunction): void => {
-    // apiLogger is used to log the sanitization process.
+    const body = req.body as { name?: string; surname?: string; email?: string };
     apiLogger.log('User data sanitized', {
-        originalEmail: req.body.email,
-        sanitizedEmail: req.body.email.trim().toLowerCase(),
+        originalEmail: typeof body.email === 'string' ? body.email : undefined,
+        sanitizedEmail: typeof body.email === 'string' ? body.email.trim().toLowerCase() : undefined,
         ip: req.ip
     });
 
     // Sanitize user input by trimming whitespace.
-    req.body.name = req.body.name.trim();
-    req.body.surname = req.body.surname.trim();
-    req.body.email = req.body.email.trim().toLowerCase();
+    const userBody = req.body as { name?: string; surname?: string; email?: string };
+    if (typeof userBody.name === 'string') userBody.name = userBody.name.trim();
+    if (typeof userBody.surname === 'string') userBody.surname = userBody.surname.trim();
+    if (typeof userBody.email === 'string') userBody.email = userBody.email.trim().toLowerCase();
+    req.body = userBody;
     
     next();
 };
 
 // checkLoginFields is a middleware function that checks for the presence of email and password fields in the login request.
 export const checkLoginFields = (req: Request, res: Response, next: NextFunction): void => {
-    const { email, password } = req.body;
+    const body = req.body as { email?: string; password?: string };
+    const { email, password } = body;
     if (!email || !password) {
         errorLogger.log('Login validation failed', { reason: 'Missing fields', ip: req.ip });
         const error = createValidationError(
@@ -146,9 +154,11 @@ export const checkLoginFields = (req: Request, res: Response, next: NextFunction
 
 // sanitizeLoginData is a middleware function that sanitizes login data before processing.
 export const sanitizeLoginData = (req: Request, res: Response, next: NextFunction): void => {
-    // apiLogger is used to log the sanitization process.
-    apiLogger.log('Login data sanitized', { email: req.body.email, ip: req.ip });
-    req.body.email = req.body.email.trim().toLowerCase();
+    const body = req.body as { email?: string };
+    apiLogger.log('Login data sanitized', { email: typeof body.email === 'string' ? body.email : undefined, ip: req.ip });
+    if (typeof body.email === 'string') {
+        (req.body as { email?: string }).email = body.email.trim().toLowerCase();
+    }
     next();
 };
 

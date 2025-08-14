@@ -235,6 +235,12 @@ export const verifyExecutionOwnership = async (req: AuthenticatedRequest, res: R
     }
 };
 
+// Utility to wrap async middleware for Express
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) =>
+    (req: Request, res: Response, next: NextFunction) => {
+        void Promise.resolve(fn(req, res, next)).catch(next);
+    };
+
 // validateExecutionCreation is a middleware for validating the creation of a new execution.
 export const validateExecutionCreation = [
     checkFilesPresence, // The redundant file type and size validators have been removed.
@@ -255,4 +261,5 @@ export const validateUserId = [checkUserIdParam, validateUserUUID];
 export const validateJobId = [checkJobIdParam];
 
 // Middleware for authorizing execution access.
-export const authorizeExecution = [verifyExecutionOwnership];
+// Wrap the async middleware with asyncHandler to avoid returning a Promise directly.
+export const authorizeExecution = [asyncHandler(verifyExecutionOwnership)];

@@ -106,7 +106,7 @@ export class BlackBoxProxy {
     }
 
     // Get preview result from completed job
-    public async getPreviewResult(jobId: string): Promise<{ status: string; result: any }> {
+    public async getPreviewResult(jobId: string): Promise<{ status: string; result: PreviewResponse | { success: false; error: string } | null }> {
         this.executionLogger.log('Getting preview result', { component: 'BlackBoxProxy', jobId });
         try {
             const jobStatus = await this.inpaintingQueue.getJobStatus(jobId);
@@ -116,7 +116,7 @@ export class BlackBoxProxy {
             }
 
             if (jobStatus.state === 'completed') {
-                return { status: 'completed', result: jobStatus.returnValue };
+                return { status: 'completed', result: jobStatus.returnValue as PreviewResponse };
             }
 
             if (jobStatus.state === 'failed') {

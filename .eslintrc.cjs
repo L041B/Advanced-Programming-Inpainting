@@ -1,4 +1,4 @@
-/*module.exports = {
+module.exports = {
   // Specifica che questo è il parser che ESLint deve usare.
   // `@typescript-eslint/parser` permette a ESLint di capire la sintassi di TypeScript.
   parser: '@typescript-eslint/parser',
@@ -7,9 +7,7 @@
   parserOptions: {
     ecmaVersion: 2020, // Permette di usare le feature moderne di ECMAScript
     sourceType: 'module', // Permette l'uso di 'import'
-    // Questa opzione è importante per le regole che richiedono informazioni sui tipi.
-    // Dice al parser dove trovare la configurazione di TypeScript.
-    project: './tsconfig.json',
+    // Rimuovi l'opzione `project` per evitare errori di parsing su file di configurazione non inclusi nel TSConfig.
   },
 
   // I plugin che ESLint deve usare.
@@ -27,7 +25,7 @@
 
     // (Opzionale, ma consigliato) Aggiunge regole più strette che usano le informazioni sui tipi.
     // Richiede l'opzione `project` in `parserOptions`.
-    'plugin:@typescript-eslint/recommended-requiring-type-checking',
+    // 'plugin:@typescript-eslint/recommended-requiring-type-checking', // Disabilitato per evitare errori di parsing su file di configurazione
   ],
 
   // Specifica che questo è il file di configurazione principale.
@@ -47,4 +45,4 @@
     // Puoi disattivarlo se stai iniziando e hai molto codice legacy.
     '@typescript-eslint/no-explicit-any': 'warn',
   },
-};*/
+};
