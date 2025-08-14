@@ -19,7 +19,7 @@ export interface InpaintingJobData {
 export interface JobStatusResponse {
     id: string | undefined;
     progress: number | object;
-    returnValue: any;
+    returnValue: unknown;
     failedReason: string | null;
     processedOn: number | null;
     finishedOn: number | null;
@@ -103,7 +103,7 @@ export class InpaintingQueue {
         return {
             id: job.id,
             progress: job.progress,
-            returnValue: job.returnvalue,
+            returnValue: job.returnvalue as unknown,
             failedReason: job.failedReason || null,
             processedOn: job.processedOn || null,
             finishedOn: job.finishedOn || null,

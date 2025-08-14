@@ -51,19 +51,19 @@ export class InpaintingWorker {
     }
 
     // Helper method to reconstruct buffers that may have been serialized by BullMQ
-    private reconstructBuffer(data: any): Buffer {
+    private reconstructBuffer(data: unknown): Buffer {
         if (Buffer.isBuffer(data)) {
             return data;
         }
         
         // Handle case where buffer was serialized/deserialized by Redis/BullMQ
-        if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
-            return Buffer.from(data.data);
+        if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: unknown }).data)) {
+            return Buffer.from((data as { data: number[] }).data);
         }
         
         // Handle case where buffer is a plain object with a 'length' property
         if (data && typeof data === 'object' && 'length' in data) {
-            return Buffer.from(data);
+            return Buffer.from(data as ArrayLike<number>);
         }
         
         throw new Error('Invalid buffer data format');
@@ -231,8 +231,8 @@ async function startWorker() {
         };
 
         // Listen for termination signals
-        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+        process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
+        process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
 
         console.log('Worker is ready and listening for jobs on the "inpainting-queue".');
 
@@ -245,5 +245,5 @@ async function startWorker() {
 
 // Ensures the worker starts only when the script is executed directly.
 if (require.main === module) {
-    startWorker();
+    void startWorker();
 }

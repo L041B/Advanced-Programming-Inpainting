@@ -102,6 +102,3 @@ router.get('/:id/status',
 
 // Export the router to be used in the main app file.
 export default router;
-
-
-

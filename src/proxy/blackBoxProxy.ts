@@ -142,17 +142,17 @@ export class BlackBoxProxy {
         // For immediate preview needs, we can still poll for completion
         // This is a fallback for existing code
         return new Promise((resolve) => {
-            const checkResult = async () => {
+            const checkResult = async (): Promise<void> => {
                 const result = await this.getPreviewResult(queueResult.jobId!);
                 if (result.status === 'completed') {
-                    resolve(result.result);
+                    resolve(result.result as PreviewResponse);
                 } else if (result.status === 'failed') {
-                    resolve(result.result);
+                    resolve(result.result as PreviewResponse);
                 } else {
-                    setTimeout(checkResult, 100);
+                    setTimeout(() => void checkResult(), 100);
                 }
             };
-            setTimeout(checkResult, 100);
+            setTimeout(() => void checkResult(), 100);
         });
     }
 

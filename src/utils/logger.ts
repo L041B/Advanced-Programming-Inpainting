@@ -32,9 +32,10 @@ export class Logger {
                         : winston.format.combine(
                             winston.format.colorize(),
                             winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-                            winston.format.printf(({ timestamp, level, message, ...meta }) => {
+                            winston.format.printf((info) => {
+                                const { timestamp, level, message, ...meta } = info;
                                 const metaString = Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : '';
-                                return `[${timestamp}] ${level}: ${message}${metaString}`;
+                                return `[${String(timestamp)}] ${level}: ${String(message)}${metaString}`;
                             })
                           )
                 })

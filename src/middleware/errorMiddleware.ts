@@ -106,7 +106,7 @@ export function routeNotFound(req: Request, res: Response, next: NextFunction) {
 }
 
 // Send the error response to the client.
-export function generalErrorHandler(err: CustomError, req: Request, res: Response, next: NextFunction) {
+export function generalErrorHandler(err: CustomError, req: Request, res: Response) {
     // The '!' non-null assertion is used here because we know that `getResponse` will be defined after `formatErrorResponse` is called.
     const response = err.getResponse!();
 

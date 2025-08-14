@@ -1,0 +1,8 @@
+# Ignora i file di configurazione di ESLint stessi
+#.eslintrc.js
+
+# Ignora tutto il codice JavaScript compilato nella cartella 'dist'
+#dist/
+
+# Ignora le dipendenze
+#node_modules/
