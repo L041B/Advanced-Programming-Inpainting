@@ -32,6 +32,46 @@ CREATE TABLE IF NOT EXISTS executions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+
+
+-- Create inference status enum type
+DO $$ BEGIN
+    CREATE TYPE inference_status AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'ABORTED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+
+
+-- Create datasets table
+CREATE TABLE IF NOT EXISTS datasets (
+    user_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    data JSONB, -- Contains image-mask pairs or frame-mask lists for videos, can be empty
+    tags TEXT[] DEFAULT '{}', -- Array of strings for tags
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    next_upload_index INTEGER DEFAULT 1, -- Tracks the next upload index for this dataset
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, name),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Create inferences table
+CREATE TABLE IF NOT EXISTS inferences (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    status inference_status NOT NULL DEFAULT 'PENDING',
+    model_id VARCHAR(255) NOT NULL,
+    parameters JSONB, -- JSON for Grad-Cam, etc.
+    result JSONB, -- JSON with inference output
+    dataset_name VARCHAR(255) NOT NULL,
+    user_id UUID NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id, dataset_name) REFERENCES datasets(user_id, name) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Create function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -54,8 +94,29 @@ CREATE TRIGGER update_executions_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+
+DROP TRIGGER IF EXISTS update_datasets_updated_at ON datasets;
+CREATE TRIGGER update_datasets_updated_at
+    BEFORE UPDATE ON datasets
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_inferences_updated_at ON inferences;
+CREATE TRIGGER update_inferences_updated_at
+    BEFORE UPDATE ON inferences
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_executions_user_id ON executions(user_id);
 CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
 CREATE INDEX IF NOT EXISTS idx_users_name_surname ON users(name, surname);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_datasets_user_id ON datasets(user_id);
+CREATE INDEX IF NOT EXISTS idx_datasets_tags ON datasets USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_datasets_is_deleted ON datasets(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_datasets_next_upload_index ON datasets(next_upload_index);
+CREATE INDEX IF NOT EXISTS idx_inferences_user_id ON inferences(user_id);
+CREATE INDEX IF NOT EXISTS idx_inferences_status ON inferences(status);
+CREATE INDEX IF NOT EXISTS idx_inferences_model_id ON inferences(model_id);
+CREATE INDEX IF NOT EXISTS idx_inferences_dataset ON inferences(user_id, dataset_name);

@@ -1,6 +1,11 @@
 # Node version 
 FROM node:lts
 
+# Install system dependencies including FFmpeg
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Put the application code in the container
 WORKDIR /usr/src/app
 
@@ -13,7 +18,7 @@ RUN npm install
 # Copy the rest of the application code
 COPY . .
 
-# Ensure necessary directories exist
+# Ensure necessary directories exist and build the application
 RUN npm run build && \
     mkdir -p /var/www/html/images && \
     chmod 755 /var/www/html/images && \

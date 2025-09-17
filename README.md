@@ -158,6 +158,15 @@ Client Request → Controller → Proxy → Queue → Worker → BlackBox → Da
 - `GET /api/executions/:id/status` - Get execution status (protected)
 - `GET /api/executions/job/:jobId/status` - Get job status by jobId (protected)
 
+#### **Dataset Management Endpoints**
+- `POST /api/datasets/create-empty` - Create an empty dataset (protected)
+- `POST /api/datasets/upload-data` - Upload and process data to dataset (protected)
+- `GET /api/datasets/` - Get all user datasets (protected)
+- `GET /api/datasets/:name` - Get specific dataset info (protected)
+- `GET /api/datasets/:name/data` - Get dataset contents with viewable image URLs (protected)
+- `GET /api/datasets/image/:token` - View dataset images directly (temporary token access)
+- `DELETE /api/datasets/:name` - Delete dataset (protected)
+
 ### 5. Queue Processing Flow
 
 ```mermaid
@@ -824,3 +833,449 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Controlla che l'applicazione sia compilata (`npm run build`)
 - Verifica i log per errori di inizializzazione
 - Riavvia l'applicazione per ripristinare i Singleton
+
+### 16. Dataset Management System - Guida Completa
+
+Il sistema di gestione dataset supporta la creazione, caricamento e visualizzazione di dataset per training di modelli di inpainting.
+
+#### **Creazione e Gestione Dataset**
+
+##### **Passo 1: Creare un Dataset Vuoto**
+```http
+POST {{baseUrl}}/api/datasets/create-empty
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "my-training-dataset",
+    "tags": ["segmentation", "medical", "training"]
+}
+```
+
+**Campi della Richiesta:**
+- `name` (string, obbligatorio): Nome del dataset (deve essere unico per utente)
+- `tags` (array, opzionale): Tag per categorizzare il dataset
+
+**Risposta Attesa:**
+```json
+{
+    "message": "Empty dataset created successfully",
+    "dataset": {
+        "userId": "user123",
+        "name": "my-training-dataset",
+        "data": null,
+        "tags": ["segmentation", "medical", "training"],
+        "isDeleted": false,
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z"
+    }
+}
+```
+
+##### **Passo 2: Caricare Dati nel Dataset**
+
+Il sistema supporta diversi tipi di caricamento dati:
+
+###### **Opzione A: Caricamento Immagine + Maschera**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: my-training-dataset
+Key: image       | Type: File | Value: [Seleziona immagine JPG/PNG]
+Key: mask        | Type: File | Value: [Seleziona maschera PNG binaria]
+```
+
+**Requisiti per le Immagini:**
+- **Immagine**: JPG, JPEG, PNG (max 500MB)
+- **Maschera**: PNG binaria (solo pixel neri e bianchi)
+
+**Esempi di File Supportati:**
+- `image.jpg` + `mask.png`
+- `photo.jpeg` + `binary_mask.png`
+
+###### **Opzione B: Caricamento Video + Maschera**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: my-video-dataset
+Key: image       | Type: File | Value: [Video MP4/AVI/MOV]
+Key: mask        | Type: File | Value: [Immagine PNG maschera]
+```
+
+**Come Funziona:**
+- Il sistema estrae 1 frame per secondo dal video
+- Applica la stessa maschera a tutti i frame estratti
+- Salva ogni frame come coppia immagine-maschera
+
+**Esempio Pratico:**
+- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset
+- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset
+
+###### **Opzione C: Caricamento Video + Video Maschera**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: my-complex-dataset
+Key: image       | Type: File | Value: [Video principale MP4]
+Key: mask        | Type: File | Value: [Video maschera MP4]
+```
+
+**Requisiti Speciali:**
+- Entrambi i video devono avere la **stessa durata**
+- Stesso numero di frame (stesso FPS)
+- Video maschera deve contenere solo frame binari
+
+**Errori Comuni:**
+```json
+// Video con durata diversa
+{
+    "success": false,
+    "error": "Video and mask video must have the same number of frames. Video: 10 frames, Mask: 9 frames"
+}
+```
+
+###### **Opzione D: Caricamento File ZIP**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: my-zip-dataset
+Key: image       | Type: File | Value: [File ZIP con struttura organizzata]
+Key: mask        | Type: File | Value: [Qualsiasi file - verrà ignorato per ZIP]
+```
+
+**Struttura ZIP Supportata:**
+```
+dataset.zip
+├── category1/
+│   ├── image1.jpg
+│   ├── image2.png
+│   ├── mask1.png        # File con "mask" nel nome
+│   └── mask2.png
+├── category2/
+│   ├── photo1.jpg
+│   ├── photo2.png
+│   └── masks/           # Cartella "masks"
+│       ├── mask1.png
+│       └── mask2.png
+└── category3/
+    ├── video1.mp4       # Supporta anche video in ZIP
+    ├── video2.mp4
+    ├── mask_video1.mp4  # Video maschera
+    └── single_mask.png  # Maschera singola per video
+```
+
+**Regole di Associazione ZIP:**
+1. **Per Nome**: File con "mask" nel nome vengono considerati maschere
+2. **Per Cartella**: File nella cartella "masks/" vengono considerati maschere
+3. **Associazione Automatica**: Ogni immagine viene abbinata con tutte le maschere della stessa categoria
+
+**Risposta per Tutti i Tipi:**
+```json
+{
+    "message": "Data uploaded and processed successfully",
+    "processedItems": 15
+}
+```
+
+#### **Visualizzazione e Navigazione Dataset**
+
+##### **1. Visualizzare tutti i tuoi dataset**
+```http
+GET {{baseUrl}}/api/datasets/
+Authorization: Bearer {{authToken}}
+```
+
+**Risposta:**
+```json
+{
+    "success": true,
+    "message": "Datasets retrieved successfully",
+    "data": [
+        {
+            "userId": "user123",
+            "name": "my-training-dataset",
+            "tags": ["segmentation", "medical"],
+            "createdAt": "2024-01-15T10:30:00Z",
+            "updatedAt": "2024-01-15T10:35:00Z",
+            "itemCount": 25,        // Numero totale di coppie immagine-maschera
+            "type": "video-frames"  // "image-mask" o "video-frames"
+        }
+    ]
+}
+```
+
+##### **2. Visualizzare contenuti dataset con paginazione**
+```http
+GET {{baseUrl}}/api/datasets/my-training-dataset/data?page=2&limit=5
+Authorization: Bearer {{authToken}}
+```
+
+**Parametri di Paginazione:**
+- `page` (numero): Pagina da visualizzare (default: 1)
+- `limit` (numero): Elementi per pagina (default: 10, max: 50)
+
+**Risposta con URL delle Immagini:**
+```json
+{
+    "success": true,
+    "message": "Dataset data retrieved successfully",
+    "data": {
+        "name": "my-training-dataset",
+        "type": "video-frames",
+        "totalItems": 25,
+        "currentPage": 2,
+        "totalPages": 5,        // 25 ÷ 5 = 5 pagine
+        "itemsPerPage": 5,
+        "items": [
+            {
+                "index": 5,         // Indice globale
+                "imagePath": "datasets/user123/my-dataset/frame_005.png",
+                "maskPath": "datasets/user123/my-dataset/mask.png",
+                "imageUrl": "http://localhost:3000/api/datasets/image/temp_token_123...",
+                "maskUrl": "http://localhost:3000/api/datasets/image/temp_token_456...",
+                "frameIndex": 5     // Solo per video-frames
+            }
+            // ... altri 4 elementi
+        ]
+    }
+}
+```
+
+##### **3. Navigazione tra Pagine**
+```http
+# Prima pagina (elementi 0-4)
+GET {{baseUrl}}/api/datasets/my-dataset/data?page=1&limit=5
+
+# Seconda pagina (elementi 5-9)
+GET {{baseUrl}}/api/datasets/my-dataset/data?page=2&limit=5
+
+# Ultima pagina
+GET {{baseUrl}}/api/datasets/my-dataset/data?page=5&limit=5
+```
+
+##### **4. Visualizzare Immagini Direttamente**
+Le URL generate (`imageUrl` e `maskUrl`) possono essere aperte direttamente nel browser:
+
+**Caratteristiche degli URL:**
+- ✅ **Nessun Bearer Token richiesto** nell'URL
+- ✅ **Token temporanei** (1 ora di validità)
+- ✅ **Sicurezza**: Solo il proprietario può generare i token
+- ✅ **Cache-friendly**: Le immagini vengono cachate
+
+**Esempio in HTML:**
+```html
+<img src="http://localhost:3000/api/datasets/image/temp_token_123..." />
+```
+
+#### **Workflow Completo: Creare e Popolare un Dataset**
+
+##### **Scenario 1: Dataset di Immagini Mediche**
+
+**Step 1: Creare Dataset**
+```http
+POST {{baseUrl}}/api/datasets/create-empty
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "medical-segmentation",
+    "tags": ["medical", "segmentation", "lungs"]
+}
+```
+
+**Step 2: Caricare Prima Coppia**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: medical-segmentation
+Key: image       | Type: File | Value: lung_scan_001.jpg
+Key: mask        | Type: File | Value: lung_mask_001.png
+```
+
+**Step 3: Caricare Altre Coppie**
+Ripeti lo Step 2 con altre immagini. Ogni caricamento aggiunge elementi al dataset esistente.
+
+**Step 4: Verificare Contenuto**
+```http
+GET {{baseUrl}}/api/datasets/medical-segmentation/data
+Authorization: Bearer {{authToken}}
+```
+
+##### **Scenario 2: Dataset da Video Sorveglianza**
+
+**Step 1: Creare Dataset**
+```http
+POST {{baseUrl}}/api/datasets/create-empty
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "surveillance-detection",
+    "tags": ["surveillance", "object-detection", "security"]
+}
+```
+
+**Step 2: Processare Video**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: surveillance-detection
+Key: image       | Type: File | Value: surveillance_video_30sec.mp4
+Key: mask        | Type: File | Value: person_mask.png
+```
+
+**Risultato**: 30 frame estratti (1 per secondo) con la stessa maschera applicata.
+
+##### **Scenario 3: Dataset Complesso da ZIP**
+
+**Step 1: Preparare ZIP**
+```
+training_data.zip
+├── indoor/
+│   ├── room1.jpg
+│   ├── room2.jpg
+│   ├── mask_room1.png
+│   └── mask_room2.png
+├── outdoor/
+│   ├── street1.jpg
+│   ├── street2.jpg
+│   └── masks/
+│       ├── street1_mask.png
+│       └── street2_mask.png
+└── mixed/
+    ├── video_sequence.mp4
+    └── universal_mask.png
+```
+
+**Step 2: Caricare ZIP**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: complex-training-set
+Key: image       | Type: File | Value: training_data.zip
+Key: mask        | Type: File | Value: [Qualsiasi file - ignorato]
+```
+
+**Risultato**: 
+- 4 coppie immagine-maschera dalle cartelle indoor/outdoor
+- N coppie dal video processato in mixed/
+
+#### **Gestione Errori e Best Practices**
+
+##### **Errori Comuni e Soluzioni**
+
+**1. Nome Dataset Duplicato**
+```json
+{
+    "success": false,
+    "error": "Dataset with this name already exists"
+}
+```
+**Soluzione**: Usa un nome diverso per il dataset.
+
+**2. Maschera Non Binaria**
+```json
+{
+    "success": false,
+    "error": "Mask must be a binary image"
+}
+```
+**Soluzione**: Converti la maschera in bianco e nero puro (0 e 255).
+
+**3. File Troppo Grande**
+```json
+{
+    "success": false,
+    "error": "File too large"
+}
+```
+**Soluzione**: Riduci dimensione file o comprimi il video.
+
+**4. FFmpeg Non Disponibile**
+```json
+{
+    "success": false,
+    "error": "FFmpeg is not available"
+}
+```
+**Soluzione**: Usa solo immagini o controlla installazione Docker.
+
+##### **Best Practices**
+
+**Nomi Dataset:**
+- Usa nomi descrittivi: `medical-ct-scans` invece di `dataset1`
+- Include versioni: `traffic-v2`, `faces-augmented-v3`
+
+**Tag Organizzazione:**
+- Domain: `medical`, `automotive`, `surveillance`
+- Type: `segmentation`, `detection`, `classification`  
+- Status: `training`, `validation`, `test`
+
+**File Preparation:**
+- **Immagini**: Usa PNG per qualità, JPG per dimensioni ridotte
+- **Maschere**: Sempre PNG, rigorosamente binarie
+- **Video**: Preferisci MP4 con codec H.264
+- **ZIP**: Organizza in sottocartelle logiche
+
+**Paginazione Strategica:**
+- Dataset piccoli (< 50): `limit=50` (una pagina)
+- Dataset medi (50-200): `limit=20`
+- Dataset grandi (> 200): `limit=10` per performance
+
+#### **Script Postman per Automazione**
+
+##### **Collection Variables Setup**
+```javascript
+// In Pre-request Script della Collection
+pm.globals.set("baseUrl", "http://localhost:3000");
+```
+
+##### **Script Post-Login**
+```javascript
+// In Post-response del login
+if (pm.response.code === 200) {
+    const response = pm.response.json();
+    pm.environment.set("authToken", response.data.token);
+    pm.environment.set("userId", response.data.user.userId);
+}
+```
+
+##### **Script Post-Dataset Creation**
+```javascript
+// In Post-response della creazione dataset
+if (pm.response.code === 201) {
+    const response = pm.response.json();
+    pm.environment.set("lastDatasetName", response.dataset.name);
+    console.log(`Dataset created: ${response.dataset.name}`);
+}
+```
+
+##### **Script Navigazione Automatica**
+```javascript
+// Per navigare automaticamente tra pagine
+const currentPage = parseInt(pm.environment.get("currentPage") || "1");
+const totalPages = parseInt(pm.environment.get("totalPages") || "1");
+
+if (currentPage < totalPages) {
+    pm.environment.set("nextPage", currentPage + 1);
+    console.log(`Next page available: ${currentPage + 1}`);
+} else {
+    console.log("You've reached the last page");
+}
+```
+
+Ora hai una guida completa per creare, popolare e navigare i dataset usando Postman! 📊🎯

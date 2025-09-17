@@ -11,6 +11,8 @@ import executionRoutes from "./routes/executionRoutes"; // Router for image proc
 import appRoutes from "./routes/appRoutes";         // Router for application-level endpoints.
 import logger from "./utils/logger";                  // A custom logger utility for structured logging.
 import { routeNotFoundHandler, errorHandlingChain } from "./middleware/errorHandler";  // Error handling middleware
+import datasetRoutes from "./routes/datasetRoutes";
+import { FileStorage } from "./utils/fileStorage";
 dotenv.config();
 
 // Initialize the Express application.
@@ -46,14 +48,18 @@ app.use("/api/users", userRoutes);
 // Mount the execution-related routes under the '/api/executions' path.
 app.use("/api/executions", executionRoutes); 
 
+app.use("/api/datasets", datasetRoutes);
 // Mount the error handler
 app.use(routeNotFoundHandler);
 
 // Mount the error handling middleware chain.
 app.use(...errorHandlingChain);
 
-// Initialize the database connection.
-DbConnection.connect()
+// Initialize the database connection and file storage.
+Promise.all([
+    DbConnection.connect(),
+    FileStorage.init()
+])
     .then(() => {
         logger.info("Database connected successfully");
 
