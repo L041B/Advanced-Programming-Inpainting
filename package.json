@@ -9,13 +9,8 @@
     "build": "tsc",
     "clean": "rimraf dist",
     "build:clean": "npm run clean && npm run build",
-    "worker": "node dist/workers/inpaintingWorker.js",
-    "worker:dev": "nodemon --exec ts-node src/workers/inpaintingWorker.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint \"src/**/*.ts\"",
-    "lint:fix": "eslint \"src/**/*.ts\" --fix"
+    "worker": "ts-node src/workers/startWorkers.ts",
+    "dev:worker": "nodemon --exec ts-node src/workers/startWorkers.ts"
   },
   "keywords": [
     "nodejs",
@@ -31,7 +26,9 @@
   "license": "MIT",
   "dependencies": {
     "adm-zip": "^0.5.16",
+    "axios": "^1.12.2",
     "bcrypt": "^5.1.1",
+    "bull": "^4.12.2",
     "bullmq": "^4.15.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -51,6 +48,7 @@
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
+    "@types/axios": "^0.9.36",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.16",
     "@types/express": "^4.17.21",

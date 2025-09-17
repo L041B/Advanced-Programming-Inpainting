@@ -4,7 +4,7 @@ import sharp from "sharp";
 import path from "path";
 import fs from "fs/promises";
 import logger from "../utils/logger";
-import { Dataset } from "../models/Dataset";
+import { DatasetRepository } from "../repository/datasetRepository";
 import { FileStorage } from "../utils/fileStorage";
 
 
@@ -20,20 +20,20 @@ interface DatasetData {
 }
 
 export class DatasetMiddleware {
+    private static datasetRepository = DatasetRepository.getInstance();
+
     // Create an empty dataset
-    static async createEmptyDataset(userId: string, name: string, tags?: string[]): Promise<{ success: boolean; dataset?: Dataset | null; error?: string }> {
+    static async createEmptyDataset(userId: string, name: string, tags?: string[]): Promise<{ success: boolean; dataset?: Record<string, unknown>; error?: string }> {
         try {
             // Check if dataset already exists
-            const existing = await Dataset.findOne({
-                where: { userId, name, isDeleted: false }
-            });
+            const exists = await DatasetMiddleware.datasetRepository.datasetExists(userId, name);
 
-            if (existing) {
+            if (exists) {
                 return { success: false, error: "Dataset with this name already exists" };
             }
 
             // Create empty dataset
-            const dataset = await Dataset.create({
+            const dataset = await DatasetMiddleware.datasetRepository.createDataset({
                 userId,
                 name,
                 data: null,
@@ -60,9 +60,7 @@ export class DatasetMiddleware {
             tempFiles.push(imageFile.path, maskFile.path);
             
             // Get current upload index and increment it
-            const dataset = await Dataset.findOne({
-                where: { userId, name: datasetName, isDeleted: false }
-            });
+            const dataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
 
             if (!dataset) {
                 return { success: false, error: "Dataset not found" };
@@ -129,21 +127,8 @@ export class DatasetMiddleware {
                 return { success: false, error: "Unsupported file format" };
             }
 
-            // Add processed data to dataset and increment upload index
-            const result = await this.addDataToDataset(userId, datasetName, processedData);
-            
-            if (result.success) {
-                // Increment the upload index for next upload
-                await dataset.update({ nextUploadIndex: currentUploadIndex + 1 });
-                
-                logger.info("Upload index updated", { 
-                    userId, 
-                    datasetName, 
-                    uploadIndex: currentUploadIndex, 
-                    nextUploadIndex: currentUploadIndex + 1,
-                    processedItems: result.processedItems
-                });
-            }
+            // Add processed data to dataset and increment upload index in a single operation
+            const result = await this.addDataToDatasetAndIncrementIndex(userId, datasetName, processedData, currentUploadIndex + 1);
             
             // Clean up temp files
             await FileStorage.cleanupTempFiles(tempFiles);
@@ -761,17 +746,16 @@ export class DatasetMiddleware {
         }
     }
 
-    // Add processed data to dataset - updated to store file paths instead of base64
-    private static async addDataToDataset(
+    // Add processed data to dataset and increment upload index in a single transaction
+    private static async addDataToDatasetAndIncrementIndex(
         userId: string, 
         datasetName: string, 
-        data: DatasetData
+        data: DatasetData,
+        nextUploadIndex: number
     ): Promise<{ success: boolean; processedItems?: number; error?: string }> {
         try {
             // Get existing dataset
-            const dataset = await Dataset.findOne({
-                where: { userId, name: datasetName, isDeleted: false }
-            });
+            const dataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
 
             if (!dataset) {
                 return { success: false, error: "Dataset not found" };
@@ -793,8 +777,19 @@ export class DatasetMiddleware {
                 ]
             };
 
-            // Update dataset
-            await dataset.update({ data: updatedData });
+            // Update dataset with both data and nextUploadIndex in a single operation
+            await DatasetMiddleware.datasetRepository.updateDataset(userId, datasetName, { 
+                data: updatedData,
+                nextUploadIndex: nextUploadIndex
+            });
+
+            logger.info("Dataset updated successfully", { 
+                userId, 
+                datasetName, 
+                processedItems: data.pairs.length,
+                totalItems: updatedData.pairs.length,
+                nextUploadIndex
+            });
 
             return { success: true, processedItems: data.pairs.length };
         } catch (error) {
@@ -803,3 +798,5 @@ export class DatasetMiddleware {
         }
     }
 }
+      
+    

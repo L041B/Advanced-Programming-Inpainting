@@ -12,7 +12,12 @@ import appRoutes from "./routes/appRoutes";         // Router for application-le
 import logger from "./utils/logger";                  // A custom logger utility for structured logging.
 import { routeNotFoundHandler, errorHandlingChain } from "./middleware/errorHandler";  // Error handling middleware
 import datasetRoutes from "./routes/datasetRoutes";
+import inferenceRoutes from "./routes/inferenceRoutes";
 import { FileStorage } from "./utils/fileStorage";
+import "./models/User";
+import "./models/Dataset";
+import "./models/Inference";
+
 dotenv.config();
 
 // Initialize the Express application.
@@ -49,6 +54,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/executions", executionRoutes); 
 
 app.use("/api/datasets", datasetRoutes);
+app.use("/api/inferences", inferenceRoutes);
 // Mount the error handler
 app.use(routeNotFoundHandler);
 

@@ -1,4 +1,4 @@
-import { DataTypes, Model, Sequelize } from "sequelize";
+import { DataTypes, Model, Sequelize, Op } from "sequelize";
 import { DbConnection } from "../config/database";
 import { User } from "./User";
 import { Dataset } from "./Dataset";
@@ -67,10 +67,15 @@ export class Inference extends Model {
   static associate() {
     Inference.belongsTo(User, { foreignKey: "userId", as: "user" });
     Inference.belongsTo(Dataset, {
-      foreignKey: "userId",
-      targetKey: "userId",
-      as: "dataset",
-      constraints: false
+      foreignKey: "datasetName",
+      targetKey: "name",
+      constraints: false,
+      scope: {
+        userId: {
+          [Op.col]: "Inference.userId"
+        }
+      },
+      as: "dataset"
     });
   }
 }

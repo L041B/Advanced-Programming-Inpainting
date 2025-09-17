@@ -14,9 +14,9 @@ services:
     # 
     hostname: redis
 
-  # Service for PostgreSQL database
+  # Service for PostgreSQL database - FIXED VERSION
   postgres:
-    image: postgres:alpine
+    image: postgres:15-alpine  # Changed from postgres:alpine to specific version
     hostname: postgres
     env_file:
       - ./.env
@@ -33,6 +33,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Python inference service
+  python-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    ports:
+      - "5000:5000"
+    volumes:
+      - uploads:/usr/src/app/uploads
+    networks:
+      - inpainting-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Service for the main application
   app:
     build:
@@ -42,6 +60,8 @@ services:
       - '${PORT}:${PORT}'
     env_file:
       - ./.env
+    environment:
+      - PYTHON_SERVICE_URL=http://python-inference:5000
     volumes:
       - uploads:/usr/src/app/uploads
       - static_files:/var/www/html/images
@@ -50,6 +70,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      python-inference:
+        condition: service_healthy
     networks:
       - inpainting-network
     restart: unless-stopped
@@ -61,6 +83,8 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./.env
+    environment:
+      - PYTHON_SERVICE_URL=http://python-inference:5000
     volumes:
       - static_files:/var/www/html/images
     command: npm run worker
@@ -69,6 +93,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      python-inference:
+        condition: service_healthy
     networks:
       - inpainting-network
     restart: unless-stopped

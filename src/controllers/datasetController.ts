@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { DatasetMiddleware } from "../middleware/datasetMiddleware";
-import { Dataset } from "../models/Dataset";
+import { DatasetRepository } from "../repository/datasetRepository";
 import logger from "../utils/logger";
 
 interface AuthRequest extends Request {
@@ -11,6 +11,8 @@ interface AuthRequest extends Request {
 }
 
 export class DatasetController {
+    private static datasetRepository = DatasetRepository.getInstance();
+
     // Create an empty dataset
     static async createEmptyDataset(req: AuthRequest, res: Response): Promise<void> {
         try {
@@ -84,11 +86,7 @@ export class DatasetController {
         try {
             const userId = req.user!.userId;
 
-            const datasets = await Dataset.findAll({
-                where: { userId, isDeleted: false },
-                attributes: ["userId", "name", "tags", "createdAt", "updatedAt", "data"],
-                order: [["createdAt", "DESC"]]
-            });
+            const datasets = await DatasetController.datasetRepository.getUserDatasets(userId);
 
             const datasetsWithCount = datasets.map((dataset) => {
                 const data = (dataset.data ?? {}) as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string };
@@ -121,9 +119,7 @@ export class DatasetController {
             const userId = req.user!.userId;
             const { name } = req.params;
 
-            const dataset = await Dataset.findOne({
-                where: { userId, name, isDeleted: false }
-            });
+            const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
             if (!dataset) {
                 res.status(404).json({ error: "Dataset not found" });
@@ -163,9 +159,7 @@ export class DatasetController {
             const { name } = req.params;
             const { page = 1, limit = 10 } = req.query;
 
-            const dataset = await Dataset.findOne({
-                where: { userId, name, isDeleted: false }
-            });
+            const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
             if (!dataset) {
                 res.status(404).json({ error: "Dataset not found" });
@@ -323,17 +317,12 @@ export class DatasetController {
             const userId = req.user!.userId;
             const { name } = req.params;
 
-            const dataset = await Dataset.findOne({
-                where: { userId, name, isDeleted: false }
-            });
+            const success = await DatasetController.datasetRepository.deleteDataset(userId, name);
 
-            if (!dataset) {
+            if (!success) {
                 res.status(404).json({ error: "Dataset not found" });
                 return;
             }
-
-            // Soft delete
-            await dataset.update({ isDeleted: true });
 
             res.status(200).json({ 
                 success: true,

@@ -452,6 +452,22 @@ Quando esegui questa richiesta, dovresti vedere nei log dell'applicazione:
 [2024-01-15T10:35:00.130Z] [INFO]: API_RESPONSE: GET /api/executions/job/12345/status - 200 | Data: {"userId":1,"statusCode":200,"executionTime":7}
 ```
 
+### Video Processing
+1. Group frames by `uploadIndex` (video identifier)
+2. Sort frames by `frameIndex` within each group
+3. Process each frame individually
+4. Reconstruct video from processed frames **at 1 FPS** (matching original sampling)
+5. Output MP4 video file with same duration as original
+
+**Log Esempio:**
+```
+[INFO] Starting dataset processing for user: user-uuid
+[INFO] Processing single image: datasets/user/image1.jpg
+[INFO] Processing video frames for video ID: 1
+[INFO] Video processing completed: 30 frames → inferences/user/video_1.mp4 (30s @ 1 FPS)
+[INFO] Dataset processing completed. Images: 5, Videos: 2
+```
+
 **In caso di Job Non Trovato:**
 ```
 [2024-01-15T10:35:00.123Z] [INFO]: API_REQUEST: GET /api/executions/job/invalid123/status
@@ -910,10 +926,11 @@ Key: mask        | Type: File | Value: [Immagine PNG maschera]
 - Il sistema estrae 1 frame per secondo dal video
 - Applica la stessa maschera a tutti i frame estratti
 - Salva ogni frame come coppia immagine-maschera
+- **Durante l'inferenza, ricostruisce il video a 1 FPS** (ogni frame dura 1 secondo)
 
 **Esempio Pratico:**
-- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset
-- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset
+- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset → Video output di 10 secondi a 1 FPS
+- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset → Video output di 30 secondi a 1 FPS
 
 ###### **Opzione C: Caricamento Video + Video Maschera**
 ```http
@@ -1136,7 +1153,21 @@ Key: image       | Type: File | Value: surveillance_video_30sec.mp4
 Key: mask        | Type: File | Value: person_mask.png
 ```
 
-**Risultato**: 30 frame estratti (1 per secondo) con la stessa maschera applicata.
+**Come Funziona:**
+- Il sistema estrae 1 frame per secondo dal video
+- Applica la stessa maschera a tutti i frame estratti
+- Salva ogni frame come coppia immagine-maschera
+- **Durante l'inferenza, ricostruisce il video a 1 FPS** (ogni frame dura 1 secondo)
+
+**Esempio Pratico:**
+- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset → Video output di 10 secondi a 1 FPS
+- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset → Video output di 30 secondi a 1 FPS
+
+**Step 3: Verificare Contenuto**
+```http
+GET {{baseUrl}}/api/datasets/surveillance-detection/data
+Authorization: Bearer {{authToken}}
+```
 
 ##### **Scenario 3: Dataset Complesso da ZIP**
 
@@ -1278,4 +1309,693 @@ if (currentPage < totalPages) {
 }
 ```
 
+##### **Script per Polling Automatico:**
+```javascript
+// Post-response script per status check
+const maxRetries = parseInt(pm.environment.get("maxRetries"));
+const currentRetry = parseInt(pm.environment.get("currentRetry"));
+const status = pm.response.json().data.status;
+
+if (status === "RUNNING" && currentRetry < maxRetries) {
+    // Incrementa retry counter
+    pm.environment.set("currentRetry", currentRetry + 1);
+    
+    // Aspetta e riprova
+    setTimeout(() => {
+        postman.setNextRequest("Get Inference Status");
+    }, 5000);
+    
+    console.log(`⏳ Retry ${currentRetry + 1}/${maxRetries} - Status: ${status}`);
+} else if (status === "COMPLETED") {
+    pm.environment.set("currentRetry", "0");
+    postman.setNextRequest("Get Inference Results");
+    console.log("✅ Processing completed, moving to results");
+} else if (status === "FAILED" || currentRetry >= maxRetries) {
+    pm.environment.set("currentRetry", "0");
+    console.log("❌ Processing failed or max retries reached");
+}
+```
+
+##### **Errori Comuni e Soluzioni**
+
+**1. Dataset Vuoto**
+```json
+{
+    "error": "Dataset is empty"
+}
+```
+**Soluzione:** Aggiungi almeno una coppia immagine-maschera al dataset.
+
+**2. Python Service Non Disponibile**
+```json
+{
+    "status": "FAILED",
+    "result": {
+        "error": "Python service error: connect ECONNREFUSED 127.0.0.1:5000"
+    }
+}
+```
+**Soluzione:** 
+- Verifica che il container `python-inference` sia running
+- Controlla `docker-compose ps`
+- Riavvia il servizio: `docker-compose restart python-inference`
+
+**3. File Non Trovato Durante Processing**
+```json
+{
+    "status": "FAILED",
+    "result": {
+        "error": "Could not load image: datasets/user/missing.jpg"
+    }
+}
+```
+**Soluzione:** 
+- Il file è stato eliminato dopo la creazione del dataset
+- Ricarica i dati nel dataset
+
+**4. Timeout del Processing**
+```json
+{
+    "status": "FAILED",  
+    "result": {
+        "error": "Python service error: timeout of 300000ms exceeded"
+    }
+}
+```
+**Soluzione:**
+- Dataset troppo grande per il timeout (5 minuti)
+- Dividi il dataset in parti più piccole
+- Aumenta il timeout in `inferenceBlackBoxAdapter.ts`
+
+##### **Postman Environment Setup per Inferenza**
+
+**Variabili Ambiente Consigliate:**
+```json
+{
+    "baseUrl": "http://localhost:3000",
+    "authToken": "[populated after login]",
+    "userId": "[populated after login]",
+    "datasetName": "test-inference-dataset",
+    "inferenceId": "[populated after creating inference]",
+    "maxRetries": "10",
+    "retryDelay": "5000",
+    "currentRetry": "0"
+}
+```
+
+**Postman Tests per Validazione:**
+```javascript
+// Test per verifica creazione inferenza
+pm.test("Inference created successfully", function () {
+    pm.response.to.have.status(201);
+    pm.response.to.have.jsonBody("success", true);
+    pm.response.to.have.jsonBody("inference.status", "PENDING");
+});
+
+// Test per verifica completamento
+pm.test("Inference completed", function () {
+    const status = pm.response.json().data.status;
+    if (status === "COMPLETED") {
+        pm.test("Has results", function () {
+            pm.response.to.have.jsonBody("data.result");
+        });
+    }
+});
+```
+
 Ora hai una guida completa per creare, popolare e navigare i dataset usando Postman! 📊🎯
+
+### 17. Inference System - Guida Completa Postman
+
+Il sistema di inferenza permette di processare interi dataset attraverso il servizio Python blackbox, generando risultati batch per immagini e video.
+
+#### **Workflow Completo di Inferenza**
+
+##### **Prerequisiti**
+Prima di iniziare, assicurati di avere:
+- Un dataset popolato con almeno una coppia immagine-maschera
+- Token di autenticazione valido
+- Python inference service attivo (porta 5000)
+
+##### **Passo 1: Creare una Nuova Inferenza**
+```http
+POST {{baseUrl}}/api/inferences/create
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "datasetName": "medical-segmentation",
+    "modelId": "default_inpainting",
+    "parameters": {
+        "quality": "high",
+        "blendMode": "lighten",
+        "outputFormat": "png",
+        "customParameter": "value"
+    }
+}
+```
+
+**Campi della Richiesta:**
+- `datasetName` (string, obbligatorio): Nome del dataset da processare
+- `modelId` (string, opzionale): ID del modello da usare (default: "default_inpainting")
+- `parameters` (object, opzionale): Parametri personalizzati per il processing
+
+**Risposta Attesa:**
+```json
+{
+    "success": true,
+    "message": "Inference created and processing started",
+    "inference": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "PENDING",
+        "modelId": "default_inpainting",
+        "datasetName": "medical-segmentation",
+        "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+}
+```
+
+**Script Post-Response in Postman:**
+```javascript
+if (pm.response.code === 201) {
+    const response = pm.response.json();
+    pm.environment.set("inferenceId", response.inference.id);
+    pm.environment.set("datasetName", response.inference.datasetName);
+    console.log(`Inference created: ${response.inference.id}`);
+    console.log(`Status: ${response.inference.status}`);
+}
+```
+
+##### **Passo 2: Monitorare lo Stato dell'Inferenza**
+```http
+GET {{baseUrl}}/api/inferences/{{inferenceId}}
+Authorization: Bearer {{authToken}}
+```
+
+**Stati Possibili:**
+- `PENDING`: In attesa di iniziare il processing
+- `RUNNING`: Processing in corso
+- `COMPLETED`: Processing completato con successo
+- `FAILED`: Processing fallito
+- `ABORTED`: Processing interrotto
+
+**Risposta Durante Processing (RUNNING):**
+```json
+{
+    "success": true,
+    "message": "Inference retrieved successfully",
+    "data": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "RUNNING",
+        "modelId": "default_inpainting",
+        "parameters": {
+            "quality": "high",
+            "blendMode": "lighten"
+        },
+        "result": null,
+        "datasetName": "medical-segmentation",
+        "userId": "user-uuid-here",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:32:15.000Z"
+    }
+}
+```
+
+**Risposta Processing Completato (COMPLETED):**
+```json
+{
+    "success": true,
+    "message": "Inference retrieved successfully",
+    "data": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "COMPLETED",
+        "modelId": "default_inpainting",
+        "parameters": {
+            "quality": "high",
+            "blendMode": "lighten"
+        },
+        "result": {
+            "success": true,
+            "images": [
+                {
+                    "originalPath": "datasets/user-id/image1.jpg",
+                    "outputPath": "inferences/user-id/processed_uuid_image1.png"
+                },
+                {
+                    "originalPath": "datasets/user-id/image2.jpg", 
+                    "outputPath": "inferences/user-id/processed_uuid_image2.png"
+                }
+            ],
+            "videos": [
+                {
+                    "originalVideoId": "1",
+                    "outputPath": "inferences/user-id/uuid_video_1.mp4"
+                }
+            ]
+        },
+        "datasetName": "medical-segmentation",
+        "userId": "user-uuid-here",
+        "createdAt": "2024-01-15T10:30:00.000Z",
+        "updatedAt": "2024-01-15T10:35:45.000Z"
+    }
+}
+```
+
+**Script per Monitoraggio Automatico:**
+```javascript
+// Test automatico per controllare completamento
+if (pm.response.code === 200) {
+    const response = pm.response.json();
+    const status = response.data.status;
+    
+    console.log(`Current status: ${status}`);
+    
+    if (status === "COMPLETED") {
+        console.log("✅ Inference completed successfully!");
+        const result = response.data.result;
+        console.log(`📊 Images processed: ${result.images ? result.images.length : 0}`);
+        console.log(`🎬 Videos processed: ${result.videos ? result.videos.length : 0}`);
+    } else if (status === "FAILED") {
+        console.log("❌ Inference failed!");
+        console.log(`Error: ${response.data.result?.error || 'Unknown error'}`);
+    } else if (status === "RUNNING") {
+        console.log("⚙️ Processing in progress...");
+        // Potresti impostare un timeout per ricontrollare
+        setTimeout(() => {
+            console.log("Check status again in a few seconds");
+        }, 5000);
+    }
+}
+```
+
+##### **Passo 3: Ottenere i Risultati con Link di Download**
+```http
+GET {{baseUrl}}/api/inferences/{{inferenceId}}/results
+Authorization: Bearer {{authToken}}
+```
+
+**Risposta Solo se Status = COMPLETED:**
+```json
+{
+    "success": true,
+    "message": "Inference results retrieved successfully",
+    "data": {
+        "inferenceId": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "COMPLETED",
+        "images": [
+            {
+                "originalPath": "datasets/user-id/image1.jpg",
+                "outputPath": "inferences/user-id/processed_uuid_image1.png",
+                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            },
+            {
+                "originalPath": "datasets/user-id/image2.jpg",
+                "outputPath": "inferences/user-id/processed_uuid_image2.png", 
+                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            }
+        ],
+        "videos": [
+            {
+                "originalVideoId": "1",
+                "outputPath": "inferences/user-id/uuid_video_1.mp4",
+                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            }
+        ]
+    }
+}
+```
+
+**Caratteristiche dei Download URL:**
+- ✅ **Token temporanei** (24 ore di validità)
+- ✅ **Nessun Bearer Token richiesto** negli URL
+- ✅ **Sicurezza**: Solo il proprietario può generare i token
+- ✅ **Download diretto**: Apribili nel browser
+
+**Script Post-Response per Salvare URL:**
+```javascript
+if (pm.response.code === 200) {
+    const response = pm.response.json();
+    const data = response.data;
+    
+    // Salva URL delle immagini
+    if (data.images && data.images.length > 0) {
+        data.images.forEach((img, index) => {
+            pm.environment.set(`imageDownloadUrl_${index}`, img.downloadUrl);
+            console.log(`🖼️ Image ${index + 1}: ${img.originalPath} → ${img.downloadUrl}`);
+        });
+    }
+    
+    // Salva URL dei video
+    if (data.videos && data.videos.length > 0) {
+        data.videos.forEach((vid, index) => {
+            pm.environment.set(`videoDownloadUrl_${index}`, vid.downloadUrl);
+            console.log(`🎬 Video ${index + 1}: ID ${vid.originalVideoId} → ${vid.downloadUrl}`);
+        });
+    }
+}
+```
+
+**Errori Possibili:**
+```json
+// Inference non completata
+{
+    "success": false,
+    "error": "Inference not completed",
+    "status": "RUNNING"
+}
+
+// Inference fallita
+{
+    "success": false,
+    "error": "Inference not completed", 
+    "status": "FAILED"
+}
+
+// Inference non trovata
+{
+    "error": "Inference not found"
+}
+```
+
+##### **Passo 4: Download dei File Processati**
+```http
+GET {{imageDownloadUrl_0}}
+# NESSUN Authorization header richiesto!
+```
+
+**Risposta:** File binario (immagine PNG/JPG o video MP4)
+
+**Headers di Risposta:**
+```
+Content-Type: image/png
+Content-Length: 245680
+Content-Disposition: attachment; filename="processed_uuid_image1.png"
+```
+
+##### **Passo 5: Visualizzare Tutte le Tue Inferenze**
+```http
+GET {{baseUrl}}/api/inferences?page=1&limit=10
+Authorization: Bearer {{authToken}}
+```
+
+**Parametri Query Opzionali:**
+- `page`: Numero pagina (default: 1)
+- `limit`: Elementi per pagina (default: 10)
+
+**Risposta:**
+```json
+{
+    "success": true,
+    "message": "Inferences retrieved successfully",
+    "data": {
+        "inferences": [
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "status": "COMPLETED",
+                "modelId": "default_inpainting",
+                "datasetName": "medical-segmentation",
+                "createdAt": "2024-01-15T10:30:00.000Z",
+                "updatedAt": "2024-01-15T10:35:45.000Z"
+            },
+            {
+                "id": "660e8400-e29b-41d4-a716-446655440001",
+                "status": "RUNNING",
+                "modelId": "custom_model_v2",
+                "datasetName": "surveillance-data",
+                "createdAt": "2024-01-15T11:00:00.000Z",
+                "updatedAt": "2024-01-15T11:02:30.000Z"
+            }
+        ],
+        "totalItems": 2,
+        "currentPage": 1,
+        "totalPages": 1,
+        "itemsPerPage": 10
+    }
+}
+```
+
+#### **Scenari di Utilizzo Completi**
+
+##### **Scenario 1: Inferenza su Dataset di Immagini Singole**
+
+**Step 1: Preparare Dataset**
+```http
+POST {{baseUrl}}/api/datasets/create-empty
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "name": "portrait-segmentation",
+    "tags": ["portraits", "segmentation"]
+}
+```
+
+**Step 2: Aggiungere Immagini**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: portrait-segmentation
+Key: image       | Type: File | Value: portrait1.jpg
+Key: mask        | Type: File | Value: face_mask1.png
+```
+
+**Step 3: Ripetere per più Immagini** (portrait2.jpg + face_mask2.png, ecc.)
+
+**Step 4: Avviare Inferenza**
+```http
+POST {{baseUrl}}/api/inferences/create
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "datasetName": "portrait-segmentation",
+    "parameters": {
+        "quality": "high",
+        "outputFormat": "png"
+    }
+}
+```
+
+**Risultato Atteso:** N immagini processate singolarmente
+
+##### **Scenario 2: Inferenza su Dataset Video**
+
+**Step 1: Dataset con Video**
+```http
+POST {{baseUrl}}/api/datasets/upload-data
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data
+
+Key: datasetName | Type: Text | Value: video-inpainting
+Key: image       | Type: File | Value: surveillance_30sec.mp4
+Key: mask        | Type: File | Value: person_mask.png
+```
+
+**Step 2: Avviare Inferenza**
+```http
+POST {{baseUrl}}/api/inferences/create
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "datasetName": "video-inpainting",
+    "parameters": {
+        "fps": 30,
+        "quality": "medium"
+    }
+}
+```
+
+**Risultato Atteso:** 
+- 30 frame estratti dal video originale (1 frame per secondo)
+- Ogni frame processato con inpainting
+- Video finale ricostruito da frame processati **a 1 FPS** (30 secondi di durata totale)
+
+##### **Scenario 3: Inferenza su Dataset Misto**
+
+**Dataset Contenente:**
+- 5 immagini singole + maschere
+- 2 video + maschere
+- File ZIP con struttura complessa
+
+**Step: Avviare Inferenza**
+```http
+POST {{baseUrl}}/api/inferences/create
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+    "datasetName": "mixed-training-data",
+    "parameters": {
+        "processImages": true,
+        "processVideos": true,
+        "quality": "high"
+    }
+}
+```
+
+**Risultato Atteso:**
+```json
+{
+    "result": {
+        "success": true,
+        "images": [
+            // 5 immagini processate singolarmente
+            {"originalPath": "...", "outputPath": "..."},
+            // ... altre 4
+        ],
+        "videos": [
+            // 2 video ricostruiti
+            {"originalVideoId": "1", "outputPath": "..."},
+            {"originalVideoId": "2", "outputPath": "..."}
+        ]
+    }
+}
+```
+
+#### **Monitoraggio e Debugging**
+
+##### **Log del Processing Python**
+Durante l'inferenza, controlla i log del container `python-inference`:
+
+```bash
+# Visualizza log in tempo reale
+docker-compose logs -f python-inference
+```
+
+**Log Esempio:**
+```
+[INFO] Starting dataset processing for user: user-uuid
+[INFO] Processing single image: datasets/user/image1.jpg
+[INFO] Processing video frames for video ID: 1
+[INFO] Video processing completed: 30 frames → inferences/user/video_1.mp4 (30s @ 1 FPS)
+[INFO] Dataset processing completed. Images: 5, Videos: 2
+```
+
+##### **Test di Performance con Postman**
+
+**Collection Variables per Test Automatico:**
+```javascript
+// Pre-request Script della Collection
+pm.environment.set("maxRetries", "10");
+pm.environment.set("retryDelay", "5000");
+pm.environment.set("currentRetry", "0");
+```
+
+**Script per Polling Automatico:**
+```javascript
+// Post-response script per status check
+const maxRetries = parseInt(pm.environment.get("maxRetries"));
+const currentRetry = parseInt(pm.environment.get("currentRetry"));
+const status = pm.response.json().data.status;
+
+if (status === "RUNNING" && currentRetry < maxRetries) {
+    // Incrementa retry counter
+    pm.environment.set("currentRetry", currentRetry + 1);
+    
+    // Aspetta e riprova
+    setTimeout(() => {
+        postman.setNextRequest("Get Inference Status");
+    }, 5000);
+    
+    console.log(`⏳ Retry ${currentRetry + 1}/${maxRetries} - Status: ${status}`);
+} else if (status === "COMPLETED") {
+    pm.environment.set("currentRetry", "0");
+    postman.setNextRequest("Get Inference Results");
+    console.log("✅ Processing completed, moving to results");
+} else if (status === "FAILED" || currentRetry >= maxRetries) {
+    pm.environment.set("currentRetry", "0");
+    console.log("❌ Processing failed or max retries reached");
+}
+```
+
+##### **Errori Comuni e Soluzioni**
+
+**1. Dataset Vuoto**
+```json
+{
+    "error": "Dataset is empty"
+}
+```
+**Soluzione:** Aggiungi almeno una coppia immagine-maschera al dataset.
+
+**2. Python Service Non Disponibile**
+```json
+{
+    "status": "FAILED",
+    "result": {
+        "error": "Python service error: connect ECONNREFUSED 127.0.0.1:5000"
+    }
+}
+```
+**Soluzione:** 
+- Verifica che il container `python-inference` sia running
+- Controlla `docker-compose ps`
+- Riavvia il servizio: `docker-compose restart python-inference`
+
+**3. File Non Trovato Durante Processing**
+```json
+{
+    "status": "FAILED",
+    "result": {
+        "error": "Could not load image: datasets/user/missing.jpg"
+    }
+}
+```
+**Soluzione:** 
+- Il file è stato eliminato dopo la creazione del dataset
+- Ricarica i dati nel dataset
+
+**4. Timeout del Processing**
+```json
+{
+    "status": "FAILED",  
+    "result": {
+        "error": "Python service error: timeout of 300000ms exceeded"
+    }
+}
+```
+**Soluzione:**
+- Dataset troppo grande per il timeout (5 minuti)
+- Dividi il dataset in parti più piccole
+- Aumenta il timeout in `inferenceBlackBoxAdapter.ts`
+
+##### **Postman Environment Setup per Inferenza**
+
+**Variabili Ambiente Consigliate:**
+```json
+{
+    "baseUrl": "http://localhost:3000",
+    "authToken": "[populated after login]",
+    "userId": "[populated after login]",
+    "datasetName": "test-inference-dataset",
+    "inferenceId": "[populated after creating inference]",
+    "maxRetries": "10",
+    "retryDelay": "5000",
+    "currentRetry": "0"
+}
+```
+
+**Postman Tests per Validazione:**
+```javascript
+// Test per verifica creazione inferenza
+pm.test("Inference created successfully", function () {
+    pm.response.to.have.status(201);
+    pm.response.to.have.jsonBody("success", true);
+    pm.response.to.have.jsonBody("inference.status", "PENDING");
+});
+
+// Test per verifica completamento
+pm.test("Inference completed", function () {
+    const status = pm.response.json().data.status;
+    if (status === "COMPLETED") {
+        pm.test("Has results", function () {
+            pm.response.to.have.jsonBody("data.result");
+        });
+    }
+});
+```
+
+Ora hai una guida completa per utilizzare il sistema di inferenza con Postman! 🚀🎯

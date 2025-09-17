@@ -102,7 +102,11 @@ export class InpaintingQueue {
 
         return {
             id: job.id,
-            progress: job.progress,
+            progress: typeof job.progress === "string"
+                ? Number(job.progress)
+                : typeof job.progress === "boolean"
+                    ? Number(job.progress)
+                    : job.progress,
             returnValue: job.returnvalue as unknown,
             failedReason: job.failedReason || null,
             processedOn: job.processedOn || null,
