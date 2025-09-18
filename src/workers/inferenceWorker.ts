@@ -2,7 +2,12 @@ import Bull from "bull";
 import { InferenceQueue } from "../queue/inferenceQueue";
 import { InferenceBlackBoxAdapter } from "../services/inferenceBlackBoxAdapter";
 import { InferenceRepository } from "../repository/inferenceRepository";
-import logger from "../utils/logger";
+import { TokenService } from "../services/tokenService";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+
+// Initialize loggers
+const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
+const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 interface InferenceJobData {
     inferenceId: string;
@@ -16,12 +21,14 @@ export class InferenceWorker {
     private readonly inferenceQueue: InferenceQueue;
     private readonly blackBoxAdapter: InferenceBlackBoxAdapter;
     private readonly inferenceRepository: InferenceRepository;
+    private readonly tokenService: TokenService;
     private isRunning: boolean = false;
 
     private constructor() {
         this.inferenceQueue = InferenceQueue.getInstance();
         this.blackBoxAdapter = new InferenceBlackBoxAdapter();
         this.inferenceRepository = InferenceRepository.getInstance();
+        this.tokenService = TokenService.getInstance();
     }
 
     public static getInstance(): InferenceWorker {
@@ -33,21 +40,27 @@ export class InferenceWorker {
 
     public start(): void {
         if (this.isRunning) {
-            logger.warn("Inference worker is already running");
+            errorLogger.logValidationError("workerStatus", "running", "Inference worker is already running");
             return;
         }
 
-        logger.info("Starting inference worker...");
+        try {
+            inferenceLogger.log("Starting inference worker");
 
-        const queue = this.inferenceQueue.getQueue();
-        
-        // Process inference jobs with concurrency of 2
-        queue.process("process-inference", 2, async (job: Bull.Job<InferenceJobData>) => {
-            return await this.processInferenceJob(job);
-        });
+            const queue = this.inferenceQueue.getQueue();
+            
+            // Process inference jobs with concurrency of 2
+            queue.process("process-inference", 2, async (job: Bull.Job<InferenceJobData>) => {
+                return await this.processInferenceJob(job);
+            });
 
-        this.isRunning = true;
-        logger.info("Inference worker started successfully");
+            this.isRunning = true;
+            inferenceLogger.logWorkerStarted();
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("START_WORKER", "worker", err.message);
+            throw error;
+        }
     }
 
     private async processInferenceJob(job: Bull.Job<InferenceJobData>): Promise<{
@@ -56,13 +69,14 @@ export class InferenceWorker {
         error?: string;
     }> {
         const { inferenceId, userId, datasetData, parameters } = job.data;
+        let tokenReservationId: string | undefined;
 
         try {
-            logger.info("Worker: Processing inference job", { 
-                jobId: job.id,
-                inferenceId, 
-                userId 
-            });
+            inferenceLogger.logJobProcessingStarted(job.id?.toString() || "unknown", inferenceId);
+
+            // Extract token reservation info from parameters
+            const jobParams = parameters as { tokenReservationId?: string; tokenCost?: number };
+            tokenReservationId = jobParams.tokenReservationId;
 
             // Update inference status to RUNNING
             await this.inferenceRepository.updateInferenceStatus(inferenceId, "RUNNING");
@@ -71,23 +85,31 @@ export class InferenceWorker {
             await job.progress(10);
 
             // Process the dataset using the blackbox
-            logger.info("Worker: Calling blackbox service", { inferenceId });
+            inferenceLogger.log("Calling blackbox service", { inferenceId });
             const result = await this.blackBoxAdapter.processDataset(userId, datasetData, parameters);
 
             // Update job progress
             await job.progress(90);
 
             if (result.success) {
+                // Confirm token usage on successful completion
+                if (tokenReservationId) {
+                    const confirmResult = await this.tokenService.confirmTokenUsage(tokenReservationId);
+                    if (!confirmResult.success) {
+                        inferenceLogger.log("Warning: Failed to confirm token usage", { 
+                            inferenceId, 
+                            tokenReservationId,
+                            error: confirmResult.error 
+                        });
+                    }
+                }
+
                 // Update inference status to COMPLETED
                 await this.inferenceRepository.updateInferenceStatus(inferenceId, "COMPLETED", { ...result });
                 
                 await job.progress(100);
 
-                logger.info("Worker: Inference job completed successfully", { 
-                    jobId: job.id,
-                    inferenceId, 
-                    userId 
-                });
+                inferenceLogger.logJobProcessingCompleted(job.id?.toString() || "unknown", inferenceId);
 
                 return {
                     success: true,
@@ -98,36 +120,47 @@ export class InferenceWorker {
             }
 
         } catch (error) {
-            logger.error("Worker: Inference job failed", { 
-                jobId: job.id,
-                inferenceId, 
-                userId, 
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            inferenceLogger.logJobProcessingFailed(job.id?.toString() || "unknown", inferenceId, err.message);
+
+            // Refund tokens on processing failure
+            if (tokenReservationId) {
+                const refundResult = await this.tokenService.refundTokens(tokenReservationId);
+                if (!refundResult.success) {
+                    errorLogger.logDatabaseError("REFUND_TOKENS", "worker", refundResult.error || "Failed to refund tokens");
+                }
+            }
 
             // Update inference status to FAILED
             await this.inferenceRepository.updateInferenceStatus(
                 inferenceId, 
                 "FAILED", 
-                { error: error instanceof Error ? error.message : "Unknown error" }
+                { error: err.message, tokenRefunded: !!tokenReservationId }
             );
 
+            errorLogger.logDatabaseError("PROCESS_JOB", "worker", err.message);
             throw error; // Re-throw to let Bull handle the failure
         }
     }
 
     public async stop(): Promise<void> {
         if (!this.isRunning) {
-            logger.warn("Inference worker is not running");
+            errorLogger.logValidationError("workerStatus", "stopped", "Inference worker is not running");
             return;
         }
 
-        logger.info("Stopping inference worker...");
-        
-        // Close the queue connection
-        await this.inferenceQueue.close();
-        this.isRunning = false;
-        logger.info("Inference worker stopped");
+        try {
+            inferenceLogger.log("Stopping inference worker");
+            
+            // Close the queue connection
+            await this.inferenceQueue.close();
+            this.isRunning = false;
+            inferenceLogger.logWorkerStopped();
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("STOP_WORKER", "worker", err.message);
+            throw error;
+        }
     }
 
     public getStatus(): { isRunning: boolean } {

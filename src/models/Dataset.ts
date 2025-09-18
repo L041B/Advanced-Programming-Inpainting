@@ -21,38 +21,34 @@ export class Dataset extends Model {
           type: DataTypes.UUID,
           allowNull: false,
           primaryKey: true,
-          field: "user_id",
-          references: {
-            model: "users",
-            key: "id"
-          }
+          field: "user_id"
         },
         name: {
           type: DataTypes.STRING(255),
           allowNull: false,
-          primaryKey: true,
+          primaryKey: true
         },
         data: {
           type: DataTypes.JSONB,
-          allowNull: true,
+          allowNull: true
         },
         tags: {
           type: DataTypes.ARRAY(DataTypes.TEXT),
           allowNull: false,
-          defaultValue: [],
+          defaultValue: []
         },
         isDeleted: {
           type: DataTypes.BOOLEAN,
           allowNull: false,
           defaultValue: false,
-          field: "is_deleted",
+          field: "is_deleted"
         },
         nextUploadIndex: {
           type: DataTypes.INTEGER,
           allowNull: false,
           defaultValue: 1,
-          field: "next_upload_index",
-        },
+          field: "next_upload_index"
+        }
       },
       {
         sequelize,
@@ -60,24 +56,12 @@ export class Dataset extends Model {
         tableName: "datasets",
         timestamps: true,
         underscored: true,
-        indexes: [
-          {
-            fields: ["user_id", "name"],
-            unique: true,
-            where: { is_deleted: false },
-            name: "unique_user_dataset_name"
-          },
-          {
-            fields: ["user_id"],
-            name: "idx_datasets_user_id_model"
-          }
-        ]
       }
     );
   }
 
   static associate() {
-    // Le associazioni verranno definite dopo che tutti i modelli sono inizializzati
+    // Associations will be set up in the index file
   }
 }
 

@@ -1,5 +1,9 @@
 import Bull from "bull";
-import logger from "../utils/logger";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+
+// Initialize loggers
+const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
+const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 interface InferenceJobData {
     inferenceId: string;
@@ -20,20 +24,27 @@ export class InferenceQueue {
             db: parseInt(process.env.REDIS_DB || "0")
         };
 
-        this.queue = new Bull<InferenceJobData>("inference-processing", {
-            redis: redisConfig,
-            defaultJobOptions: {
-                removeOnComplete: 10, // Keep 10 completed jobs
-                removeOnFail: 25,     // Keep 25 failed jobs
-                attempts: 3,          // Retry failed jobs 3 times
-                backoff: {
-                    type: "exponential",
-                    delay: 2000
+        try {
+            this.queue = new Bull<InferenceJobData>("inference-processing", {
+                redis: redisConfig,
+                defaultJobOptions: {
+                    removeOnComplete: 10, // Keep 10 completed jobs
+                    removeOnFail: 25,     // Keep 25 failed jobs
+                    attempts: 3,          // Retry failed jobs 3 times
+                    backoff: {
+                        type: "exponential",
+                        delay: 2000
+                    }
                 }
-            }
-        });
+            });
 
-        this.setupEventListeners();
+            this.setupEventListeners();
+            inferenceLogger.logQueueConnected();
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("QUEUE_INITIALIZATION", "redis", err.message);
+            throw error;
+        }
     }
 
     public static getInstance(): InferenceQueue {
@@ -48,15 +59,19 @@ export class InferenceQueue {
     }
 
     public async addInferenceJob(jobData: InferenceJobData): Promise<Bull.Job<InferenceJobData>> {
-        logger.info("Adding inference job to queue", { 
-            inferenceId: jobData.inferenceId,
-            userId: jobData.userId 
-        });
+        try {
+            const job = await this.queue.add("process-inference", jobData, {
+                priority: 1,
+                delay: 0
+            });
 
-        return await this.queue.add("process-inference", jobData, {
-            priority: 1,
-            delay: 0
-        });
+            inferenceLogger.logJobAdded(jobData.inferenceId, jobData.userId, job.id?.toString());
+            return job;
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("ADD_JOB_TO_QUEUE", "redis", err.message);
+            throw error;
+        }
     }
 
     public async getJobStatus(jobId: string): Promise<{
@@ -68,10 +83,13 @@ export class InferenceQueue {
         try {
             const job = await this.queue.getJob(jobId);
             if (!job) {
+                errorLogger.logDatabaseError("GET_JOB_STATUS", "redis", "Job not found");
                 return null;
             }
 
             const state = await job.getState();
+            inferenceLogger.logJobStatusRetrieved(jobId, state);
+            
             return {
                 status: state,
                 progress: job.progress(),
@@ -79,49 +97,48 @@ export class InferenceQueue {
                 error: job.failedReason
             };
         } catch (error) {
-            logger.error("Error getting job status", { 
-                jobId, 
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("GET_JOB_STATUS", "redis", err.message);
             return null;
         }
     }
 
     private setupEventListeners(): void {
-        this.queue.on("active", (job) => {
-            logger.info("Inference job started", { 
-                jobId: job.id,
-                inferenceId: job.data.inferenceId 
-            });
+        this.queue.on("active", () => {
+            // Remove duplicate - worker already logs when processing starts
+            // inferenceLogger.logJobProcessingStarted(job.id?.toString() || "unknown", job.data.inferenceId);
         });
 
-        this.queue.on("completed", (job, result) => {
-            logger.info("Inference job completed", { 
-                jobId: job.id,
-                inferenceId: job.data.inferenceId,
-                success: result.success 
-            });
+        this.queue.on("completed", () => {
+            // Remove duplicate - worker already logs when processing completes
+            // inferenceLogger.logJobProcessingCompleted(job.id?.toString() || "unknown", job.data.inferenceId);
         });
 
         this.queue.on("failed", (job, error) => {
-            logger.error("Inference job failed", { 
-                jobId: job.id,
-                inferenceId: job.data.inferenceId,
-                error: error.message,
-                attempts: job.attemptsMade 
-            });
+            // Keep this one as it's different from worker logging - this is queue-level failure
+            inferenceLogger.logJobProcessingFailed(
+                job.id?.toString() || "unknown", 
+                job.data.inferenceId, 
+                error.message
+            );
         });
 
         this.queue.on("stalled", (job) => {
-            logger.warn("Inference job stalled", { 
-                jobId: job.id,
-                inferenceId: job.data.inferenceId 
-            });
+            errorLogger.logDatabaseError("JOB_STALLED", "redis", `Job ${job.id} stalled`);
+        });
+
+        this.queue.on("error", (error) => {
+            errorLogger.logDatabaseError("QUEUE_ERROR", "redis", error.message);
         });
     }
 
     public async close(): Promise<void> {
-        await this.queue.close();
-        logger.info("Inference queue closed");
+        try {
+            await this.queue.close();
+            inferenceLogger.logQueueClosed();
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("CLOSE_QUEUE", "redis", err.message);
+        }
     }
 }

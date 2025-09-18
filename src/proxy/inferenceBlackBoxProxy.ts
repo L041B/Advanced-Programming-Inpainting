@@ -1,5 +1,9 @@
 import { InferenceQueue } from "../queue/inferenceQueue";
-import logger from "../utils/logger";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+
+// Initialize loggers
+const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
+const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 interface ProxyResponse {
     success: boolean;
@@ -30,16 +34,12 @@ export class InferenceBlackBoxProxy {
         parameters: Record<string, unknown>
     ): Promise<ProxyResponse> {
         try {
-            logger.info("Proxy: Queuing inference job", { inferenceId, userId });
+            inferenceLogger.log("Queuing inference job", { inferenceId, userId });
 
             // Validate input data before queuing
             const validation = this.validateJobData(datasetData, parameters);
             if (!validation.success) {
-                logger.warn("Proxy: Validation failed", { 
-                    inferenceId, 
-                    userId, 
-                    error: validation.error 
-                });
+                errorLogger.logValidationError("jobData", inferenceId, validation.error || "Validation failed");
                 return {
                     success: false,
                     error: validation.error
@@ -54,12 +54,6 @@ export class InferenceBlackBoxProxy {
                 parameters
             });
 
-            logger.info("Proxy: Job queued successfully", { 
-                inferenceId, 
-                userId, 
-                jobId: job.id 
-            });
-
             return {
                 success: true,
                 jobId: job.id?.toString(),
@@ -67,11 +61,8 @@ export class InferenceBlackBoxProxy {
             };
 
         } catch (error) {
-            logger.error("Proxy: Error queuing inference job", { 
-                inferenceId,
-                userId,
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("QUEUE_INFERENCE_JOB", "inference_queue", err.message);
             
             return {
                 success: false,
@@ -91,21 +82,21 @@ export class InferenceBlackBoxProxy {
             const jobStatus = await this.inferenceQueue.getJobStatus(jobId);
             
             if (!jobStatus) {
+                errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_queue", "Job not found");
                 return {
                     success: false,
                     error: "Job not found"
                 };
             }
 
+            inferenceLogger.logInferenceStatusCheck(jobId);
             return {
                 success: true,
                 ...jobStatus
             };
         } catch (error) {
-            logger.error("Proxy: Error getting job status", { 
-                jobId,
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_queue", err.message);
             
             return {
                 success: false,
@@ -120,6 +111,7 @@ export class InferenceBlackBoxProxy {
     } {
         // Validate dataset data structure
         if (!datasetData || typeof datasetData !== "object") {
+            errorLogger.logValidationError("datasetData", "object", "Invalid dataset data");
             return {
                 success: false,
                 error: "Invalid dataset data"
@@ -128,6 +120,7 @@ export class InferenceBlackBoxProxy {
 
         const data = datasetData as { pairs?: Array<{ imagePath: string; maskPath: string }> };
         if (!data.pairs || !Array.isArray(data.pairs) || data.pairs.length === 0) {
+            errorLogger.logValidationError("datasetPairs", data.pairs?.length?.toString() || "0", "Dataset contains no valid pairs");
             return {
                 success: false,
                 error: "Dataset contains no valid pairs"
@@ -136,11 +129,14 @@ export class InferenceBlackBoxProxy {
 
         // Validate parameters
         if (parameters && typeof parameters !== "object") {
+            errorLogger.logValidationError("parameters", typeof parameters, "Invalid parameters format");
             return {
                 success: false,
                 error: "Invalid parameters format"
             };
         }
+
+        inferenceLogger.logJobValidation(true, data.pairs.length);
 
         return { success: true };
     }

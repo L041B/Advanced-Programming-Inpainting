@@ -1,19 +1,79 @@
+// Import all model classes
 import { User } from "./User";
+import { Execution } from "./Execution";
 import { Dataset } from "./Dataset";
 import { Inference } from "./Inference";
-import { Execution } from "./Execution";
+import { TokenTransaction } from "./TokenTransaction";
 
-// Initialize all models
-export function initializeModels(): void {
-  // Models are already initialized in their respective files
-  // Set up associations
-  User.associate();
-  Dataset.associate();
-  Inference.associate();
-  
-  // Add Dataset and Inference associations to User
-  User.hasMany(Dataset, { foreignKey: "userId", as: "datasets" });
-  User.hasMany(Inference, { foreignKey: "userId", as: "inferences" });
-}
+// Step 1: Initialize all models (schema definition)
+User.initialize();
+TokenTransaction.initialize();
+Dataset.initialize();
+Inference.initialize();
+Execution.initialize();
 
-export { User, Dataset, Inference, Execution };
+// Step 2: Set up all associations after models are initialized
+// User associations
+User.hasMany(Execution, { 
+    foreignKey: "userId", 
+    as: "executions"
+});
+
+User.hasMany(Dataset, {
+    foreignKey: "userId",
+    as: "datasets"
+});
+
+User.hasMany(Inference, {
+    foreignKey: "userId",
+    as: "inferences"
+});
+
+User.hasMany(TokenTransaction, {
+    foreignKey: "userId",
+    as: "tokenTransactions"
+});
+
+// Execution associations
+Execution.belongsTo(User, { 
+    foreignKey: "userId", 
+    as: "user"
+});
+
+// Dataset associations
+Dataset.belongsTo(User, {
+    foreignKey: "userId",
+    as: "user"
+});
+
+Dataset.hasMany(Inference, {
+    foreignKey: "datasetName",
+    sourceKey: "name",
+    as: "inferences"
+});
+
+// Inference associations
+Inference.belongsTo(User, {
+    foreignKey: "userId",
+    as: "user"
+});
+
+Inference.belongsTo(Dataset, {
+    foreignKey: "datasetName",
+    targetKey: "name",
+    as: "dataset"
+});
+
+// TokenTransaction associations
+TokenTransaction.belongsTo(User, { 
+    foreignKey: "userId", 
+    as: "user" 
+});
+
+export {
+    User,
+    Execution,
+    Dataset,
+    Inference,
+    TokenTransaction
+};

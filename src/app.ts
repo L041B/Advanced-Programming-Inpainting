@@ -9,14 +9,17 @@ import { DbConnection } from "./config/database"; // The database connection han
 import userRoutes from "./routes/userRoutes";         // Router for user-related endpoints.
 import executionRoutes from "./routes/executionRoutes"; // Router for image processing execution endpoints.
 import appRoutes from "./routes/appRoutes";         // Router for application-level endpoints.
-import logger from "./utils/logger";                  // A custom logger utility for structured logging.
-import { routeNotFoundHandler, errorHandlingChain } from "./middleware/errorHandler";  // Error handling middleware
 import datasetRoutes from "./routes/datasetRoutes";
 import inferenceRoutes from "./routes/inferenceRoutes";
+import adminRoutes from "./routes/adminRoutes";     // Router for admin endpoints
+import logger from "./utils/logger";                  // A custom logger utility for structured logging.
+import { routeNotFoundHandler, errorHandlingChain } from "./middleware/errorHandler";  // Error handling middleware
 import { FileStorage } from "./utils/fileStorage";
-import "./models/User";
-import "./models/Dataset";
-import "./models/Inference";
+
+// Import all models and their associations
+import "./models";
+
+import { AdminInitService } from "./services/adminInitService";
 
 dotenv.config();
 
@@ -55,21 +58,26 @@ app.use("/api/executions", executionRoutes);
 
 app.use("/api/datasets", datasetRoutes);
 app.use("/api/inferences", inferenceRoutes);
+app.use("/api/admin", adminRoutes);              // Mount admin routes
+
 // Mount the error handler
 app.use(routeNotFoundHandler);
 
 // Mount the error handling middleware chain.
 app.use(...errorHandlingChain);
 
-// Initialize the database connection and file storage.
+// Initialize database connection, file storage, and admin user
 Promise.all([
     DbConnection.connect(),
     FileStorage.init()
 ])
-    .then(() => {
-        logger.info("Database connected successfully");
-
-        // Start the Express server only after the database connection is established.
+    .then(async () => {
+        logger.info("Database connected and file storage initialized successfully");
+        
+        // Initialize admin user from environment variables
+        await AdminInitService.initializeAdminUser();
+        
+        // Start the Express server only after all initialization is complete
         app.listen(PORT, () => {
             logger.info("Server started successfully", {
                 port: PORT,
@@ -80,9 +88,9 @@ Promise.all([
         });
     })
     .catch((error) => {
-        // This block executes if the database connection fails.
-        const err = error instanceof Error ? error : new Error("Unknown database connection error");
-        logger.error("Failed to connect to database - Application will exit", {
+        // This block executes if initialization fails
+        const err = error instanceof Error ? error : new Error("Unknown initialization error");
+        logger.error("Failed to initialize application - Application will exit", {
             errorMessage: err.message,
             stack: err.stack
         });
@@ -90,4 +98,4 @@ Promise.all([
         process.exit(1);
     });
 
-    export default app; // Export the Express app instance for testing or further configuration.
+export default app; // Export the Express app instance for testing or further configuration.

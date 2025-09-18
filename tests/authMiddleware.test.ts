@@ -136,7 +136,7 @@ describe("Auth Middleware Suite", () => {
     it("should call next() if the user is found in the DB", async () => {
       req.user = { userId: "123", email: "test@example.com" };
       // Simulate user found as Model (mock object with id property)
-      mockedUser.findByPk.mockResolvedValue({ id: "123" } as any);
+      mockedUser.findByPk.mockResolvedValue({ id: "123" } as User);
 
       await authMiddleware.verifyUserExists(req as AuthenticatedRequest, res as Response, next);
 

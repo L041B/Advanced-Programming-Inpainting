@@ -10,6 +10,8 @@ interface UserMutationData {
     surname: string;
     email: string;
     password?: string; 
+    tokens?: number;
+    role?: "user" | "admin";
 }
 
 /** A Data Access Object (DAO) for the User model.
@@ -44,6 +46,8 @@ export class UserDao {
             return await User.create({
                 ...userData,
                 password: hashedPassword,
+                tokens: 100.00, // Force 100 tokens for all new users
+                role: "user" // Force user role for all new user creations
             }, { transaction: t });
         });
     }
@@ -115,5 +119,23 @@ export class UserDao {
         // Compares the provided password with the stored hashed password.
         const isValid = await bcrypt.compare(password, user.password);
         return isValid ? user : null; 
+    }
+
+    // Update user tokens
+    public async updateTokens(id: string, tokens: number): Promise<User> {
+        return await this.sequelize.transaction(async (t) => {
+            const user = await User.findByPk(id, { transaction: t });
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            await user.update({ tokens }, { transaction: t });
+            return user;
+        });
+    }
+
+    // Find user by email (including password for admin operations)
+    public async findByEmailWithPassword(email: string): Promise<User | null> {
+        return await User.findOne({ where: { email } });
     }
 }

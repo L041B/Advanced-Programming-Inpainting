@@ -1,5 +1,9 @@
 import axios from "axios";
-import logger from "../utils/logger";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+
+// Initialize loggers
+const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
+const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 interface ProcessingRequest {
     userId: string;
@@ -19,6 +23,7 @@ export class InferenceBlackBoxAdapter {
 
     constructor() {
         this.pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://python-inference:5000";
+        inferenceLogger.log("BlackBox adapter initialized", { serviceUrl: this.pythonServiceUrl });
     }
 
     async processDataset(
@@ -27,7 +32,7 @@ export class InferenceBlackBoxAdapter {
         parameters: Record<string, unknown>
     ): Promise<ProcessingResponse> {
         try {
-            logger.info("Starting dataset processing", { userId });
+            inferenceLogger.logBlackBoxProcessingStarted(userId);
 
             const request: ProcessingRequest = {
                 userId,
@@ -48,25 +53,33 @@ export class InferenceBlackBoxAdapter {
             );
 
             if (response.data.success) {
-                logger.info("Dataset processing completed successfully", { 
+                inferenceLogger.logBlackBoxProcessingCompleted(
                     userId, 
-                    imageCount: response.data.images?.length || 0,
-                    videoCount: response.data.videos?.length || 0
-                });
+                    response.data.images?.length || 0,
+                    response.data.videos?.length || 0
+                );
                 return response.data;
             } else {
                 throw new Error(response.data.error || "Processing failed");
             }
         } catch (error) {
-            logger.error("Dataset processing failed", { 
-                userId, 
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            inferenceLogger.logBlackBoxProcessingFailed(userId, err.message);
             
             if (axios.isAxiosError(error)) {
-                throw new Error(`Python service error: ${error.message}`);
+                const axiosError = `Python service error: ${error.message}`;
+                if (error.response) {
+                    errorLogger.logDatabaseError("BLACKBOX_HTTP_ERROR", "python_service", 
+                        `Status: ${error.response.status}, Message: ${axiosError}`);
+                } else if (error.request) {
+                    errorLogger.logDatabaseError("BLACKBOX_NETWORK_ERROR", "python_service", axiosError);
+                } else {
+                    errorLogger.logDatabaseError("BLACKBOX_REQUEST_ERROR", "python_service", axiosError);
+                }
+                throw new Error(axiosError);
             }
             
+            errorLogger.logDatabaseError("BLACKBOX_PROCESSING", "python_service", err.message);
             throw error;
         }
     }

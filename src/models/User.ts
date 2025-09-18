@@ -1,16 +1,17 @@
 // Import necessary modules from Sequelize and other models.
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
-import { Execution } from "./Execution"; 
 
 // User model representing a user in the system.
 export class User extends Model {
-  public id!: string; 
+  public id!: string;
   public name!: string;
   public surname!: string;
   public email!: string;
-  public password!: string; 
-  
+  public password!: string;
+  public tokens!: number; // Token balance
+  public role!: "user" | "admin"; // User role
+
   // Timestamps are managed automatically by Sequelize.
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -46,6 +47,19 @@ export class User extends Model {
           type: DataTypes.STRING(255),
           allowNull: false, 
         },
+        tokens: {
+          type: DataTypes.DECIMAL(10, 2),
+          allowNull: false,
+          defaultValue: 100.00,
+          validate: {
+            min: 0
+          }
+        },
+        role: {
+          type: DataTypes.ENUM("user", "admin"),
+          allowNull: false,
+          defaultValue: "user"
+        }
       },
       {
         sequelize,
@@ -59,13 +73,6 @@ export class User extends Model {
 
   // Defines the associations for the User model.
   static associate() {
-    // A User can have many Executions. This establishes the one-to-many relationship.
-    User.hasMany(Execution, { 
-        foreignKey: "userId", 
-        as: "executions"      // Alias for accessing the executions of a user.
-    });
+    // Associations will be set up in the index file
   }
 }
-
-// Initialize the model to register it with Sequelize.
-User.initialize();

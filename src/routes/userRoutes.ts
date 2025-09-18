@@ -37,6 +37,12 @@ router.post("/login", ...validateLogin, asyncHandler(userController.login));
 // READ - Get the profile of the currently authenticated user.
 router.get("/profile", ...authenticateToken, asyncHandler(userController.getUser));
 
+// READ - Get current user's token balance
+router.get("/tokens", ...authenticateToken, asyncHandler(userController.getUserTokens));
+
+// POST - Calculate token cost for operations
+router.post("/tokens/calculate", ...authenticateToken, asyncHandler(userController.calculateOperationCost));
+
 // UPDATE - Update a specific user's data.
 router.put("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, 
     ...validateUserUpdate, asyncHandler(userController.updateUser));

@@ -1,11 +1,19 @@
 import { Router } from "express";
 import { InferenceController } from "../controllers/inferenceController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import { TokenMiddleware } from "../middleware/tokenMiddleware";
 
 const router = Router();
 
-// Route for creating a new inference on a dataset (protected)
-router.post("/create", ...authenticateToken, InferenceController.createInference);
+// Route for creating a new inference on a dataset (protected with token validation and cost injection)
+router.post(
+  "/create",
+  ...authenticateToken,
+  TokenMiddleware.validateTokenBalance,
+  TokenMiddleware.injectTokenCostInResponse,
+  InferenceController.createInference,
+  TokenMiddleware.finalizeTokenUsage
+);
 
 // Route for getting job status by job ID (protected)
 router.get("/job/:jobId/status", ...authenticateToken, InferenceController.getJobStatus);

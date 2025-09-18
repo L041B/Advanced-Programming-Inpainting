@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { UserRepository } from "../repository/userRepository";
 import jwt from "jsonwebtoken";
 import { loggerFactory, UserRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { TokenService } from "../services/tokenService";
 
 // Define a custom Request interface to provide type safety for the `user` property added by auth middleware.
 interface AuthenticatedRequest extends Request {
@@ -18,12 +19,14 @@ export class UserController {
     private readonly userLogger: UserRouteLogger;
     private readonly apiLogger: ApiRouteLogger;
     private readonly errorLogger: ErrorRouteLogger;
+    private readonly tokenService: TokenService;
 
     constructor() {
         this.userRepository = UserRepository.getInstance();
         this.userLogger = loggerFactory.createUserLogger();
         this.apiLogger = loggerFactory.createApiLogger();
         this.errorLogger = loggerFactory.createErrorLogger();
+        this.tokenService = TokenService.getInstance();
     }
 
     // Handles new user registration.
@@ -32,7 +35,7 @@ export class UserController {
         this.apiLogger.logRequest(req);
 
         try {
-            // Validate that all required fields are present in the request body.
+            // Only accept basic user data - no role or tokens
             const { name, surname, email, password } = req.body as { name: string; surname: string; email: string; password: string };
             const user = await this.userRepository.createUser({ name, surname, email, password });
 
@@ -42,7 +45,14 @@ export class UserController {
             res.status(201).json({
                 success: true,
                 message: "User created successfully",
-                data: { id: user.id, name: user.name, surname: user.surname, email: user.email }
+                data: { 
+                    id: user.id, 
+                    name: user.name, 
+                    surname: user.surname, 
+                    email: user.email,
+                    tokens: user.tokens, // Show the default 100 tokens
+                    role: user.role // Show the user role
+                }
             });
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
@@ -193,6 +203,100 @@ export class UserController {
             const err = error instanceof Error ? error : new Error("Error deleting user");
             res.status(400).json({ success: false, message: err.message });
             this.errorLogger.logDatabaseError("DELETE_USER", "users", err.message);
+            this.apiLogger.logError(req, err);
+        }
+    };
+
+    // Get user's token balance
+    public getUserTokens = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        const startTime = Date.now();
+        this.apiLogger.logRequest(req);
+
+        try {
+            const userId = req.user!.userId;
+
+            const balanceResult = await this.tokenService.getUserTokenBalance(userId);
+            
+            if (!balanceResult.success) {
+                this.errorLogger.logDatabaseError("GET_USER_TOKENS", "users", balanceResult.error || "Failed to get balance");
+                res.status(500).json({ success: false, message: "Failed to get token balance" });
+                return;
+            }
+
+            // Get recent transaction history
+            const transactionResult = await this.tokenService.getUserTransactionHistory(userId, 10);
+
+            res.status(200).json({
+                success: true,
+                message: "Token balance retrieved successfully",
+                data: {
+                    balance: balanceResult.balance,
+                    recentTransactions: transactionResult.success ? transactionResult.transactions : [],
+                    tokenPricing: {
+                        dataset_upload: {
+                            single_image: 0.65,
+                            video_frame: 0.4,
+                            zip_file: 0.7
+                        },
+                        inference: {
+                            single_image: 2.75,
+                            video_frame: 1.5
+                        }
+                    }
+                }
+            });
+            this.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Error retrieving token balance");
+            res.status(500).json({ success: false, message: err.message });
+            this.errorLogger.logDatabaseError("GET_USER_TOKENS", "users", err.message);
+            this.apiLogger.logError(req, err);
+        }
+    };
+
+    // Add new method to handle token cost calculation for operations
+    public calculateOperationCost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        const startTime = Date.now();
+        this.apiLogger.logRequest(req);
+
+        try {
+            const { operationType, operationData } = req.body as {
+                operationType: "dataset_upload" | "inference";
+                operationData: any;
+            };
+
+            let costResult;
+            let tokensRequired: number;
+
+            if (operationType === "dataset_upload") {
+                costResult = this.tokenService.calculateDatasetUploadCost(operationData);
+                tokensRequired = costResult.totalCost;
+            } else if (operationType === "inference") {
+                costResult = this.tokenService.calculateInferenceCost(operationData);
+                tokensRequired = costResult.totalCost;
+            } else {
+                res.status(400).json({ 
+                    success: false, 
+                    message: "Invalid operation type. Must be 'dataset_upload' or 'inference'" 
+                });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "Token cost calculated successfully",
+                data: {
+                    operationType,
+                    tokensRequired,
+                    costBreakdown: costResult.breakdown,
+                    estimatedCost: costResult
+                }
+            });
+            this.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Error calculating operation cost");
+            res.status(500).json({ success: false, message: err.message });
+            this.errorLogger.logDatabaseError("CALCULATE_COST", "token_service", err.message);
             this.apiLogger.logError(req, err);
         }
     };

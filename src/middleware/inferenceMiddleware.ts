@@ -1,6 +1,10 @@
-import logger from "../utils/logger";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 import { DatasetRepository } from "../repository/datasetRepository";
 import jwt from "jsonwebtoken";
+
+// Initialize loggers
+const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
+const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 interface CreateInferenceData {
     datasetName: string;
@@ -21,6 +25,7 @@ export class InferenceMiddleware {
 
             // Check 1: Dataset name is required (same as controller)
             if (!datasetName) {
+                errorLogger.logValidationError("datasetName", datasetName, "Dataset name is required");
                 return { success: false, error: "Dataset name is required" };
             }
 
@@ -28,21 +33,28 @@ export class InferenceMiddleware {
             const dataset = await InferenceMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
 
             if (!dataset) {
+                errorLogger.logDatabaseError("VALIDATE_INFERENCE", "datasets", "Dataset not found");
                 return { success: false, error: "Dataset not found" };
             }
 
             // Check 3: Dataset has data (same as controller)
             const datasetData = dataset.data as { pairs?: Array<{ input: string; output: string }>; type?: string } | null;
             if (!datasetData || !datasetData.pairs || datasetData.pairs.length === 0) {
+                errorLogger.logValidationError("datasetData", datasetName, "Dataset is empty");
                 return { success: false, error: "Dataset is empty" };
             }
 
+            inferenceLogger.log("Inference validation successful", { 
+                userId, 
+                datasetName, 
+                pairCount: datasetData.pairs.length,
+                modelId: data.modelId 
+            });
+
             return { success: true };
         } catch (error) {
-            logger.error("Error validating inference input", { 
-                userId,
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("VALIDATE_CREATE_INFERENCE", "datasets", err.message);
             return { success: false, error: "Failed to validate inference data" };
         }
     }
@@ -55,6 +67,7 @@ export class InferenceMiddleware {
                 const verifyResult = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
                 decoded = verifyResult as { userId: string; filePath: string; type: string };
             } catch (jwtError) {
+                errorLogger.logAuthenticationError(undefined, "File token verification failed");
                 return { success: false, error: "Invalid or expired file token" };
             }
 
@@ -62,8 +75,11 @@ export class InferenceMiddleware {
 
             // Security check: ensure the path belongs to the user (same as controller)
             if (!filePath.startsWith(`inferences/${userId}/`)) {
+                errorLogger.logAuthorizationError(userId, filePath);
                 return { success: false, error: "Access denied" };
             }
+
+            inferenceLogger.log("File token validated successfully", { userId, filePath });
 
             return {
                 success: true,
@@ -71,11 +87,9 @@ export class InferenceMiddleware {
                 filePath
             };
         } catch (error) {
-            logger.error("Error validating file token", { 
-                error: error instanceof Error ? error.message : "Unknown error" 
-            });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("VALIDATE_FILE_TOKEN", "token_validation", err.message);
             return { success: false, error: "Token validation failed" };
         }
     }
 }
-       

@@ -1,7 +1,6 @@
 // Import necessary modules from Sequelize and other parts of the application.
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
-import { User } from "./User";
 
 // Execution model representing an inpainting job.
 export class Execution extends Model {
@@ -9,7 +8,7 @@ export class Execution extends Model {
   public userId!: string;
   public originalImage!: Buffer;
   public maskImage!: Buffer;
-  public outputImage!: Buffer;
+  public outputImage!: Buffer | null;
   public status!: "pending" | "processing" | "completed" | "failed"; 
   
   // Timestamps managed by Sequelize.
@@ -30,23 +29,23 @@ export class Execution extends Model {
         userId: {
           type: DataTypes.UUID,
           allowNull: false,
-          references: { 
-            model: User,
-            key: "id",
-          },
+          field: "user_id",
         },
         
         originalImage: {
           type: DataTypes.BLOB,
           allowNull: false,
+          field: "original_image",
         },
         maskImage: {
           type: DataTypes.BLOB,
           allowNull: false,
+          field: "mask_image",
         },
         outputImage: {
           type: DataTypes.BLOB,
-          allowNull: true, 
+          allowNull: true,
+          field: "output_image",
         },
         status: {
           type: DataTypes.ENUM("pending", "processing", "completed", "failed"),
@@ -66,11 +65,7 @@ export class Execution extends Model {
 
   // Defines the associations for the Execution model.
   static associate() {
-    // An Execution belongs to a single User.
-    Execution.belongsTo(User, { 
-        foreignKey: "userId", 
-        as: "user" // Alias for accessing the user of an execution
-    });
+    // Associations will be set up in the index file
   }
 }
 

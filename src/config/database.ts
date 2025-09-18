@@ -57,20 +57,29 @@ export class DbConnection {
     // Establishes and authenticates the database connection.
     public static async connect(): Promise<void> {
         try {
-            const connection = DbConnection.getInstance();
-            await connection.sequelize.authenticate();
+            logger.info("Connecting to database...");
 
-            // Log the successful connection details.
-            logger.info("Database connection established successfully.", {
-                database: connection.config.database,
-                host: connection.config.host,
-                port: connection.config.port
-            });
+            // Set environment variables as PostgreSQL settings for admin creation
+            if (process.env.ADMIN_NAME) {
+                await DbConnection.getSequelizeInstance().query(`SET app.admin_name = '${process.env.ADMIN_NAME}'`);
+            }
+            if (process.env.ADMIN_SURNAME) {
+                await DbConnection.getSequelizeInstance().query(`SET app.admin_surname = '${process.env.ADMIN_SURNAME}'`);
+            }
+            if (process.env.ADMIN_EMAIL) {
+                await DbConnection.getSequelizeInstance().query(`SET app.admin_email = '${process.env.ADMIN_EMAIL}'`);
+            }
+            if (process.env.ADMIN_PASSWORD_HASH) {
+                await DbConnection.getSequelizeInstance().query(`SET app.admin_password_hash = '${process.env.ADMIN_PASSWORD_HASH}'`);
+            }
+
+            await DbConnection.getSequelizeInstance().authenticate();
+            await DbConnection.getSequelizeInstance().sync({ alter: true });
+            logger.info("Database connected and synchronized successfully");
         } catch (error) {
-            // Log the error details.
             const err = error instanceof Error ? error : new Error("Unknown database error");
-            logger.error("CRITICAL: Unable to connect to the database.", { errorMessage: err.message });
-            throw err;
+            logger.error("Unable to connect to database:", { error: err.message, stack: err.stack });
+            throw error;
         }
     }
 

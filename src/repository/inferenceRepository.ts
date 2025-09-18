@@ -1,6 +1,6 @@
 import { Inference } from "../models/Inference";
 import { InferenceDao } from "../dao/inferenceDao";
-import { loggerFactory, UserRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 export interface InferenceData {
     status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
@@ -13,12 +13,12 @@ export interface InferenceData {
 export class InferenceRepository {
     private static instance: InferenceRepository;
     private readonly inferenceDao: InferenceDao;
-    private readonly userLogger: UserRouteLogger;
+    private readonly inferenceLogger: InferenceRouteLogger;
     private readonly errorLogger: ErrorRouteLogger;
 
     private constructor() {
         this.inferenceDao = InferenceDao.getInstance();
-        this.userLogger = loggerFactory.createUserLogger();
+        this.inferenceLogger = loggerFactory.createInferenceLogger();
         this.errorLogger = loggerFactory.createErrorLogger();
     }
 
@@ -30,11 +30,10 @@ export class InferenceRepository {
     }
 
     public async createInference(data: Omit<InferenceData, "status">): Promise<Inference> {
-        this.userLogger.log("Creating new inference", {
+        this.inferenceLogger.log("Creating new inference", {
             userId: data.userId,
             datasetName: data.datasetName,
-            modelId: data.modelId,
-            operation: "CREATE_INFERENCE"
+            modelId: data.modelId
         });
 
         try {
@@ -42,57 +41,49 @@ export class InferenceRepository {
                 ...data,
                 status: "PENDING"
             });
-            this.userLogger.log("Inference created successfully", {
-                userId: data.userId,
-                inferenceId: newInference.id,
-                datasetName: data.datasetName
-            });
             return newInference;
         } catch (error) {
-            this.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", err.message);
             throw error;
         }
     }
 
     public async getInferenceById(id: string): Promise<Inference | null> {
-        this.userLogger.log("Retrieving inference by ID", {
-            inferenceId: id,
-            operation: "GET_INFERENCE_BY_ID"
-        });
+        this.inferenceLogger.log("Retrieving inference by ID", { inferenceId: id });
 
         try {
             return await this.inferenceDao.findById(id);
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID", "inferences", err.message);
             throw error;
         }
     }
 
     public async getInferenceByIdAndUserId(id: string, userId: string): Promise<Inference | null> {
-        this.userLogger.log("Retrieving inference by ID and user ID", {
-            inferenceId: id,
-            userId,
-            operation: "GET_INFERENCE_BY_ID_AND_USER"
-        });
+        this.inferenceLogger.log("Retrieving inference by ID and user ID", { inferenceId: id, userId });
 
         try {
-            return await this.inferenceDao.findByIdAndUserId(id, userId);
+            const inference = await this.inferenceDao.findByIdAndUserId(id, userId);
+            return inference;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID_AND_USER", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID_AND_USER", "inferences", err.message);
             throw error;
         }
     }
 
     public async getUserInferences(userId: string): Promise<Inference[]> {
-        this.userLogger.log("Retrieving all user inferences", {
-            userId,
-            operation: "GET_USER_INFERENCES"
-        });
+        this.inferenceLogger.log("Retrieving all user inferences", { userId });
 
         try {
-            return await this.inferenceDao.findAllByUserId(userId);
+            const inferences = await this.inferenceDao.findAllByUserId(userId);
+            this.inferenceLogger.logUserInferencesRetrieval(userId, inferences.length);
+            return inferences;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_USER_INFERENCES", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_USER_INFERENCES", "inferences", err.message);
             throw error;
         }
     }
@@ -102,17 +93,14 @@ export class InferenceRepository {
         limit: number,
         offset: number
     ): Promise<{ rows: Inference[], count: number }> {
-        this.userLogger.log("Retrieving user inferences with pagination", {
-            userId,
-            limit,
-            offset,
-            operation: "GET_USER_INFERENCES_PAGINATED"
-        });
+        this.inferenceLogger.log("Retrieving user inferences with pagination", { userId, limit, offset });
 
         try {
-            return await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
+            const result = await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
+            return result;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_USER_INFERENCES_PAGINATED", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_USER_INFERENCES_PAGINATED", "inferences", err.message);
             throw error;
         }
     }
@@ -122,40 +110,30 @@ export class InferenceRepository {
         status: InferenceData["status"],
         result?: Record<string, unknown>
     ): Promise<void> {
-        this.userLogger.log("Updating inference status", {
-            inferenceId: id,
-            newStatus: status,
-            operation: "UPDATE_INFERENCE_STATUS"
-        });
+        this.inferenceLogger.log("Updating inference status", { inferenceId: id, newStatus: status });
 
         try {
             await this.inferenceDao.updateStatus(id, status, result);
-            this.userLogger.log("Inference status updated successfully", {
-                inferenceId: id,
-                status
-            });
+            this.inferenceLogger.log("Inference status updated successfully", { inferenceId: id, status });
         } catch (error) {
-            this.errorLogger.logDatabaseError("UPDATE_INFERENCE_STATUS", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("UPDATE_INFERENCE_STATUS", "inferences", err.message);
             throw error;
         }
     }
 
     public async updateInference(id: string, data: Partial<InferenceData>): Promise<Inference> {
-        this.userLogger.log("Updating inference", {
-            inferenceId: id,
-            operation: "UPDATE_INFERENCE"
-        });
+        this.inferenceLogger.log("Updating inference", { inferenceId: id });
 
         try {
             const inference = await this.inferenceDao.update(id, data);
-            this.userLogger.log("Inference updated successfully", {
-                inferenceId: id,
-                updatedFields: Object.keys(data)
-            });
+            this.inferenceLogger.log("Inference updated successfully", { inferenceId: id });
             return inference;
         } catch (error) {
-            this.errorLogger.logDatabaseError("UPDATE_INFERENCE", "inferences", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("UPDATE_INFERENCE", "inferences", err.message);
             throw error;
         }
     }
 }
+        

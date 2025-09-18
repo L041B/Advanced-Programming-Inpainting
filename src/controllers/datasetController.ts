@@ -1,25 +1,49 @@
 import { Request, Response } from "express";
 import { DatasetMiddleware } from "../middleware/datasetMiddleware";
 import { DatasetRepository } from "../repository/datasetRepository";
-import logger from "../utils/logger";
+import { loggerFactory, DatasetRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 interface AuthRequest extends Request {
     user?: {
         userId: string;
         email: string;
     };
+    tokenReservation?: {
+        reservationKey: string;
+        reservedAmount: number;
+    };
+    operationResult?: {
+        tokensSpent?: number;
+        remainingBalance?: number;
+        operationType?: string;
+    };
+}
+
+interface TokenReservationDetails {
+    requiredTokens: number;
+    currentBalance: number;
+    shortfall: number;
+    operationType: string;
+    actionRequired: string;
 }
 
 export class DatasetController {
     private static datasetRepository = DatasetRepository.getInstance();
+    private static readonly datasetLogger: DatasetRouteLogger = loggerFactory.createDatasetLogger();
+    private static readonly apiLogger: ApiRouteLogger = loggerFactory.createApiLogger();
+    private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
     // Create an empty dataset
     static async createEmptyDataset(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const { name, tags } = req.body;
             const userId = req.user!.userId;
 
             if (!name || typeof name !== "string") {
+                DatasetController.errorLogger.logValidationError("name", name, "Dataset name is required");
                 res.status(400).json({ error: "Dataset name is required" });
                 return;
             }
@@ -27,38 +51,50 @@ export class DatasetController {
             const result = await DatasetMiddleware.createEmptyDataset(userId, name, tags);
             
             if (result.success) {
+                DatasetController.datasetLogger.logDatasetCreation(userId, name);
                 res.status(201).json({ 
                     message: "Empty dataset created successfully",
                     dataset: result.dataset 
                 });
             } else {
+                // Remove duplicate logging - middleware already logs this error
                 res.status(400).json({ error: result.error });
             }
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error creating empty dataset", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("CREATE_DATASET", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
 
     // Upload data to dataset (images, videos, zip files)
     static async uploadDataToDataset(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const { datasetName } = req.body;
             const userId = req.user!.userId;
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
             if (!datasetName || typeof datasetName !== "string") {
+                DatasetController.errorLogger.logValidationError("datasetName", datasetName, "Dataset name is required");
                 res.status(400).json({ error: "Dataset name is required" });
                 return;
             }
 
             if (!files || !files.image || !files.mask) {
+                DatasetController.errorLogger.logFileUploadError(undefined, undefined, "Both image and mask files are required");
                 res.status(400).json({ error: "Both image and mask files are required" });
                 return;
             }
 
             const imageFile = files.image[0];
             const maskFile = files.mask[0];
+
+            DatasetController.datasetLogger.logFileUpload(userId, datasetName, imageFile.originalname, imageFile.size);
 
             const result = await DatasetMiddleware.processAndAddData(
                 userId, 
@@ -68,21 +104,105 @@ export class DatasetController {
             );
 
             if (result.success) {
+                let tokenSpent = 0;
+                let userTokens = 0;
+
+                // Se abbiamo una reservationId dal middleware, confermiamo l'uso dei token
+                if (result.reservationId) {
+                    const { TokenService } = await import("../services/tokenService");
+                    const tokenService = TokenService.getInstance();
+                    
+                    const confirmResult = await tokenService.confirmTokenUsage(result.reservationId);
+                    
+                    if (confirmResult.success) {
+                        // Usa i valori REALI dalla transazione completata
+                        tokenSpent = confirmResult.tokensSpent || 0;
+                        userTokens = confirmResult.remainingBalance || 0;
+                    } else {
+                        // Fallback: recupera l'importo dall'ultima transazione dell'utente
+                        const transactionHistoryResult = await tokenService.getUserTransactionHistory(userId, 1);
+                        
+                        if (transactionHistoryResult.success && transactionHistoryResult.transactions && transactionHistoryResult.transactions.length > 0) {
+                            const lastTransaction = transactionHistoryResult.transactions[0];
+                            // Converti l'amount in valore positivo per tokenSpent
+                            tokenSpent = Math.abs(Number(lastTransaction.amount));
+                        }
+                        
+                        const balanceResult = await tokenService.getUserTokenBalance(userId);
+                        userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
+                    }
+                    
+                    req.operationResult = {
+                        tokensSpent: tokenSpent,
+                        remainingBalance: userTokens,
+                        operationType: "dataset_upload"
+                    };
+
+                    req.tokenReservation = {
+                        reservationKey: result.reservationId,
+                        reservedAmount: tokenSpent
+                    };
+                } else {
+                    // Se non c'è reservationId, cerca comunque l'ultima transazione per vedere se ci sono stati addebiti
+                    const { TokenService } = await import("../services/tokenService");
+                    const tokenService = TokenService.getInstance();
+                    
+                    const transactionHistoryResult = await tokenService.getUserTransactionHistory(userId, 1);
+                    if (transactionHistoryResult.success && transactionHistoryResult.transactions && transactionHistoryResult.transactions.length > 0) {
+                        const lastTransaction = transactionHistoryResult.transactions[0];
+                        // Controlla se è una transazione di dataset_upload recente (ultimi 5 secondi)
+                        const transactionTime = new Date(lastTransaction.createdAt).getTime();
+                        const now = Date.now();
+                        
+                        if (lastTransaction.operationType === "dataset_upload" && (now - transactionTime) < 5000) {
+                            tokenSpent = Math.abs(Number(lastTransaction.amount));
+                        }
+                    }
+                    
+                    const balanceResult = await tokenService.getUserTokenBalance(userId);
+                    userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
+                }
+
+                DatasetController.datasetLogger.logDatasetUpdate(userId, datasetName, result.processedItems);
+                
+                // Includi sempre tokenSpent e userTokens nella risposta
                 res.status(200).json({ 
                     message: "Data uploaded and processed successfully",
-                    processedItems: result.processedItems
+                    processedItems: result.processedItems,
+                    tokenSpent: tokenSpent,
+                    userTokens: userTokens
                 });
             } else {
-                res.status(400).json({ error: result.error });
+                // Handle detailed error responses from middleware
+                if (result.details) {
+                    res.status(401).json({ 
+                        error: result.error,
+                        message: result.message,
+                        details: result.details
+                    });
+                } else if (result.message) {
+                    res.status(400).json({ 
+                        error: result.error,
+                        message: result.message
+                    });
+                } else {
+                    res.status(400).json({ error: result.error });
+                }
             }
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error uploading data to dataset", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("UPLOAD_DATASET_DATA", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
 
     // Get all datasets for the authenticated user
     static async getUserDatasets(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const userId = req.user!.userId;
 
@@ -102,19 +222,26 @@ export class DatasetController {
                 };
             });
 
+            DatasetController.datasetLogger.logUserDatasetsRetrieval(userId, datasets.length);
             res.status(200).json({ 
                 success: true,
                 message: "Datasets retrieved successfully",
                 data: datasetsWithCount
             });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error retrieving user datasets", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("GET_USER_DATASETS", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
 
     // Get a specific dataset by name
     static async getDataset(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const userId = req.user!.userId;
             const { name } = req.params;
@@ -122,6 +249,7 @@ export class DatasetController {
             const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
             if (!dataset) {
+                DatasetController.errorLogger.logDatabaseError("GET_DATASET", "datasets", "Dataset not found");
                 res.status(404).json({ error: "Dataset not found" });
                 return;
             }
@@ -133,6 +261,7 @@ export class DatasetController {
             const data = dataset.data as DatasetData;
             const itemCount = data?.pairs?.length || 0;
 
+            DatasetController.datasetLogger.logDatasetRetrieval(userId, name);
             res.status(200).json({ 
                 success: true,
                 message: "Dataset retrieved successfully",
@@ -146,14 +275,20 @@ export class DatasetController {
                     type: data?.type || "empty"
                 }
             });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error retrieving dataset", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("GET_DATASET", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
 
     // Get dataset data/contents with viewable image URLs
     static async getDatasetData(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const userId = req.user!.userId;
             const { name } = req.params;
@@ -162,6 +297,7 @@ export class DatasetController {
             const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
             if (!dataset) {
+                DatasetController.errorLogger.logDatabaseError("GET_DATASET_DATA", "datasets", "Dataset not found");
                 res.status(404).json({ error: "Dataset not found" });
                 return;
             }
@@ -210,6 +346,7 @@ export class DatasetController {
                 }
             ));
 
+            DatasetController.datasetLogger.logDatasetRetrieval(userId, name);
             res.status(200).json({ 
                 success: true,
                 message: "Dataset data retrieved successfully",
@@ -223,8 +360,11 @@ export class DatasetController {
                     items
                 }
             });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error retrieving dataset data", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("GET_DATASET_DATA", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
@@ -246,6 +386,9 @@ export class DatasetController {
 
     // Serve individual images from dataset with temporary token
     static async serveImage(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const token = decodeURIComponent(req.params.imagePath);
             
@@ -262,12 +405,14 @@ export class DatasetController {
             try {
                 const verifyResult = jwt.default.verify(token, process.env.JWT_SECRET || "fallback_secret");
                 if (typeof verifyResult === "string") {
+                    DatasetController.errorLogger.logAuthenticationError(undefined, "Invalid image token format");
                     res.status(401).json({ error: "Invalid or expired image token" });
                     return;
                 }
                 decoded = verifyResult as ImageTokenPayload;
             } catch (error) {
-                logger.error("Error verifying image token", { error: error instanceof Error ? error.message : "Unknown error" });
+                DatasetController.errorLogger.logAuthenticationError(undefined, "Image token verification failed");
+                DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Token verification failed"));
                 res.status(401).json({ error: "Invalid or expired image token" });
                 return;
             }
@@ -276,6 +421,7 @@ export class DatasetController {
 
             // Security check: ensure the path belongs to the user
             if (!imagePath.startsWith(`datasets/${userId}/`)) {
+                DatasetController.errorLogger.logAuthorizationError(userId, imagePath);
                 res.status(403).json({ error: "Access denied" });
                 return;
             }
@@ -301,18 +447,26 @@ export class DatasetController {
                     "Cache-Control": "public, max-age=3600" // Cache for 1 hour
                 });
                 
+                DatasetController.datasetLogger.logImageServed(userId, imagePath);
                 res.send(imageBuffer);
             } catch (fileError) {
+                DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", "Image file not found");
                 res.status(404).json({ error: "Image not found" });
             }
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error serving image", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
 
     // Delete a dataset
     static async deleteDataset(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
         try {
             const userId = req.user!.userId;
             const { name } = req.params;
@@ -320,18 +474,80 @@ export class DatasetController {
             const success = await DatasetController.datasetRepository.deleteDataset(userId, name);
 
             if (!success) {
+                DatasetController.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", "Dataset not found");
                 res.status(404).json({ error: "Dataset not found" });
                 return;
             }
 
-            res.status(200).json({ 
+            DatasetController.datasetLogger.logDatasetDeletion(userId, name);
+            res.status(200).json({
                 success: true,
                 message: "Dataset deleted successfully"
             });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            logger.error("Error deleting dataset", { error: error instanceof Error ? error.message : "Unknown error" });
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
             res.status(500).json({ error: "Internal server error" });
         }
     }
-}
 
+    // Reserve tokens with EXACT calculated cost
+    private static async reserveTokens(userId: string, tokenCost: number, operationType: "dataset_upload" | "inference", datasetName: string): Promise<{ success: boolean; error?: string; message?: string; details?: TokenReservationDetails }> {
+        const { TokenService } = await import("../services/tokenService");
+        const tokenService = TokenService.getInstance();
+
+        // Effettua la prenotazione dei token necessari per l'operazione
+        const reservationResult = await tokenService.reserveTokens(
+            userId,
+            tokenCost,
+            operationType,
+            `${datasetName}_${Date.now()}`
+        );
+
+        if (!reservationResult.success) {
+            if (reservationResult.error?.includes("Insufficient tokens")) {
+                // Parse the detailed error message from TokenService
+                const errorParts = reservationResult.error.match(/Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/);
+
+                if (errorParts) {
+                    const required = parseFloat(errorParts[1]);
+                    const current = parseFloat(errorParts[2]);
+                    const shortfall = parseFloat(errorParts[3]);
+
+                    DatasetController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${required}`);
+                    return {
+                        success: false,
+                        error: "Insufficient tokens",
+                        message: `You need ${required} tokens for this dataset upload operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
+                        details: {
+                            requiredTokens: required,
+                            currentBalance: current,
+                            shortfall: shortfall,
+                            operationType: "dataset upload",
+                            actionRequired: "Token recharge needed"
+                        }
+                    };
+                } else {
+                    // Fallback to the original detailed error message
+                    DatasetController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${tokenCost}`);
+                    return {
+                        success: false,
+                        error: "Insufficient tokens",
+                        message: reservationResult.error
+                    };
+                }
+            }
+
+            DatasetController.errorLogger.logDatabaseError("RESERVE_TOKENS", "dataset_upload", reservationResult.error || "Token reservation failed");
+            return {
+                success: false,
+                error: "Token reservation failed",
+                message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
+            };
+        }
+
+        return { success: true };
+    }
+}

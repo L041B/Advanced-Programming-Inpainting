@@ -10,6 +10,7 @@ export interface UserData {
     surname: string;
     email: string;
     password: string;
+    // Remove tokens and role from interface - they should be set automatically
 }
 
 // UserRepository provides an abstraction layer over UserDao for user-related operations.
@@ -41,7 +42,11 @@ export class UserRepository {
         });
 
         try {
-            const newUser = await this.userDao.create(data);
+            const newUser = await this.userDao.create({
+                ...data,
+                tokens: 100.00, // Ensure 100 tokens default
+                role: "user" // Force user role
+            });
             this.userLogger.logUserCreation(newUser.id, newUser.email);
             return newUser;
         } catch (error) {
@@ -70,6 +75,22 @@ export class UserRepository {
         return await this.userDao.findById(id);
     }
 
+    // Retrieves a user by their email.
+    public async getUserByEmail(email: string): Promise<User | null> {
+        this.userLogger.log("Retrieving user by email", { email, operation: "GET_USER_BY_EMAIL" });
+        return await this.userDao.findByEmail(email);
+    }
+
+    // Check if user has admin role
+    public async isAdmin(userId: string): Promise<boolean> {
+        try {
+            const user = await this.userDao.findById(userId);
+            return user?.role === "admin" || false;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("CHECK_ADMIN", "users", (error as Error).message);
+            return false;
+        }
+    }
 
     // Updates an existing user in the database.
     public async updateUser(id: string, data: Partial<UserData>): Promise<User> {
@@ -82,6 +103,20 @@ export class UserRepository {
             return user;
         } catch (error) {
             this.errorLogger.logDatabaseError("UPDATE_USER", "users", (error as Error).message);
+            throw error;
+        }
+    }
+
+    // Update user token balance
+    public async updateUserTokens(id: string, tokens: number): Promise<User> {
+        this.userLogger.log("Updating user tokens", { userId: id, tokens, operation: "UPDATE_TOKENS" });
+
+        try {
+            const user = await this.userDao.updateTokens(id, tokens);
+            this.userLogger.logTokenUpdate(id, tokens);
+            return user;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("UPDATE_TOKENS", "users", (error as Error).message);
             throw error;
         }
     }

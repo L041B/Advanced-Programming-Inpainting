@@ -1,5 +1,5 @@
 // Import necessary modules from LoggerDecorator.
-import { ApiRouteLogger, ExecutionRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger } from "../utils/loggerDecorator";
+import { ApiRouteLogger, ExecutionRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger, DatasetRouteLogger, InferenceRouteLogger } from "../utils/loggerDecorator";
 
 // Factory for creating logger decorators
 export class LoggerFactory {
@@ -39,6 +39,16 @@ export class LoggerFactory {
     public createAuthLogger(): AuthRouteLogger {
         return new AuthRouteLogger();
     }
+
+    // Create a dataset logger instance
+    public createDatasetLogger(): DatasetRouteLogger {
+        return new DatasetRouteLogger();
+    }
+
+    // Create an inference logger instance
+    public createInferenceLogger(): InferenceRouteLogger {
+        return new InferenceRouteLogger();
+    }
 }
 
 // Export singleton instance
@@ -50,5 +60,7 @@ export {
     ApiRouteLogger,
     ErrorRouteLogger,
     UserRouteLogger,
-    AuthRouteLogger
+    AuthRouteLogger,
+    DatasetRouteLogger,
+    InferenceRouteLogger
 };

@@ -1,6 +1,6 @@
 import { Dataset } from "../models/Dataset";
 import { DatasetDao } from "../dao/datasetDao";
-import { loggerFactory, UserRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { loggerFactory, DatasetRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 export interface DatasetData {
     userId: string;
@@ -13,12 +13,12 @@ export interface DatasetData {
 export class DatasetRepository {
     private static instance: DatasetRepository;
     private readonly datasetDao: DatasetDao;
-    private readonly userLogger: UserRouteLogger;
+    private readonly datasetLogger: DatasetRouteLogger;
     private readonly errorLogger: ErrorRouteLogger;
 
     private constructor() {
         this.datasetDao = DatasetDao.getInstance();
-        this.userLogger = loggerFactory.createUserLogger();
+        this.datasetLogger = loggerFactory.createDatasetLogger();
         this.errorLogger = loggerFactory.createErrorLogger();
     }
 
@@ -30,11 +30,7 @@ export class DatasetRepository {
     }
 
     public async createDataset(data: DatasetData): Promise<Dataset> {
-        this.userLogger.log("Creating new dataset", {
-            userId: data.userId,
-            datasetName: data.name,
-            operation: "CREATE_DATASET"
-        });
+        this.datasetLogger.logRepositoryOperation("CREATE_DATASET", data.userId, data.name);
 
         try {
             const newDataset = await this.datasetDao.create({
@@ -42,43 +38,36 @@ export class DatasetRepository {
                 data: data.data !== undefined ? data.data : null,
                 tags: data.tags !== undefined ? data.tags : []
             });
-            this.userLogger.log("Dataset created successfully", {
-                userId: data.userId,
-                datasetName: data.name,
-                datasetId: `${data.userId}-${data.name}`
-            });
             return newDataset;
         } catch (error) {
-            this.errorLogger.logDatabaseError("CREATE_DATASET", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("CREATE_DATASET", "datasets", err.message);
             throw error;
         }
     }
 
     public async getDatasetByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
-        this.userLogger.log("Retrieving dataset by user ID and name", {
-            userId,
-            datasetName: name,
-            operation: "GET_DATASET"
-        });
+        this.datasetLogger.logRepositoryOperation("GET_DATASET", userId, name);
 
         try {
-            return await this.datasetDao.findByUserIdAndName(userId, name);
+            const dataset = await this.datasetDao.findByUserIdAndName(userId, name);
+            return dataset;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_DATASET", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_DATASET", "datasets", err.message);
             throw error;
         }
     }
 
     public async getUserDatasets(userId: string): Promise<Dataset[]> {
-        this.userLogger.log("Retrieving all user datasets", {
-            userId,
-            operation: "GET_USER_DATASETS"
-        });
+        this.datasetLogger.logRepositoryOperation("GET_USER_DATASETS", userId);
 
         try {
-            return await this.datasetDao.findAllByUserId(userId);
+            const datasets = await this.datasetDao.findAllByUserId(userId);
+            return datasets;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_USER_DATASETS", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_USER_DATASETS", "datasets", err.message);
             throw error;
         }
     }
@@ -88,68 +77,59 @@ export class DatasetRepository {
         limit: number,
         offset: number
     ): Promise<{ rows: Dataset[], count: number }> {
-        this.userLogger.log("Retrieving user datasets with pagination", {
-            userId,
-            limit,
-            offset,
-            operation: "GET_USER_DATASETS_PAGINATED"
-        });
+        this.datasetLogger.logRepositoryOperation("GET_USER_DATASETS_PAGINATED", userId);
 
         try {
-            return await this.datasetDao.findByUserIdAndNameWithPagination(userId, limit, offset);
+            const result = await this.datasetDao.findByUserIdAndNameWithPagination(userId, limit, offset);
+            this.datasetLogger.logUserDatasetsRetrieval(userId, result.count);
+            return result;
         } catch (error) {
-            this.errorLogger.logDatabaseError("GET_USER_DATASETS_PAGINATED", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_USER_DATASETS_PAGINATED", "datasets", err.message);
             throw error;
         }
     }
 
     public async updateDataset(userId: string, name: string, data: Partial<DatasetData>): Promise<Dataset> {
-        this.userLogger.log("Updating dataset", {
-            userId,
-            datasetName: name,
-            operation: "UPDATE_DATASET",
-            updateFields: Object.keys(data)
-        });
+        this.datasetLogger.logRepositoryOperation("UPDATE_DATASET", userId, name);
 
         try {
             const dataset = await this.datasetDao.update(userId, name, data);
-            this.userLogger.log("Dataset updated successfully", {
-                userId,
-                datasetName: name,
-                updatedFields: Object.keys(data)
-            });
             return dataset;
         } catch (error) {
-            this.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
             throw error;
         }
     }
 
     public async deleteDataset(userId: string, name: string): Promise<boolean> {
-        this.userLogger.log("Deleting dataset", {
-            userId,
-            datasetName: name,
-            operation: "DELETE_DATASET"
-        });
+        this.datasetLogger.logRepositoryOperation("DELETE_DATASET", userId, name);
 
         try {
             const success = await this.datasetDao.delete(userId, name);
             if (success) {
-                this.userLogger.log("Dataset deleted successfully", {
-                    userId,
-                    datasetName: name
-                });
+                // Remove duplicate logging - controller already logs deletion
             } else {
                 this.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", "Dataset not found");
             }
             return success;
         } catch (error) {
-            this.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", (error as Error).message);
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", err.message);
             throw error;
         }
     }
 
     public async datasetExists(userId: string, name: string): Promise<boolean> {
-        return await this.datasetDao.exists(userId, name);
+        try {
+            return await this.datasetDao.exists(userId, name);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("CHECK_DATASET_EXISTS", "datasets", err.message);
+            throw error;
+        }
     }
 }
+       
+                

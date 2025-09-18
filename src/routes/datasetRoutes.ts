@@ -3,33 +3,37 @@ import multer from "multer";
 import path from "path";
 import { DatasetController } from "../controllers/datasetController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import { TokenMiddleware } from "../middleware/tokenMiddleware";
 
 const router = Router();
 
-// Configure disk storage for multer
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = path.join(process.cwd(), "uploads", "temp");
-        cb(null, uploadPath);
+// Custom storage configuration for handling uploads
+const fileStorageConfig = multer.diskStorage({
+    destination: (request, uploadedFile, callback) => {
+        const tempStoragePath = path.join(process.cwd(), "uploads", "temp");
+        callback(null, tempStoragePath);
     },
-    filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-        cb(null, uniqueName);
+    filename: (request, uploadedFile, callback) => {
+        const timestamp = new Date().getTime();
+        const randomSuffix = Math.floor(Math.random() * 999999);
+        const fileExtension = path.extname(uploadedFile.originalname);
+        const generatedName = `upload_${timestamp}_${randomSuffix}${fileExtension}`;
+        callback(null, generatedName);
     }
 });
 
-const upload = multer({ 
-    storage,
+const fileUploadHandler = multer({ 
+    storage: fileStorageConfig,
     limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|mp4|avi|mov|zip/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+    fileFilter: (request, uploadedFile, callback) => {
+        const supportedExtensions = /jpeg|jpg|png|mp4|avi|mov|zip/;
+        const extensionCheck = supportedExtensions.test(path.extname(uploadedFile.originalname).toLowerCase());
+        const mimeTypeCheck = supportedExtensions.test(uploadedFile.mimetype);
         
-        if (mimetype && extname) {
-            return cb(null, true);
+        if (mimeTypeCheck && extensionCheck) {
+            return callback(null, true);
         } else {
-            cb(new Error("Invalid file type"));
+            callback(new Error("File type not supported"));
         }
     }
 });
@@ -37,14 +41,17 @@ const upload = multer({
 // Route for creating an empty dataset (protected)
 router.post("/create-empty", ...authenticateToken, DatasetController.createEmptyDataset);
 
-// Route for uploading data to dataset (protected)
+// Route for uploading data to dataset (protected with token validation and cost injection)
 router.post("/upload-data", 
     ...authenticateToken,
-    upload.fields([
+    TokenMiddleware.validateTokenBalance,
+    TokenMiddleware.injectTokenCostInResponse,
+    fileUploadHandler.fields([
         { name: "image", maxCount: 1 },
         { name: "mask", maxCount: 1 }
     ]), 
-    DatasetController.uploadDataToDataset
+    DatasetController.uploadDataToDataset,
+    TokenMiddleware.finalizeTokenUsage
 );
 
 // Route for getting all user datasets (protected)

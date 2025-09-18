@@ -1,14 +1,12 @@
-import { DataTypes, Model, Sequelize, Op } from "sequelize";
+import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
-import { User } from "./User";
-import { Dataset } from "./Dataset";
 
 export class Inference extends Model {
   public id!: string;
   public status!: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
   public modelId!: string;
-  public parameters!: Record<string, unknown>;
-  public result!: Record<string, unknown>;
+  public parameters!: Record<string, unknown> | null;
+  public result!: Record<string, unknown> | null;
   public datasetName!: string;
   public userId!: string;
   
@@ -28,31 +26,31 @@ export class Inference extends Model {
         status: {
           type: DataTypes.ENUM("PENDING", "RUNNING", "COMPLETED", "FAILED", "ABORTED"),
           allowNull: false,
-          defaultValue: "PENDING",
+          defaultValue: "PENDING"
         },
         modelId: {
           type: DataTypes.STRING(255),
           allowNull: false,
-          field: "model_id",
+          field: "model_id"
         },
         parameters: {
           type: DataTypes.JSONB,
-          allowNull: true,
+          allowNull: true
         },
         result: {
           type: DataTypes.JSONB,
-          allowNull: true,
+          allowNull: true
         },
         datasetName: {
           type: DataTypes.STRING(255),
           allowNull: false,
-          field: "dataset_name",
+          field: "dataset_name"
         },
         userId: {
           type: DataTypes.UUID,
           allowNull: false,
-          field: "user_id",
-        },
+          field: "user_id"
+        }
       },
       {
         sequelize,
@@ -65,19 +63,10 @@ export class Inference extends Model {
   }
 
   static associate() {
-    Inference.belongsTo(User, { foreignKey: "userId", as: "user" });
-    Inference.belongsTo(Dataset, {
-      foreignKey: "datasetName",
-      targetKey: "name",
-      constraints: false,
-      scope: {
-        userId: {
-          [Op.col]: "Inference.userId"
-        }
-      },
-      as: "dataset"
-    });
+    // Associations will be set up in the index file
   }
 }
 
 Inference.initialize();
+
+
