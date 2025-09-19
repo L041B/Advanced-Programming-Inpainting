@@ -7,7 +7,7 @@ interface InferenceMutationData {
     modelId: string;
     parameters?: Record<string, unknown>;
     result?: Record<string, unknown>;
-    datasetName: string;
+    datasetId: string; // Changed from datasetName to datasetId
     userId: string;
 }
 

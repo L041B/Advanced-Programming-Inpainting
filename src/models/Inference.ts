@@ -7,7 +7,7 @@ export class Inference extends Model {
   public modelId!: string;
   public parameters!: Record<string, unknown> | null;
   public result!: Record<string, unknown> | null;
-  public datasetName!: string;
+  public datasetId!: string; // Changed from datasetName to datasetId
   public userId!: string;
   
   public readonly createdAt!: Date;
@@ -41,10 +41,10 @@ export class Inference extends Model {
           type: DataTypes.JSONB,
           allowNull: true
         },
-        datasetName: {
-          type: DataTypes.STRING(255),
+        datasetId: {
+          type: DataTypes.UUID,
           allowNull: false,
-          field: "dataset_name"
+          field: "dataset_id" // Changed from dataset_name
         },
         userId: {
           type: DataTypes.UUID,

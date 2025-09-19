@@ -101,7 +101,7 @@ export class TokenMiddleware {
     // Reserve tokens before operation starts
     static async reserveTokensForOperation(
         operationType: "dataset_upload" | "inference",
-        costCalculator: (operationData: any) => number
+        costCalculator: (operationData: Record<string, unknown>) => number
     ) {
         return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
             try {
@@ -195,10 +195,10 @@ export class TokenMiddleware {
     static injectTokenCostInResponse(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
         const originalJson = res.json;
         
-        res.json = function(body: any) {
+        res.json = function(body: object) {
             // Inject token usage info if available
-            if (req.operationResult && body && typeof body === 'object' && !Array.isArray(body)) {
-                body.tokenUsage = {
+            if (req.operationResult && body && typeof body === "object" && !Array.isArray(body)) {
+                (body as Record<string, unknown>).tokenUsage = {
                     tokensSpent: req.operationResult.tokensSpent || 0,
                     remainingBalance: req.operationResult.remainingBalance || 0,
                     operationType: req.operationResult.operationType || "operation"
@@ -296,7 +296,7 @@ export class TokenMiddleware {
 
     // Error handler that ensures token refund on operation failure
     static handleTokenOperationError(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-        return async (error: any) => {
+        return async (error: unknown) => {
             if (req.tokenReservation) {
                 try {
                     await TokenMiddleware.tokenManagementService.refundTokens(

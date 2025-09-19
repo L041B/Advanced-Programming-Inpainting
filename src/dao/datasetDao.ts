@@ -1,5 +1,5 @@
 import { Dataset } from "../models/Dataset";
-import { Sequelize } from "sequelize";
+import { Sequelize, Op } from "sequelize";
 import { DbConnection } from "../config/database";
 
 interface DatasetMutationData {
@@ -28,13 +28,16 @@ export class DatasetDao {
 
     public async create(datasetData: Required<Omit<DatasetMutationData, "isDeleted" | "nextUploadIndex">>): Promise<Dataset> {
         return await this.sequelize.transaction(async (t) => {
-            const existingDataset = await Dataset.findOne({
-                where: { userId: datasetData.userId, name: datasetData.name, isDeleted: false },
-                transaction: t
-            });
-            
-            if (existingDataset) {
-                throw new Error("Dataset with this name already exists");
+            // Check for existing dataset only for non-null user_id
+            if (datasetData.userId) {
+                const existingDataset = await Dataset.findOne({
+                    where: { userId: datasetData.userId, name: datasetData.name, isDeleted: false },
+                    transaction: t
+                });
+                
+                if (existingDataset) {
+                    throw new Error("Dataset with this name already exists");
+                }
             }
 
             return await Dataset.create({
@@ -47,8 +50,13 @@ export class DatasetDao {
 
     public async update(userId: string, name: string, datasetData: Partial<DatasetMutationData>): Promise<Dataset> {
         return await this.sequelize.transaction(async (t) => {
+            // Find dataset by userId and name, only for non-deleted datasets with non-null userId
             const dataset = await Dataset.findOne({
-                where: { userId, name, isDeleted: false },
+                where: { 
+                    name, 
+                    isDeleted: false,
+                    userId: { [Op.ne]: null } // Ensure userId is not null
+                },
                 transaction: t
             });
             
@@ -57,7 +65,7 @@ export class DatasetDao {
             }
 
             // Log the update operation for debugging
-            console.log(`Updating dataset ${name} with:`, {
+            console.log(`Updating dataset ${dataset.name} with:`, {
                 hasData: !!datasetData.data,
                 nextUploadIndex: datasetData.nextUploadIndex,
                 tags: datasetData.tags
@@ -66,7 +74,7 @@ export class DatasetDao {
             await dataset.update(datasetData, { transaction: t });
             
             // Log successful update
-            console.log(`Dataset ${name} updated successfully. New nextUploadIndex: ${dataset.nextUploadIndex}`);
+            console.log(`Dataset ${dataset.name} updated successfully. New nextUploadIndex: ${dataset.nextUploadIndex}`);
             
             return dataset;
         });
@@ -75,7 +83,11 @@ export class DatasetDao {
     public async delete(userId: string, name: string): Promise<boolean> {
         return await this.sequelize.transaction(async (t) => {
             const dataset = await Dataset.findOne({
-                where: { userId, name, isDeleted: false },
+                where: { 
+                    name, 
+                    isDeleted: false,
+                    userId: { [Op.ne]: null } // Ensure userId is not null
+                },
                 transaction: t
             });
             
@@ -88,16 +100,60 @@ export class DatasetDao {
         });
     }
 
-    public async findByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
-        return await Dataset.findOne({
-            where: { userId, name, isDeleted: false }
+    // Soft delete tutti i dataset di un utente specifico
+    public async softDeleteAllByUserId(userId: string): Promise<number> {
+        return await this.sequelize.transaction(async (t) => {
+            // Marca come eliminati solo i dataset NON già eliminati
+            const [affectedCount] = await Dataset.update(
+                { isDeleted: true },
+                {
+                    where: { 
+                        userId, 
+                        isDeleted: false // Solo quelli non già eliminati
+                    },
+                    transaction: t
+                }
+            );
+            
+            console.log(`Soft deleted ${affectedCount} datasets for user ${userId}`);
+            return affectedCount;
         });
     }
 
+    // Trova tutti i dataset dell'utente INCLUSI quelli eliminati
+    public async findAllByUserIdIncludingDeleted(userId: string): Promise<Dataset[]> {
+        return await Dataset.findAll({
+            where: { userId }, // Non filtrare per isDeleted - mostra tutto
+            order: [["createdAt", "DESC"]]
+        });
+    }
+
+    // Trova dataset NON eliminati (comportamento normale)
     public async findAllByUserId(userId: string): Promise<Dataset[]> {
         return await Dataset.findAll({
-            where: { userId, isDeleted: false },
+            where: { 
+                userId, 
+                isDeleted: false // Solo quelli attivi
+            },
             order: [["createdAt", "DESC"]]
+        });
+    }
+
+    // Find dataset by ID, allowing null userId for orphaned datasets
+    public async findById(datasetId: string): Promise<Dataset | null> {
+        return await Dataset.findOne({
+            where: { id: datasetId, isDeleted: false }
+            // Note: Don't filter by userId here since we want to find orphaned datasets too
+        });
+    }
+
+    public async findByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
+        return await Dataset.findOne({
+            where: { 
+                name, 
+                isDeleted: false,
+                userId: { [Op.ne]: null } // Only active user datasets
+            }
         });
     }
 
@@ -116,7 +172,11 @@ export class DatasetDao {
 
     public async exists(userId: string, name: string): Promise<boolean> {
         const dataset = await Dataset.findOne({
-            where: { userId, name, isDeleted: false },
+            where: { 
+                name, 
+                isDeleted: false,
+                userId: { [Op.ne]: null } // Only check for active user datasets
+            },
             attributes: ["userId"]
         });
         return !!dataset;

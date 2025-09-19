@@ -2,7 +2,8 @@ import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
 
 export class Dataset extends Model {
-  public userId!: string;
+  public id!: string; // New UUID primary key
+  public userId!: string | null; // Can be null when user is deleted
   public name!: string;
   public data!: object | null;
   public tags!: string[];
@@ -17,16 +18,19 @@ export class Dataset extends Model {
 
     Dataset.init(
       {
+        id: {
+          type: DataTypes.UUID,
+          primaryKey: true,
+          defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+        },
         userId: {
           type: DataTypes.UUID,
-          allowNull: false,
-          primaryKey: true,
+          allowNull: true, // Changed to allow NULL when user is deleted
           field: "user_id"
         },
         name: {
           type: DataTypes.STRING(255),
-          allowNull: false,
-          primaryKey: true
+          allowNull: false
         },
         data: {
           type: DataTypes.JSONB,
@@ -55,7 +59,8 @@ export class Dataset extends Model {
         modelName: "Dataset",
         tableName: "datasets",
         timestamps: true,
-        underscored: true,
+        underscored: true
+        // Remove the unique index from here since we're using a partial index in SQL
       }
     );
   }
@@ -66,3 +71,4 @@ export class Dataset extends Model {
 }
 
 Dataset.initialize();
+    // Associations will be set up in the index file

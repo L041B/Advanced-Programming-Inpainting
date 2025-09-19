@@ -71,7 +71,13 @@ export class DatasetMiddleware {
         processedItems?: number; 
         error?: string; 
         message?: string;
-        details?: any;
+        details?: {
+            requiredTokens: number;
+            currentBalance: number;
+            shortfall: number;
+            operationType: string;
+            actionRequired: string;
+        };
         reservationId?: string; 
         tokenCost?: number 
     }> {
@@ -139,7 +145,7 @@ export class DatasetMiddleware {
                 
                 // Calculate exact cost: 0.7 per pair (image-mask or video-mask)
                 let totalPairs = 0;
-                for (const [subdir, data] of subdirs) {
+                for (const [, data] of subdirs) {
                     totalPairs += data.images + data.videos; // Each video counts as 1 pair regardless of frames
                 }
                 

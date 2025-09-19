@@ -205,12 +205,17 @@ export class DatasetController {
 
         try {
             const userId = req.user!.userId;
+            const { includeDeleted = "false" } = req.query;
 
-            const datasets = await DatasetController.datasetRepository.getUserDatasets(userId);
+            // Determina se includere i dataset eliminati
+            const datasets = includeDeleted === "true" 
+                ? await DatasetController.datasetRepository.getAllUserDatasetsIncludingDeleted(userId)
+                : await DatasetController.datasetRepository.getUserDatasets(userId);
 
             const datasetsWithCount = datasets.map((dataset) => {
                 const data = (dataset.data ?? {}) as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string };
                 const itemCount = data.pairs?.length || 0;
+                
                 return {
                     userId: dataset.userId,
                     name: dataset.name,
@@ -218,15 +223,38 @@ export class DatasetController {
                     createdAt: dataset.createdAt,
                     updatedAt: dataset.updatedAt,
                     itemCount,
-                    type: data.type || "empty"
+                    type: data.type || "empty",
+                    isDeleted: dataset.isDeleted, // Includi sempre il flag isDeleted
+                    status: dataset.isDeleted ? "deleted" : "active" // Status leggibile
                 };
             });
+
+            interface DatasetWithCount {
+                userId: string | null;
+                name: string;
+                tags: string[];
+                createdAt: Date;
+                updatedAt: Date;
+                itemCount: number;
+                type: string;
+                isDeleted: boolean;
+                status: string;
+            }
+
+            const activeDatasets: DatasetWithCount[] = datasetsWithCount.filter((d: DatasetWithCount) => !d.isDeleted);
+            const deletedDatasets: DatasetWithCount[] = datasetsWithCount.filter((d: DatasetWithCount) => d.isDeleted);
 
             DatasetController.datasetLogger.logUserDatasetsRetrieval(userId, datasets.length);
             res.status(200).json({ 
                 success: true,
                 message: "Datasets retrieved successfully",
-                data: datasetsWithCount
+                data: datasetsWithCount,
+                summary: {
+                    total: datasetsWithCount.length,
+                    active: activeDatasets.length,
+                    deleted: deletedDatasets.length,
+                    includeDeleted: includeDeleted === "true"
+                }
             });
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {

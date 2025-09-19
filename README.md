@@ -1999,3 +1999,22 @@ pm.test("Inference completed", function () {
 ```
 
 Ora hai una guida completa per utilizzare il sistema di inferenza con Postman! 🚀🎯
+
+
+
+
+# 1. Crea un dataset per l'utente
+POST {{baseUrl}}/api/datasets/create-empty
+Authorization: Bearer {{userToken}}
+{
+    "name": "test-dataset",
+    "tags": ["test"]
+}
+
+# 2. Elimina l'utente
+DELETE {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{adminToken}}
+
+# 3. Verifica che i dataset siano ancora nel DB ma marcati come eliminati
+GET {{baseUrl}}/api/admin/datasets?includeDeleted=true
+Authorization: Bearer {{adminToken}}

@@ -47,8 +47,7 @@ Dataset.belongsTo(User, {
 });
 
 Dataset.hasMany(Inference, {
-    foreignKey: "datasetName",
-    sourceKey: "name",
+    foreignKey: "datasetId", // Changed from datasetName to datasetId
     as: "inferences"
 });
 
@@ -59,8 +58,7 @@ Inference.belongsTo(User, {
 });
 
 Inference.belongsTo(Dataset, {
-    foreignKey: "datasetName",
-    targetKey: "name",
+    foreignKey: "datasetId", // Changed from datasetName to datasetId
     as: "dataset"
 });
 
@@ -77,3 +75,4 @@ export {
     Inference,
     TokenTransaction
 };
+

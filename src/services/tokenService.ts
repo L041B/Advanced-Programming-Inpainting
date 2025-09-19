@@ -164,7 +164,7 @@ export class TokenService {
     let videoFrameCount = 0;
 
     // Process each unique uploadIndex according to the rules
-    for (const [uploadIndex, count] of uploadIndexCounts.entries()) {
+    for (const [, count] of uploadIndexCounts.entries()) {
       if (count === 1) {
         // Single occurrence = IMAGE: 2.75 tokens per image
         imageCount += 1;
@@ -232,6 +232,45 @@ export class TokenService {
   // Get user transaction history
   public async getUserTransactionHistory(userId: string, limit = 50): Promise<{ success: boolean; transactions?: TokenTransaction[]; error?: string }> {
     return await this.retrieveTransactionHistory(userId, limit);
+  }
+
+  // Get all transactions (admin only)
+  public async getAllTransactions(
+    filters: { status?: string; operationType?: string; userId?: string } = {},
+    limit = 50,
+    offset = 0
+  ): Promise<{ success: boolean; transactions?: TokenTransaction[]; count?: number; error?: string }> {
+    try {
+      const whereConditions: {
+        status?: string;
+        operationType?: string;
+        userId?: string;
+      } = {};
+      
+      if (filters.status) {
+        whereConditions.status = filters.status;
+      }
+      if (filters.operationType) {
+        whereConditions.operationType = filters.operationType;
+      }
+      if (filters.userId) {
+        whereConditions.userId = filters.userId;
+      }
+
+      const { rows: transactions, count } = await TokenTransaction.findAndCountAll({
+        where: whereConditions,
+        order: [["createdAt", "DESC"]],
+        limit,
+        offset
+      });
+
+      return { success: true, transactions, count };
+
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+      errorLogger.logDatabaseError("GET_ALL_TRANSACTIONS", "token_transactions", err.message);
+      return { success: false, error: "Failed to retrieve all transactions" };
+    }
   }
 
   // Admin recharge tokens
@@ -579,8 +618,8 @@ export class TokenService {
       TokenService.cleanupLock = true;
       
       // Check if TokenTransaction model is properly initialized
-      if (!TokenTransaction || typeof TokenTransaction.findAll !== 'function') {
-        userLogger.log('TokenTransaction model not ready for cleanup, skipping...');
+      if (!TokenTransaction || typeof TokenTransaction.findAll !== "function") {
+        userLogger.log("TokenTransaction model not ready for cleanup, skipping...");
         return;
       }
 
@@ -604,7 +643,7 @@ export class TokenService {
       }
 
       if (!staleTransactions || staleTransactions.length === 0) {
-        userLogger.log('No stale pending transactions found');
+        userLogger.log("No stale pending transactions found");
         return;
       }
 
@@ -615,7 +654,7 @@ export class TokenService {
         try {
           // Validate transaction data
           if (!transaction || !transaction.id || !transaction.userId) {
-            userLogger.log(`Skipping invalid transaction: ${JSON.stringify(transaction?.id || 'unknown')}`);
+            userLogger.log(`Skipping invalid transaction: ${JSON.stringify(transaction?.id || "unknown")}`);
             await dbTransaction.rollback();
             continue;
           }
@@ -633,7 +672,7 @@ export class TokenService {
               // Update transaction status
               await transaction.update({
                 status: "refunded",
-                description: `Auto-refunded stale transaction after 1 hour`
+                description: "Auto-refunded stale transaction after 1 hour"
               }, { transaction: dbTransaction });
               
               await dbTransaction.commit();
@@ -644,7 +683,7 @@ export class TokenService {
               // Just mark as refunded if amount is 0
               await transaction.update({
                 status: "refunded",
-                description: `Auto-marked stale transaction as refunded (zero amount)`
+                description: "Auto-marked stale transaction as refunded (zero amount)"
               }, { transaction: dbTransaction });
               
               await dbTransaction.commit();
@@ -654,7 +693,7 @@ export class TokenService {
             // If user not found, just mark transaction as refunded
             await transaction.update({
               status: "refunded",
-              description: `Auto-refunded stale transaction - user not found`
+              description: "Auto-refunded stale transaction - user not found"
             }, { transaction: dbTransaction });
             
             await dbTransaction.commit();

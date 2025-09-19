@@ -19,17 +19,17 @@ export class InferenceMiddleware {
     static async validateCreateInference(
         userId: string, 
         data: CreateInferenceData
-    ): Promise<{ success: boolean; error?: string }> {
+    ): Promise<{ success: boolean; error?: string; dataset?: { id: string; name: string; data: unknown } }> {
         try {
             const { datasetName } = data;
 
-            // Check 1: Dataset name is required (same as controller)
+            // Check 1: Dataset name is required
             if (!datasetName) {
                 errorLogger.logValidationError("datasetName", datasetName, "Dataset name is required");
                 return { success: false, error: "Dataset name is required" };
             }
 
-            // Check 2: Dataset exists and belongs to user (same as controller)
+            // Check 2: Dataset exists and belongs to user
             const dataset = await InferenceMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
 
             if (!dataset) {
@@ -37,7 +37,7 @@ export class InferenceMiddleware {
                 return { success: false, error: "Dataset not found" };
             }
 
-            // Check 3: Dataset has data (same as controller)
+            // Check 3: Dataset has data
             const datasetData = dataset.data as { pairs?: Array<{ input: string; output: string }>; type?: string } | null;
             if (!datasetData || !datasetData.pairs || datasetData.pairs.length === 0) {
                 errorLogger.logValidationError("datasetData", datasetName, "Dataset is empty");
@@ -46,12 +46,20 @@ export class InferenceMiddleware {
 
             inferenceLogger.log("Inference validation successful", { 
                 userId, 
-                datasetName, 
+                datasetName,
+                datasetId: dataset.id, // Include dataset ID in logs
                 pairCount: datasetData.pairs.length,
                 modelId: data.modelId 
             });
 
-            return { success: true };
+            return { 
+                success: true, 
+                dataset: { 
+                    id: dataset.id, 
+                    name: dataset.name, 
+                    data: dataset.data 
+                }
+            };
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
             errorLogger.logDatabaseError("VALIDATE_CREATE_INFERENCE", "datasets", err.message);

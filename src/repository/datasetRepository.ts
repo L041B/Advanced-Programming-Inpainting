@@ -130,6 +130,73 @@ export class DatasetRepository {
             throw error;
         }
     }
+
+    // Soft delete tutti i dataset di un utente (per quando l'utente viene eliminato)
+    public async softDeleteAllUserDatasets(userId: string): Promise<number> {
+        try {
+            return await this.datasetDao.softDeleteAllByUserId(userId);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            throw new Error(`Failed to soft delete user datasets: ${err.message}`);
+        }
+    }
+
+    // Ottieni tutti i dataset dell'utente INCLUSI quelli eliminati (con flag isDeleted)
+    public async getAllUserDatasetsIncludingDeleted(userId: string): Promise<Dataset[]> {
+        try {
+            return await this.datasetDao.findAllByUserIdIncludingDeleted(userId);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            throw new Error(`Failed to get all user datasets: ${err.message}`);
+        }
+    }
+
+    public async getDatasetById(datasetId: string): Promise<Dataset | null> {
+        this.datasetLogger.logRepositoryOperation("GET_DATASET_BY_ID", "system", datasetId);
+
+        try {
+            const dataset = await this.datasetDao.findById(datasetId);
+            return dataset;
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("GET_DATASET_BY_ID", "datasets", err.message);
+            throw error;
+        }
+    }
+
+    public async updateDatasetById(datasetId: string, data: Partial<DatasetData>): Promise<Dataset> {
+        this.datasetLogger.logRepositoryOperation("UPDATE_DATASET_BY_ID", "system", datasetId);
+
+        try {
+            const existingDataset = await this.datasetDao.findById(datasetId);
+            if (!existingDataset || !existingDataset.userId || !existingDataset.name) {
+                throw new Error("Dataset not found or missing userId/name");
+            }
+            const dataset = await this.datasetDao.update(existingDataset.userId, existingDataset.name, data);
+            return dataset;
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("UPDATE_DATASET_BY_ID", "datasets", err.message);
+            throw error;
+        }
+    }
+
+    public async deleteDatasetById(datasetId: string): Promise<boolean> {
+        this.datasetLogger.logRepositoryOperation("DELETE_DATASET_BY_ID", "system", datasetId);
+
+        try {
+            const dataset = await this.datasetDao.findById(datasetId);
+            if (!dataset || !dataset.userId || !dataset.name) {
+                this.errorLogger.logDatabaseError("DELETE_DATASET_BY_ID", "datasets", "Dataset not found or missing userId/name");
+                return false;
+            }
+            const success = await this.datasetDao.delete(dataset.userId, dataset.name);
+            return success;
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("DELETE_DATASET_BY_ID", "datasets", err.message);
+            throw error;
+        }
+    }
 }
-       
-                
+

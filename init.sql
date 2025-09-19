@@ -63,9 +63,10 @@ CREATE TABLE IF NOT EXISTS token_transactions (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Create datasets table
+-- Create datasets table with UUID primary key
 CREATE TABLE IF NOT EXISTS datasets (
-    user_id UUID NOT NULL,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,  -- Remove NOT NULL constraint since it can be set to NULL when user is deleted
     name VARCHAR(255) NOT NULL,
     data JSONB, -- Contains image-mask pairs or frame-mask lists for videos, can be empty
     tags TEXT[] DEFAULT '{}', -- Array of strings for tags
@@ -73,23 +74,29 @@ CREATE TABLE IF NOT EXISTS datasets (
     next_upload_index INTEGER DEFAULT 1, -- Tracks the next upload index for this dataset
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, name),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    -- CHANGED: Remove CASCADE DELETE to preserve datasets when user is deleted
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- Create inferences table
+-- Create partial unique index that excludes NULL user_id values
+CREATE UNIQUE INDEX IF NOT EXISTS idx_datasets_user_name_unique 
+ON datasets (user_id, name) 
+WHERE user_id IS NOT NULL;
+
+-- Create inferences table with updated foreign key reference
 CREATE TABLE IF NOT EXISTS inferences (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     status inference_status NOT NULL DEFAULT 'PENDING',
     model_id VARCHAR(255) NOT NULL,
     parameters JSONB, -- JSON for Grad-Cam, etc.
     result JSONB, -- JSON with inference output
-    dataset_name VARCHAR(255) NOT NULL,
+    dataset_id UUID NOT NULL, -- Changed to reference datasets.id instead of name
     user_id UUID NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id, dataset_name) REFERENCES datasets(user_id, name) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    -- CHANGED: Reference dataset by id instead of composite key
+    FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Create function to automatically update updated_at timestamp
@@ -143,7 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_datasets_next_upload_index ON datasets(next_uploa
 CREATE INDEX IF NOT EXISTS idx_inferences_user_id ON inferences(user_id);
 CREATE INDEX IF NOT EXISTS idx_inferences_status ON inferences(status);
 CREATE INDEX IF NOT EXISTS idx_inferences_model_id ON inferences(model_id);
-CREATE INDEX IF NOT EXISTS idx_inferences_dataset ON inferences(user_id, dataset_name);
+CREATE INDEX IF NOT EXISTS idx_inferences_dataset_id ON inferences(dataset_id); -- Updated index
 
 -- Note: Admin user will be created programmatically from environment variables
 -- This ensures no sensitive data is exposed in SQL files

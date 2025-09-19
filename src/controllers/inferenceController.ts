@@ -136,7 +136,7 @@ export class InferenceController {
             const inference = await InferenceController.inferenceRepository.createInference({
                 modelId,
                 parameters: { ...parameters, tokenReservationId, tokenCost: costCalc.totalCost },
-                datasetName,
+                datasetId: dataset.id, // Use dataset.id instead of datasetName
                 userId
             });
 
@@ -198,7 +198,7 @@ export class InferenceController {
                         id: inference.id,
                         status: inference.status,
                         modelId: inference.modelId,
-                        datasetName: inference.datasetName,
+                        datasetName: dataset.name,
                         createdAt: inference.createdAt,
                         tokenCost: costCalc.totalCost,
                         costBreakdown: costCalc.breakdown

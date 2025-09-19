@@ -6,7 +6,7 @@ export interface InferenceData {
     status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
     modelId: string;
     parameters?: Record<string, unknown>;
-    datasetName: string;
+    datasetId: string; // Changed from datasetName to datasetId
     userId: string;
 }
 
@@ -32,7 +32,7 @@ export class InferenceRepository {
     public async createInference(data: Omit<InferenceData, "status">): Promise<Inference> {
         this.inferenceLogger.log("Creating new inference", {
             userId: data.userId,
-            datasetName: data.datasetName,
+            datasetId: data.datasetId,
             modelId: data.modelId
         });
 
@@ -136,4 +136,3 @@ export class InferenceRepository {
         }
     }
 }
-        
