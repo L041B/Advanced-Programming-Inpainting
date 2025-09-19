@@ -39,10 +39,10 @@ const fileUploadHandler = multer({
 });
 
 // Route for creating an empty dataset (protected)
-router.post("/create-empty", ...authenticateToken, DatasetController.createEmptyDataset);
+router.post("/empty-dataset", ...authenticateToken, DatasetController.createEmptyDataset);
 
 // Route for uploading data to dataset (protected with token validation and cost injection)
-router.post("/upload-data", 
+router.post("/data", 
     ...authenticateToken,
     TokenMiddleware.validateTokenBalance,
     TokenMiddleware.injectTokenCostInResponse,
@@ -68,5 +68,8 @@ router.get("/image/:imagePath", DatasetController.serveImage);
 
 // Route for deleting a dataset (protected)
 router.delete("/:name", ...authenticateToken, DatasetController.deleteDataset);
+
+// Route for updating dataset metadata (protected)
+router.put("/:name", ...authenticateToken, DatasetController.updateDataset);
 
 export default router;

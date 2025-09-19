@@ -578,4 +578,117 @@ export class DatasetController {
 
         return { success: true };
     }
+
+    // Update dataset metadata (name, tags) with name conflict validation
+    static async updateDataset(req: AuthRequest, res: Response): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
+        try {
+            const userId = req.user!.userId;
+            const currentName = req.params.name;
+            const { name: newName, tags } = req.body;
+
+            if (!newName && !tags) {
+                DatasetController.errorLogger.logValidationError("updateData", "missing", "At least one field (name or tags) must be provided");
+                res.status(400).json({ error: "At least one field (name or tags) must be provided for update" });
+                return;
+            }
+
+            // Get current dataset to verify it exists
+            const currentDataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, currentName);
+            if (!currentDataset) {
+                DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", "Dataset not found");
+                res.status(404).json({ error: "Dataset not found" });
+                return;
+            }
+
+            // If name is being changed, verify no conflict with existing datasets
+            if (newName && newName !== currentName) {
+                if (typeof newName !== "string" || newName.trim().length === 0) {
+                    DatasetController.errorLogger.logValidationError("name", newName, "Dataset name must be a non-empty string");
+                    res.status(400).json({ error: "Dataset name must be a non-empty string" });
+                    return;
+                }
+
+                // Check for name conflicts with other user's datasets
+                const nameConflict = await DatasetController.datasetRepository.datasetExists(userId, newName.trim());
+                if (nameConflict) {
+                    DatasetController.errorLogger.logValidationError("name", newName, "Dataset with this name already exists");
+                    res.status(409).json({ 
+                        error: "Dataset name conflict",
+                        message: `A dataset named '${newName.trim()}' already exists in your account. Please choose a different name.`,
+                        conflictingName: newName.trim(),
+                        currentName: currentName
+                    });
+                    return;
+                }
+            }
+
+            // Validate tags if provided
+            if (tags !== undefined) {
+                if (!Array.isArray(tags)) {
+                    DatasetController.errorLogger.logValidationError("tags", typeof tags, "Tags must be an array");
+                    res.status(400).json({ error: "Tags must be an array of strings" });
+                    return;
+                }
+
+                // Validate each tag
+                for (const tag of tags) {
+                    if (typeof tag !== "string" || tag.trim().length === 0) {
+                        DatasetController.errorLogger.logValidationError("tags", tag, "Each tag must be a non-empty string");
+                        res.status(400).json({ 
+                            error: "Invalid tag format",
+                            message: "Each tag must be a non-empty string",
+                            invalidTag: tag
+                        });
+                        return;
+                    }
+                }
+            }
+
+            // Prepare update data
+            const updateData: { name?: string; tags?: string[] } = {};
+            if (newName && newName !== currentName) {
+                updateData.name = newName.trim();
+            }
+            if (tags !== undefined) {
+                updateData.tags = tags.map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+            }
+
+            // Perform the update
+            const updatedDataset = await DatasetController.datasetRepository.updateDataset(userId, currentName, updateData);
+
+            DatasetController.datasetLogger.logDatasetUpdate(userId, currentName, 0); // 0 items as this is metadata update
+            
+            // Prepare response data
+            const datasetData = updatedDataset.data as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string } | null;
+            const itemCount = datasetData?.pairs?.length || 0;
+
+            res.status(200).json({
+                success: true,
+                message: "Dataset updated successfully",
+                data: {
+                    userId: updatedDataset.userId,
+                    name: updatedDataset.name,
+                    tags: updatedDataset.tags,
+                    itemCount,
+                    type: datasetData?.type || "empty",
+                    createdAt: updatedDataset.createdAt,
+                    updatedAt: updatedDataset.updatedAt,
+                    changes: {
+                        nameChanged: newName && newName !== currentName,
+                        tagsChanged: tags !== undefined,
+                        previousName: newName && newName !== currentName ? currentName : undefined
+                    }
+                }
+            });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
+            DatasetController.apiLogger.logError(req, err);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
 }

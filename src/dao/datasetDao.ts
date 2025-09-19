@@ -68,13 +68,14 @@ export class DatasetDao {
             console.log(`Updating dataset ${dataset.name} with:`, {
                 hasData: !!datasetData.data,
                 nextUploadIndex: datasetData.nextUploadIndex,
-                tags: datasetData.tags
+                tags: datasetData.tags,
+                newName: datasetData.name
             });
 
             await dataset.update(datasetData, { transaction: t });
             
             // Log successful update
-            console.log(`Dataset ${dataset.name} updated successfully. New nextUploadIndex: ${dataset.nextUploadIndex}`);
+            console.log(`Dataset updated successfully. Name: ${dataset.name}, NextUploadIndex: ${dataset.nextUploadIndex}`);
             
             return dataset;
         });

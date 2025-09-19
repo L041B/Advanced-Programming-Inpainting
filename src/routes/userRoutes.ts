@@ -27,10 +27,10 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
 //This routes use spread syntax to apply multiple middleware functions.
 
 // CREATE - Register a new user.
-router.post("/register", ...validateUserCreation, asyncHandler(userController.createUser));
+router.post("/user", ...validateUserCreation, asyncHandler(userController.createUser));
 
 // LOGIN - Authenticate a user and return a token.
-router.post("/login", ...validateLogin, asyncHandler(userController.login));
+router.post("/session", ...validateLogin, asyncHandler(userController.login));
 
 // This routes require the requester to be authenticated (`authenticateToken`).
 
@@ -41,7 +41,7 @@ router.get("/profile", ...authenticateToken, asyncHandler(userController.getUser
 router.get("/tokens", ...authenticateToken, asyncHandler(userController.getUserTokens));
 
 // POST - Calculate token cost for operations
-router.post("/tokens/calculate", ...authenticateToken, asyncHandler(userController.calculateOperationCost));
+router.post("/tokens/cost", ...authenticateToken, asyncHandler(userController.calculateOperationCost));
 
 // UPDATE - Update a specific user's data.
 router.put("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, 

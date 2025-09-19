@@ -9,7 +9,7 @@ const router = Router();
 const adminAuth = [...authenticateToken, TokenMiddleware.validateAdminRole];
 
 // Route for recharging user tokens
-router.post("/recharge-tokens", ...adminAuth, AdminController.rechargeUserTokens);
+router.post("/user-tokens", ...adminAuth, AdminController.rechargeUserTokens);
 
 // Route for getting user token balance and transaction history
 router.get("/users/:email/tokens", ...adminAuth, AdminController.getUserTokenInfo);

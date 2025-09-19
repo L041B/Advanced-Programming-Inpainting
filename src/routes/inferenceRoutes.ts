@@ -7,7 +7,7 @@ const router = Router();
 
 // Route for creating a new inference on a dataset (protected with token validation and cost injection)
 router.post(
-  "/create",
+  "/inference",
   ...authenticateToken,
   TokenMiddleware.validateTokenBalance,
   TokenMiddleware.injectTokenCostInResponse,
