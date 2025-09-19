@@ -98,6 +98,7 @@ export class InferenceController {
                         const current = parseFloat(errorParts[2]);
                         const shortfall = parseFloat(errorParts[3]);
                         
+                        // NOTE: The aborted transaction is already recorded by TokenService
                         InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${required}`);
                         res.status(401).json({ 
                             error: "Insufficient tokens", 

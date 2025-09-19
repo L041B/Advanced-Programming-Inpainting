@@ -12,7 +12,11 @@
     "worker": "ts-node src/workers/startWorkers.ts",
     "dev:worker": "nodemon --exec ts-node src/workers/startWorkers.ts",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
   },
   "keywords": [
     "nodejs",

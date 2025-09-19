@@ -6,17 +6,57 @@ module.exports = {
   // Specifica l'ambiente di test. 'node' è essenziale per testare applicazioni backend.
   testEnvironment: "node",
 
-  // Esegue questo file di setup prima di ogni suite di test.
-  // Utile per configurare mock globali o altre impostazioni.
-  setupFilesAfterEnv: ["./jest.setup.js"],
+  // Setup environment variables and global mocks
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+
+  // Test file patterns
+  roots: [
+    "<rootDir>/src",
+    "<rootDir>/tests"
+  ],
+
+  testMatch: [
+    "**/tests/authMiddleware.test.ts",
+    "**/tests/userMiddleware.test.ts", 
+    "**/tests/inferenceMiddleware.test.ts"
+  ],
+
+  // Transform TypeScript files
+  transform: {
+    "^.+\\.ts$": "ts-jest"
+  },
+
+  // Coverage settings
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/index.ts",
+    "!src/**/index.ts"
+  ],
+  
+  coverageDirectory: "coverage",
+  
+  coverageReporters: [
+    "text",
+    "lcov", 
+    "html"
+  ],
 
   // Pulisce automaticamente i mock tra ogni test per garantire l'isolamento.
-  // Equivalente a chiamare jest.clearAllMocks() dopo ogni test.
   clearMocks: true,
+  resetMocks: true,
+  restoreMocks: true,
 
   // Imposta una regola per risolvere i percorsi (se usi alias come @/src)
-  // Questo riprende la struttura del tuo esempio.
-  moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/$1",
+  moduleNameMapping: {
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
+
+  moduleFileExtensions: [
+    "ts",
+    "js",
+    "json"
+  ],
+
+  testTimeout: 30000,
 };

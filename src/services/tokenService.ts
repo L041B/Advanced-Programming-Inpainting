@@ -299,7 +299,20 @@ export class TokenService {
       // Check if user has sufficient tokens (including pending reservations)
       const currentBalance = user.tokens;
       if (currentBalance < amount) {
-        await dbTransaction.rollback();
+        // NEW: Record aborted transaction before returning error
+        await TokenTransaction.create({
+          userId,
+          operationType,
+          operationId,
+          amount: -amount, // Negative amount (what was requested)
+          balanceBefore: currentBalance,
+          balanceAfter: currentBalance, // Balance remains unchanged
+          status: "aborted",
+          description: `Transaction aborted due to insufficient tokens. Required: ${amount}, Available: ${currentBalance}, Shortfall: ${amount - currentBalance}`
+        }, { transaction: dbTransaction });
+
+        await dbTransaction.commit(); // Commit the aborted transaction record
+        
         errorLogger.logAuthorizationError(userId, `Insufficient token balance: ${currentBalance} < ${amount}`);
         
         // Create detailed error message based on operation type

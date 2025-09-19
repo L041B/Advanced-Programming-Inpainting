@@ -222,7 +222,8 @@ export class AdminController {
                         statusBreakdown: {
                             pending: formattedTransactions.filter(t => t.status === "pending").length,
                             completed: formattedTransactions.filter(t => t.status === "completed").length,
-                            refunded: formattedTransactions.filter(t => t.status === "refunded").length
+                            refunded: formattedTransactions.filter(t => t.status === "refunded").length,
+                            aborted: formattedTransactions.filter(t => t.status === "aborted").length // NEW: Include aborted transactions
                         },
                         operationBreakdown: {
                             dataset_upload: formattedTransactions.filter(t => t.operationType === "dataset_upload").length,

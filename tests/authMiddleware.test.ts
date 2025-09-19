@@ -1,9 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../src/models/User";
-import { ExecutionDao } from "../src/dao/executionDao";
 import * as authMiddleware from "../src/middleware/authMiddleware";
 import { ErrorStatus } from "../src/factory/status";
+import { ExecutionDao } from "../src/dao/executionDao";
+
+// Mock external dependencies
+jest.mock("../src/models/User");
+jest.mock("../src/dao/executionDao");
+jest.mock("jsonwebtoken");
 
 // Extended type for request with our custom properties
 type AuthenticatedRequest = Request & {
@@ -11,30 +16,10 @@ type AuthenticatedRequest = Request & {
   token?: string;
 };
 
-// --- Mock external dependencies ---
-// Mock the User model and its findByPk method
-jest.mock("../src/models/User", () => ({
-  User: {
-    findByPk: jest.fn(),
-  },
-}));
-
-// Mock the DAO and its methods
-jest.mock("../src/dao/executionDao", () => ({
-  ExecutionDao: {
-    getInstance: jest.fn().mockReturnValue({
-      isOwner: jest.fn(),
-    }),
-  },
-}));
-
-// Mock the jsonwebtoken module
-jest.mock("jsonwebtoken");
-
 // Cast mocked modules for correct Jest type-checking
 const mockedUser = User as jest.Mocked<typeof User>;
 const mockedJwt = jwt as jest.Mocked<typeof jwt>;
-const mockedExecutionDaoInstance = ExecutionDao.getInstance();
+const mockedExecutionDao = ExecutionDao as jest.Mocked<typeof ExecutionDao>;
 
 describe("Auth Middleware Suite", () => {
   let req: Partial<AuthenticatedRequest>;
@@ -190,27 +175,62 @@ describe("Auth Middleware Suite", () => {
   });
 
   describe("checkExecutionOwnership", () => {
-    it("should call next() if the user is the owner of the execution", async () => {
-      req.user = { userId: "owner-1", email: "owner@test.com" };
-      req.params = { id: "exec-1" }; // Execution ID
-      (mockedExecutionDaoInstance.isOwner as jest.Mock).mockResolvedValue(true);
+    let mockExecutionDao: Partial<ExecutionDao>;
+
+    beforeEach(() => {
+      mockExecutionDao = {
+        isOwner: jest.fn()
+      };
+      mockedExecutionDao.getInstance.mockReturnValue(mockExecutionDao as ExecutionDao);
+    });
+
+    it("should call next() if user owns the execution", async () => {
+      req.user = { userId: "user-123", email: "test@example.com" };
+      req.params = { id: "execution-123" };
+
+      (mockExecutionDao.isOwner as jest.Mock).mockResolvedValue(true);
 
       await authMiddleware.checkExecutionOwnership(req as AuthenticatedRequest, res as Response, next);
 
-      expect(mockedExecutionDaoInstance.isOwner).toHaveBeenCalledWith("exec-1", "owner-1");
+      expect(mockExecutionDao.isOwner).toHaveBeenCalledWith("execution-123", "user-123");
       expect(next).toHaveBeenCalledWith();
     });
 
-    it("should call next(error) if the user is not the owner", async () => {
-      req.user = { userId: "not-owner", email: "hacker@test.com" };
-      req.params = { id: "exec-1" };
-      (mockedExecutionDaoInstance.isOwner as jest.Mock).mockResolvedValue(false);
+    it("should call next(error) if user does not own the execution", async () => {
+      req.user = { userId: "user-123", email: "test@example.com" };
+      req.params = { id: "execution-456" };
+
+      (mockExecutionDao.isOwner as jest.Mock).mockResolvedValue(false);
 
       await authMiddleware.checkExecutionOwnership(req as AuthenticatedRequest, res as Response, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = (next as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(403);
+    });
+
+    it("should return 401 if user is not authenticated", async () => {
+      req.user = undefined;
+      req.params = { id: "execution-123" };
+
+      await authMiddleware.checkExecutionOwnership(req as AuthenticatedRequest, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.status).toBe(401);
+    });
+
+    it("should handle database errors", async () => {
+      req.user = { userId: "user-123", email: "test@example.com" };
+      req.params = { id: "execution-123" };
+
+      (mockExecutionDao.isOwner as jest.Mock).mockRejectedValue(new Error("Database error"));
+
+      await authMiddleware.checkExecutionOwnership(req as AuthenticatedRequest, res as Response, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.status).toBe(500);
     });
   });
 });

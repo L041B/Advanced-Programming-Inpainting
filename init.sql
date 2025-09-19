@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS token_transactions (
     amount DECIMAL(10,2) NOT NULL, -- Positive for recharge, negative for usage
     balance_before DECIMAL(10,2) NOT NULL,
     balance_after DECIMAL(10,2) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'completed', -- 'pending', 'completed', 'refunded'
+    status VARCHAR(20) NOT NULL DEFAULT 'completed', -- 'pending', 'completed', 'refunded', 'aborted'
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

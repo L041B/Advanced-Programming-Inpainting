@@ -9,7 +9,7 @@ export class TokenTransaction extends Model {
   public amount!: number; // Positive for recharge, negative for usage
   public balanceBefore!: number;
   public balanceAfter!: number;
-  public status!: "pending" | "completed" | "refunded";
+  public status!: "pending" | "completed" | "refunded" | "aborted"; // Added "aborted"
   public description!: string | null;
   
   public readonly createdAt!: Date;

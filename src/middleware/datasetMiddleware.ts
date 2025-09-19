@@ -198,6 +198,7 @@ export class DatasetMiddleware {
                         const current = parseFloat(errorParts[2]);
                         const shortfall = parseFloat(errorParts[3]);
                         
+                        // NOTE: The aborted transaction is already recorded by TokenService
                         errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${required}`);
                         return { 
                             success: false, 
