@@ -1,42 +1,10 @@
 import { Router } from "express";
-import multer from "multer";
-import path from "path";
 import { DatasetController } from "../controllers/datasetController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { TokenMiddleware } from "../middleware/tokenMiddleware";
+import { DatasetMiddleware } from "../middleware/datasetMiddleware";
 
 const router = Router();
-
-// Custom storage configuration for handling uploads
-const fileStorageConfig = multer.diskStorage({
-    destination: (request, uploadedFile, callback) => {
-        const tempStoragePath = path.join(process.cwd(), "uploads", "temp");
-        callback(null, tempStoragePath);
-    },
-    filename: (request, uploadedFile, callback) => {
-        const timestamp = new Date().getTime();
-        const randomSuffix = Math.floor(Math.random() * 999999);
-        const fileExtension = path.extname(uploadedFile.originalname);
-        const generatedName = `upload_${timestamp}_${randomSuffix}${fileExtension}`;
-        callback(null, generatedName);
-    }
-});
-
-const fileUploadHandler = multer({ 
-    storage: fileStorageConfig,
-    limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
-    fileFilter: (request, uploadedFile, callback) => {
-        const supportedExtensions = /jpeg|jpg|png|mp4|avi|mov|zip/;
-        const extensionCheck = supportedExtensions.test(path.extname(uploadedFile.originalname).toLowerCase());
-        const mimeTypeCheck = supportedExtensions.test(uploadedFile.mimetype);
-        
-        if (mimeTypeCheck && extensionCheck) {
-            return callback(null, true);
-        } else {
-            callback(new Error("File type not supported"));
-        }
-    }
-});
 
 // Route for creating an empty dataset (protected)
 router.post("/empty-dataset", ...authenticateToken, DatasetController.createEmptyDataset);
@@ -46,7 +14,7 @@ router.post("/data",
     ...authenticateToken,
     TokenMiddleware.validateTokenBalance,
     TokenMiddleware.injectTokenCostInResponse,
-    fileUploadHandler.fields([
+    DatasetMiddleware.fileUploadHandler.fields([
         { name: "image", maxCount: 1 },
         { name: "mask", maxCount: 1 }
     ]), 

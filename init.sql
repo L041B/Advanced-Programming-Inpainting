@@ -21,25 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create status enum type
-DO $$ BEGIN
-    CREATE TYPE execution_status AS ENUM ('pending', 'processing', 'completed', 'failed');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
--- Create executions table with UUID
-CREATE TABLE IF NOT EXISTS executions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    original_image BYTEA NOT NULL,
-    mask_image BYTEA NOT NULL,
-    output_image BYTEA,
-    status execution_status NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
 
 -- Create inference status enum type (updated with ABORTED status)
 DO $$ BEGIN
@@ -115,11 +96,7 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_executions_updated_at ON executions;
-CREATE TRIGGER update_executions_updated_at
-    BEFORE UPDATE ON executions
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+
 
 
 DROP TRIGGER IF EXISTS update_datasets_updated_at ON datasets;
@@ -135,8 +112,6 @@ CREATE TRIGGER update_inferences_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_executions_user_id ON executions(user_id);
-CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
 CREATE INDEX IF NOT EXISTS idx_users_name_surname ON users(name, surname);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -151,6 +126,6 @@ CREATE INDEX IF NOT EXISTS idx_inferences_user_id ON inferences(user_id);
 CREATE INDEX IF NOT EXISTS idx_inferences_status ON inferences(status);
 CREATE INDEX IF NOT EXISTS idx_inferences_model_id ON inferences(model_id);
 CREATE INDEX IF NOT EXISTS idx_inferences_dataset_id ON inferences(dataset_id); -- Updated index
-
+CREATE INDEX IF NOT EXISTS idx_token_transactions_status ON token_transactions(status);
 -- Note: Admin user will be created programmatically from environment variables
 -- This ensures no sensitive data is exposed in SQL files

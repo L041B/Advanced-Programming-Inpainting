@@ -52,7 +52,7 @@ export class FileStorage {
         try {
             await fs.unlink(fullPath);
         } catch (error) {
-            // File might not exist, which is okay
+            console.error(`Failed to delete file ${fullPath}:`, error);
         }
     }
 
@@ -72,7 +72,7 @@ export class FileStorage {
             try {
                 await fs.unlink(filePath);
             } catch (error) {
-                // Ignore errors for cleanup
+                console.error(`Failed to delete temp file ${filePath}:`, error);
             }
         }
     }

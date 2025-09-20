@@ -28,10 +28,14 @@ export class DatasetDao {
 
     public async create(datasetData: Required<Omit<DatasetMutationData, "isDeleted" | "nextUploadIndex">>): Promise<Dataset> {
         return await this.sequelize.transaction(async (t) => {
-            // Check for existing dataset only for non-null user_id
+            // Check for existing dataset only for the SAME user (not globally)
             if (datasetData.userId) {
                 const existingDataset = await Dataset.findOne({
-                    where: { userId: datasetData.userId, name: datasetData.name, isDeleted: false },
+                    where: { 
+                        userId: datasetData.userId,  // Only check within the same user's datasets
+                        name: datasetData.name, 
+                        isDeleted: false 
+                    },
                     transaction: t
                 });
                 
@@ -50,34 +54,55 @@ export class DatasetDao {
 
     public async update(userId: string, name: string, datasetData: Partial<DatasetMutationData>): Promise<Dataset> {
         return await this.sequelize.transaction(async (t) => {
-            // Find dataset by userId and name, only for non-deleted datasets with non-null userId
+            // FIXED: Find dataset by BOTH userId and name, ensuring we're updating the right dataset
             const dataset = await Dataset.findOne({
                 where: { 
+                    userId,  // Add userId to the search criteria
                     name, 
-                    isDeleted: false,
-                    userId: { [Op.ne]: null } // Ensure userId is not null
+                    isDeleted: false
                 },
                 transaction: t
             });
             
             if (!dataset) {
+                console.error(`Dataset not found for update: userId=${userId}, name=${name}`);
                 throw new Error("Dataset not found");
             }
 
             // Log the update operation for debugging
-            console.log(`Updating dataset ${dataset.name} with:`, {
+            console.log(`Updating dataset ${dataset.name} for user ${userId} with:`, {
                 hasData: !!datasetData.data,
+                dataSize: datasetData.data ? JSON.stringify(datasetData.data).length : 0,
                 nextUploadIndex: datasetData.nextUploadIndex,
                 tags: datasetData.tags,
                 newName: datasetData.name
             });
 
-            await dataset.update(datasetData, { transaction: t });
+            // Perform the update
+            const [affectedRows] = await Dataset.update(datasetData, { 
+                where: {
+                    id: dataset.id
+                },
+                transaction: t 
+            });
+
+            if (affectedRows === 0) {
+                console.error(`No rows affected during update for dataset: ${dataset.id}`);
+                throw new Error("Failed to update dataset - no rows affected");
+            }
+
+            // Reload the updated dataset to return fresh data
+            const updatedDataset = await Dataset.findByPk(dataset.id, { transaction: t });
             
-            // Log successful update
-            console.log(`Dataset updated successfully. Name: ${dataset.name}, NextUploadIndex: ${dataset.nextUploadIndex}`);
+            if (!updatedDataset) {
+                console.error(`Could not reload dataset after update: ${dataset.id}`);
+                throw new Error("Dataset disappeared after update");
+            }
+
+            // Log successful update with actual values
+            console.log(`Dataset updated successfully. ID: ${updatedDataset.id}, Name: ${updatedDataset.name}, NextUploadIndex: ${updatedDataset.nextUploadIndex}, DataSize: ${updatedDataset.data ? JSON.stringify(updatedDataset.data).length : 0}`);
             
-            return dataset;
+            return updatedDataset;
         });
     }
 
@@ -151,9 +176,9 @@ export class DatasetDao {
     public async findByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
         return await Dataset.findOne({
             where: { 
+                userId,  // Ensure we're looking within the specific user's datasets
                 name, 
-                isDeleted: false,
-                userId: { [Op.ne]: null } // Only active user datasets
+                isDeleted: false
             }
         });
     }
@@ -174,11 +199,11 @@ export class DatasetDao {
     public async exists(userId: string, name: string): Promise<boolean> {
         const dataset = await Dataset.findOne({
             where: { 
+                userId,  // Only check within the specific user's datasets
                 name, 
-                isDeleted: false,
-                userId: { [Op.ne]: null } // Only check for active user datasets
+                isDeleted: false
             },
-            attributes: ["userId"]
+            attributes: ["id"]  // Changed from ["userId"] to ["id"] for better performance
         });
         return !!dataset;
     }

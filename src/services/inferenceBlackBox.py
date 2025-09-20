@@ -129,7 +129,7 @@ class InferenceBlackBox:
             logger.error(f"Error processing video frames: {str(e)}")
             raise
 
-    def process_dataset(self, user_id: str, dataset_data: Dict, parameters: Dict) -> Dict:
+    def process_dataset(self, user_id: str, dataset_data: Dict) -> Dict:
         """Process entire dataset"""
         try:
             logger.info(f"Starting dataset processing for user: {user_id}")
@@ -163,7 +163,7 @@ class InferenceBlackBox:
                     
                     # Generate output filename
                     original_filename = os.path.basename(pair['imagePath'])
-                    name, ext = os.path.splitext(original_filename)
+                    name, _ = os.path.splitext(original_filename)
                     output_filename = f"processed_{name}.png"
                     
                     output_path = self.save_processed_image(processed_image, user_id, output_filename)
@@ -216,12 +216,11 @@ def process_dataset():
         
         user_id = data.get('userId')
         dataset_data = data.get('data')
-        parameters = data.get('parameters', {})
         
         if not user_id or not dataset_data:
             return jsonify({"success": False, "error": "Missing userId or data"}), 400
         
-        result = blackbox.process_dataset(user_id, dataset_data, parameters)
+        result = blackbox.process_dataset(user_id, dataset_data)
         
         return jsonify(result)
         

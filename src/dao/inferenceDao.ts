@@ -83,7 +83,7 @@ export class InferenceDao {
             order: [["createdAt", "DESC"]],
             limit,
             offset,
-            attributes: ["id", "status", "modelId", "datasetName", "createdAt", "updatedAt"]
+            attributes: ["id", "status", "modelId", "datasetId", "createdAt", "updatedAt"] // Changed from datasetName to datasetId
         });
     }
 }

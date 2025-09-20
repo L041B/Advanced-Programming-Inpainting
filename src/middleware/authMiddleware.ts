@@ -2,7 +2,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User";
-import { ExecutionDao } from "../dao/executionDao";
 import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorStatus } from "../factory/status";
 
@@ -219,66 +218,6 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
     next();
 };
 
-// Checks if the authenticated user is the owner of the requested execution.
-export const checkExecutionOwnership = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const executionId = req.params.id; 
-        const userId = req.user && typeof req.user.userId === "string" ? req.user.userId : undefined;
-
-        if (!userId) {
-            authLogger.log("Execution ownership check failed", {
-                reason: "No authenticated user",
-                executionId,
-                ip: req.ip
-            });
-            
-            const error = createAuthError(
-                "Authentication required",
-                ErrorStatus.jwtNotValid,
-                401
-            );
-            next(error);
-            return;
-        }
-
-        const executionDao = ExecutionDao.getInstance();
-        const isOwner = await executionDao.isOwner(executionId, userId);
-        
-        if (!isOwner) {
-            authLogger.log("Execution ownership check failed", {
-                reason: "User is not owner",
-                executionId,
-                userId,
-                ip: req.ip
-            });
-            
-            const error = createAuthError(
-                "Access denied - you can only access your own executions",
-                ErrorStatus.userNotAuthorized,
-                403
-            );
-            next(error);
-            return;
-        }
-
-        authLogger.log("Execution ownership verified", {
-            executionId,
-            userId
-        });
-
-        next();
-    } catch (error) {
-        const err = error instanceof Error ? error : new Error("Unknown error");
-        errorLogger.logDatabaseError("CHECK_EXECUTION_OWNERSHIP", "executions", err.message);
-        
-        const authError = createAuthError(
-            "Authorization check failed",
-            ErrorStatus.readInternalServerError,
-            500
-        );
-        next(authError);
-    }
-};
 
 // Composed middleware functions using the chain
 export const authenticateToken = [
@@ -290,6 +229,3 @@ export const authenticateToken = [
 
 // This chain checks if a user is authorized to access a resource related to another user's ID.
 export const authorizeUser = [checkUserAuthorization];
-
-// This chain checks if a user is authorized to access a specific execution.
-export const authorizeExecutionAccess = [checkExecutionOwnership];

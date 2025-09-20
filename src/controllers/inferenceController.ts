@@ -43,107 +43,28 @@ export class InferenceController {
             const { datasetName, modelId = "default_inpainting", parameters = {} } = req.body;
             const userId = req.user!.userId;
 
-            // Use middleware to validate input
-            const validation = await InferenceMiddleware.validateCreateInference(userId, {
-                datasetName,
-                modelId,
-                parameters
-            });
+            // Validate input and dataset
+            const validationResult = await InferenceController.validateInferenceInput(userId, datasetName, modelId, parameters, res);
+            if (!validationResult) return;
 
-            if (!validation.success) {
-                const statusCode = validation.error?.includes("not found") ? 404 : 400;
-                InferenceController.errorLogger.logValidationError("inference", datasetName, validation.error || "Validation failed");
-                res.status(statusCode).json({ error: validation.error });
-                return;
-            }
+            const { dataset, datasetData, costCalc } = validationResult;
 
-            // Get dataset data to calculate token cost
-            const dataset = await InferenceController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
-            
-            if (!dataset) {
-                InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "datasets", "Dataset not found");
-                res.status(404).json({ error: "Dataset not found" });
-                return;
-            }
-
-            // Calculate inference cost
-            const datasetData = (dataset.data ?? {}) as { 
-                pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>;
-                type?: string;
-            };
-
-            const costCalc = InferenceController.tokenService.calculateInferenceCost(datasetData);
-            
-            if (costCalc.totalCost === 0) {
-                InferenceController.errorLogger.logValidationError("dataset", datasetName, "Dataset is empty or invalid");
-                res.status(400).json({ error: "Dataset is empty or invalid for inference" });
-                return;
-            }
-
-            // Reserve tokens for inference
-            const reservationResult = await InferenceController.tokenService.reserveTokens(
-                userId,
-                costCalc.totalCost,
-                "inference",
-                `${datasetName}_inference_${Date.now()}`
-            );
-
-            if (!reservationResult.success) {
-                if (reservationResult.error?.includes("Insufficient tokens")) {
-                    // Parse the detailed error message from TokenService
-                    const errorParts = reservationResult.error.match(/Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/);
-                    
-                    if (errorParts) {
-                        const required = parseFloat(errorParts[1]);
-                        const current = parseFloat(errorParts[2]);
-                        const shortfall = parseFloat(errorParts[3]);
-                        
-                        // NOTE: The aborted transaction is already recorded by TokenService
-                        InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${required}`);
-                        res.status(401).json({ 
-                            error: "Insufficient tokens", 
-                            message: `You need ${required} tokens for this inference processing operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
-                            details: {
-                                requiredTokens: required,
-                                currentBalance: current,
-                                shortfall: shortfall,
-                                operationType: "inference processing",
-                                actionRequired: "Token recharge needed"
-                            }
-                        });
-                    } else {
-                        // Fallback to original response with cost breakdown
-                        InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${costCalc.totalCost}`);
-                        res.status(401).json({ 
-                            error: "Insufficient tokens", 
-                            message: reservationResult.error,
-                            required: costCalc.totalCost,
-                            breakdown: costCalc.breakdown
-                        });
-                    }
-                } else {
-                    InferenceController.errorLogger.logDatabaseError("RESERVE_TOKENS", "inference", reservationResult.error || "Token reservation failed");
-                    res.status(500).json({ 
-                        error: "Token reservation failed",
-                        message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
-                    });
-                }
-                return;
-            }
-
+            // Reserve tokens
+            const reservationResult = await InferenceController.handleTokenReservation(userId, costCalc, datasetName, res);
+            if (!reservationResult.success) return;
             tokenReservationId = reservationResult.reservationId!;
 
             // Create inference record
             const inference = await InferenceController.inferenceRepository.createInference({
                 modelId,
                 parameters: { ...parameters, tokenReservationId, tokenCost: costCalc.totalCost },
-                datasetId: dataset.id, // Use dataset.id instead of datasetName
+                datasetId: dataset.id,
                 userId
             });
 
             InferenceController.inferenceLogger.logInferenceCreation(inference.id, userId, datasetName, modelId);
 
-            // Use proxy to queue the inference job
+            // Queue the inference job
             const proxyResult = await InferenceController.blackBoxProxy.processDataset(
                 inference.id,
                 userId,
@@ -152,90 +73,224 @@ export class InferenceController {
             );
 
             if (proxyResult.success) {
-                let tokenSpent = 0;
-                let userTokens = 0;
-
-                // Conferma l'uso dei token e ottieni le informazioni reali della transazione
-                const confirmResult = await InferenceController.tokenService.confirmTokenUsage(tokenReservationId);
-                
-                if (confirmResult.success) {
-                    // Usa i valori REALI dalla transazione completata
-                    tokenSpent = confirmResult.tokensSpent || costCalc.totalCost;
-                    userTokens = confirmResult.remainingBalance || 0;
-                } else {
-                    // Fallback: recupera l'importo dall'ultima transazione dell'utente
-                    const transactionHistoryResult = await InferenceController.tokenService.getUserTransactionHistory(userId, 1);
-                    
-                    if (transactionHistoryResult.success && transactionHistoryResult.transactions && transactionHistoryResult.transactions.length > 0) {
-                        const lastTransaction = transactionHistoryResult.transactions[0];
-                        // Converti l'amount in valore positivo per tokenSpent
-                        tokenSpent = Math.abs(Number(lastTransaction.amount));
-                    } else {
-                        // Se non c'è nessuna transazione, usa il costo calcolato
-                        tokenSpent = costCalc.totalCost;
-                    }
-                    
-                    const balanceResult = await InferenceController.tokenService.getUserTokenBalance(userId);
-                    userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
-                }
-
-                // Store per il middleware (se necessario)
-                req.operationResult = {
-                    tokensSpent: tokenSpent,
-                    remainingBalance: userTokens,
-                    operationType: "inference"
-                };
-
-                req.tokenReservation = {
-                    reservationKey: tokenReservationId,
-                    reservedAmount: tokenSpent
-                };
-
-                // Includi sempre tokenSpent e userTokens nella risposta
-                res.status(201).json({
-                    success: true,
-                    message: "Inference created and queued successfully",
-                    inference: {
-                        id: inference.id,
-                        status: inference.status,
-                        modelId: inference.modelId,
-                        datasetName: dataset.name,
-                        createdAt: inference.createdAt,
-                        tokenCost: costCalc.totalCost,
-                        costBreakdown: costCalc.breakdown
-                    },
-                    jobId: proxyResult.jobId,
-                    tokenSpent: tokenSpent,
-                    userTokens: userTokens
-                });
-            } else {
-                // Refund tokens if queuing failed
-                await InferenceController.tokenService.refundTokens(tokenReservationId);
-                
-                // Update inference status to ABORTED
-                await InferenceController.inferenceRepository.updateInferenceStatus(
-                    inference.id, 
-                    "ABORTED", 
-                    { error: proxyResult.error, reason: "queue_failed" }
+                await InferenceController.handleProxySuccess(
+                    req,
+                    res,
+                    userId,
+                    costCalc,
+                    { ...inference, parameters: inference.parameters ?? {} },
+                    dataset,
+                    proxyResult
                 );
-                
-                InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inference_queue", proxyResult.error || "Failed to queue job");
-                res.status(500).json({ 
-                    error: proxyResult.error || "Failed to queue inference job" 
-                });
+            } else {
+                await InferenceController.handleProxyFailure(tokenReservationId, inference.id, proxyResult, res);
             }
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            // Refund tokens on error
-            if (tokenReservationId) {
-                await InferenceController.tokenService.refundTokens(tokenReservationId);
-            }
-
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            await InferenceController.handleCreateInferenceError(tokenReservationId, error, req, res);
         }
+    }
+
+    private static async validateInferenceInput(
+        userId: string,
+        datasetName: string,
+        modelId: string,
+        parameters: Record<string, unknown>,
+        res: Response
+    ): Promise<null | { dataset: { id: string; name: string; data?: unknown }; datasetData: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>; type?: string }; costCalc: { totalCost: number; breakdown: unknown } }> {
+        const validation = await InferenceMiddleware.validateCreateInference(userId, {
+            datasetName,
+            modelId,
+            parameters
+        });
+
+        if (!validation.success) {
+            const statusCode = validation.error?.includes("not found") ? 404 : 400;
+            InferenceController.errorLogger.logValidationError("inference", datasetName, validation.error || "Validation failed");
+            res.status(statusCode).json({ error: validation.error });
+            return null;
+        }
+
+        const dataset = await InferenceController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
+
+        if (!dataset) {
+            InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "datasets", "Dataset not found");
+            res.status(404).json({ error: "Dataset not found" });
+            return null;
+        }
+
+        const datasetData = (dataset.data ?? {}) as {
+            pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>;
+            type?: string;
+        };
+
+        const costCalc = InferenceController.tokenService.calculateInferenceCost(datasetData);
+
+        if (costCalc.totalCost === 0) {
+            InferenceController.errorLogger.logValidationError("dataset", datasetName, "Dataset is empty or invalid");
+            res.status(400).json({ error: "Dataset is empty or invalid for inference" });
+            return null;
+        }
+
+        return { dataset, datasetData, costCalc };
+    }
+
+    private static async handleTokenReservation(
+        userId: string,
+        costCalc: { totalCost: number; breakdown: unknown },
+        datasetName: string,
+        res: Response
+    ): Promise<{ success: boolean; reservationId?: string }> {
+        const reservationResult = await InferenceController.tokenService.reserveTokens(
+            userId,
+            costCalc.totalCost,
+            "inference",
+            `${datasetName}_inference_${Date.now()}`
+        );
+
+        if (!reservationResult.success) {
+            if (reservationResult.error?.includes("Insufficient tokens")) {
+                const errorParts = /Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/.exec(reservationResult.error);
+
+                if (errorParts) {
+                    const required = parseFloat(errorParts[1]);
+                    const current = parseFloat(errorParts[2]);
+                    const shortfall = parseFloat(errorParts[3]);
+                    InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${required}`);
+                    res.status(401).json({
+                        error: "Insufficient tokens",
+                        message: `You need ${required} tokens for this inference processing operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
+                        details: {
+                            requiredTokens: required,
+                            currentBalance: current,
+                            shortfall: shortfall,
+                            operationType: "inference processing",
+                            actionRequired: "Token recharge needed"
+                        }
+                    });
+                } else {
+                    InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${costCalc.totalCost}`);
+                    res.status(401).json({
+                        error: "Insufficient tokens",
+                        message: reservationResult.error,
+                        required: costCalc.totalCost,
+                        breakdown: costCalc.breakdown
+                    });
+                }
+            } else {
+                InferenceController.errorLogger.logDatabaseError("RESERVE_TOKENS", "inference", reservationResult.error || "Token reservation failed");
+                res.status(500).json({
+                    error: "Token reservation failed",
+                    message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
+                });
+            }
+            return { success: false };
+        }
+        return { success: true, reservationId: reservationResult.reservationId! };
+    }
+
+    private static async handleProxySuccess(
+        req: AuthRequest,
+        res: Response,
+        userId: string,
+        costCalc: { totalCost: number; breakdown: unknown },
+        inference: {
+            id: string;
+            status: string;
+            modelId: string;
+            parameters: Record<string, unknown>;
+            datasetId: string;
+            userId: string;
+            createdAt: string | Date;
+            result?: unknown;
+        },
+        dataset: { id: string; name: string; data?: unknown },
+        proxyResult: { success: boolean; jobId?: string; error?: string; status?: string; progress?: number; result?: unknown }
+    ) {
+        const balanceResult = await InferenceController.tokenService.getUserTokenBalance(userId);
+        const userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
+
+        req.operationResult = {
+            tokensSpent: costCalc.totalCost,
+            remainingBalance: userTokens,
+            operationType: "inference"
+        };
+
+        req.tokenReservation = {
+            reservationKey: inference.parameters.tokenReservationId as string,
+            reservedAmount: costCalc.totalCost
+        };
+
+        res.status(201).json({
+            success: true,
+            message: "Inference created and queued successfully",
+            inference: {
+                id: inference.id,
+                status: inference.status,
+                modelId: inference.modelId,
+                datasetName: dataset.name,
+                createdAt: inference.createdAt,
+                tokenCost: costCalc.totalCost,
+                costBreakdown: costCalc.breakdown
+            },
+            jobId: proxyResult.jobId,
+            tokenSpent: costCalc.totalCost,
+            userTokens: userTokens
+        });
+    }
+
+    private static async handleProxyFailure(
+        tokenReservationId: string | undefined,
+        inferenceId: string,
+        proxyResult: { success: boolean; jobId?: string; error?: string; status?: string; progress?: number; result?: unknown },
+        res: Response
+    ) {
+        try {
+            if (tokenReservationId) {
+                const refundResult = await InferenceController.tokenService.refundTokens(tokenReservationId);
+                if (!refundResult.success) {
+                    InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundResult.error || "Failed to refund tokens");
+                }
+            }
+        } catch (refundError) {
+            const refundErr = refundError instanceof Error ? refundError : new Error("Unknown refund error");
+            InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundErr.message);
+        }
+
+        await InferenceController.inferenceRepository.updateInferenceStatus(
+            inferenceId,
+            "ABORTED",
+            { error: proxyResult.error, reason: "queue_failed" }
+        );
+
+        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inference_queue", proxyResult.error || "Failed to queue job");
+        res.status(500).json({
+            error: proxyResult.error || "Failed to queue inference job"
+        });
+    }
+
+    private static async handleCreateInferenceError(
+        tokenReservationId: string | undefined,
+        error: unknown,
+        req: AuthRequest,
+        res: Response
+    ) {
+        if (tokenReservationId) {
+            try {
+                const refundResult = await InferenceController.tokenService.refundTokens(tokenReservationId);
+                if (!refundResult.success) {
+                    InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundResult.error || "Failed to refund tokens");
+                }
+            } catch (refundError) {
+                const refundErr = refundError instanceof Error ? refundError : new Error("Unknown refund error");
+                InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundErr.message);
+            }
+        }
+
+        const err = error instanceof Error ? error : new Error("Unknown error");
+        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", err.message);
+        InferenceController.apiLogger.logError(req, err);
+        res.status(500).json({ error: "Internal server error" });
     }
 
     // Get job status by job ID
@@ -434,7 +489,6 @@ export class InferenceController {
         return encodeURIComponent(token);
     }
 
-    // Serve output files
     static async serveOutputFile(req: Request, res: Response): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
@@ -479,9 +533,11 @@ export class InferenceController {
                 
                 InferenceController.inferenceLogger.logOutputFileServed(filePath!);
                 res.send(fileBuffer);
+            // Catching file read errors to log and return a 404 response to the client
             } catch (fileError) {
-                InferenceController.errorLogger.logDatabaseError("SERVE_OUTPUT_FILE", "file_system", "Output file not found");
-                res.status(404).json({ error: "File not found" });
+                const errMsg = fileError instanceof Error ? fileError.message : "Output file not found";
+                InferenceController.errorLogger.logDatabaseError("SERVE_OUTPUT_FILE", "file_system", errMsg);
+                res.status(404).json({ error: "File not found", details: errMsg });
             }
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
@@ -492,3 +548,4 @@ export class InferenceController {
         }
     }
 }
+        

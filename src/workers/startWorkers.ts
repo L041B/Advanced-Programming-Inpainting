@@ -28,7 +28,6 @@ async function startWorkers() {
         process.on("SIGTERM", async () => {
             inferenceLogger.log("Received SIGTERM, shutting down workers");
             try {
-                await inferenceWorker.stop();
                 await DbConnection.close();
                 inferenceLogger.log("Workers shut down gracefully");
                 process.exit(0);
@@ -42,7 +41,6 @@ async function startWorkers() {
         process.on("SIGINT", async () => {
             inferenceLogger.log("Received SIGINT, shutting down workers");
             try {
-                await inferenceWorker.stop();
                 await DbConnection.close();
                 inferenceLogger.log("Workers shut down gracefully");
                 process.exit(0);
@@ -52,7 +50,6 @@ async function startWorkers() {
                 process.exit(1);
             }
         });
-
         // Handle uncaught exceptions
         process.on("uncaughtException", (error) => {
             errorLogger.logDatabaseError("UNCAUGHT_EXCEPTION", "workers", error.message);

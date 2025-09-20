@@ -13,7 +13,7 @@ interface CreateInferenceData {
 }
 
 export class InferenceMiddleware {
-    private static datasetRepository = DatasetRepository.getInstance();
+    private static readonly datasetRepository = DatasetRepository.getInstance();
 
     // Validate input data for creating inference
     static async validateCreateInference(
@@ -39,7 +39,7 @@ export class InferenceMiddleware {
 
             // Check 3: Dataset has data
             const datasetData = dataset.data as { pairs?: Array<{ input: string; output: string }>; type?: string } | null;
-            if (!datasetData || !datasetData.pairs || datasetData.pairs.length === 0) {
+            if (!(datasetData?.pairs?.length)) {
                 errorLogger.logValidationError("datasetData", datasetName, "Dataset is empty");
                 return { success: false, error: "Dataset is empty" };
             }
@@ -75,7 +75,8 @@ export class InferenceMiddleware {
                 const verifyResult = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
                 decoded = verifyResult as { userId: string; filePath: string; type: string };
             } catch (jwtError) {
-                errorLogger.logAuthenticationError(undefined, "File token verification failed");
+                const errorMessage = jwtError instanceof Error ? jwtError.message : "File token verification failed";
+                errorLogger.logAuthenticationError(undefined, errorMessage);
                 return { success: false, error: "Invalid or expired file token" };
             }
 

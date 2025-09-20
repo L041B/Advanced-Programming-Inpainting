@@ -1,10 +1,10 @@
-FROM python:3.9-slim
+FROM python:3.9-slim-bullseye
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies and upgrade packages
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    curl \
     libopencv-dev \
     python3-opencv \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

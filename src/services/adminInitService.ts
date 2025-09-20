@@ -6,7 +6,7 @@ import bcrypt from "bcrypt";
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
 export class AdminInitService {
-    private static userRepository = UserRepository.getInstance();
+    private static readonly userRepository = UserRepository.getInstance();
 
     public static async initializeAdminUser(): Promise<void> {
         try {
@@ -35,7 +35,7 @@ export class AdminInitService {
                 surname: adminSurname,
                 email: adminEmail,
                 password: hashedPassword,
-                tokens: 1000.00, // Admin gets 1000 tokens
+                tokens: 10000.00, // Admin gets 10000 tokens
                 role: "admin"
             });
 

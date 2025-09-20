@@ -92,19 +92,7 @@ export class InferenceWorker {
             await job.progress(90);
 
             if (result.success) {
-                // Confirm token usage on successful completion
-                if (tokenReservationId) {
-                    const confirmResult = await this.tokenService.confirmTokenUsage(tokenReservationId);
-                    if (!confirmResult.success) {
-                        inferenceLogger.log("Warning: Failed to confirm token usage", { 
-                            inferenceId, 
-                            tokenReservationId,
-                            error: confirmResult.error 
-                        });
-                    }
-                }
-
-                // Update inference status to COMPLETED
+                // Update inference status to COMPLETED - tokens are already reserved and confirmed in controller
                 await this.inferenceRepository.updateInferenceStatus(inferenceId, "COMPLETED", { ...result });
                 
                 await job.progress(100);
@@ -123,13 +111,8 @@ export class InferenceWorker {
             const err = error instanceof Error ? error : new Error("Unknown error");
             inferenceLogger.logJobProcessingFailed(job.id?.toString() || "unknown", inferenceId, err.message);
 
-            // Refund tokens on processing failure
-            if (tokenReservationId) {
-                const refundResult = await this.tokenService.refundTokens(tokenReservationId);
-                if (!refundResult.success) {
-                    errorLogger.logDatabaseError("REFUND_TOKENS", "worker", refundResult.error || "Failed to refund tokens");
-                }
-            }
+            // Simple refund: if we have a tokenReservationId, refund the tokens
+            await this.handleTokenRefund(tokenReservationId, inferenceId);
 
             // Update inference status to FAILED
             await this.inferenceRepository.updateInferenceStatus(
@@ -143,27 +126,22 @@ export class InferenceWorker {
         }
     }
 
-    public async stop(): Promise<void> {
-        if (!this.isRunning) {
-            errorLogger.logValidationError("workerStatus", "stopped", "Inference worker is not running");
-            return;
-        }
-
+    private async handleTokenRefund(tokenReservationId?: string, inferenceId?: string): Promise<void> {
+        if (!tokenReservationId) return;
         try {
-            inferenceLogger.log("Stopping inference worker");
-            
-            // Close the queue connection
-            await this.inferenceQueue.close();
-            this.isRunning = false;
-            inferenceLogger.logWorkerStopped();
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("STOP_WORKER", "worker", err.message);
-            throw error;
+            const refundResult = await this.tokenService.refundTokens(tokenReservationId);
+            if (!refundResult.success) {
+                errorLogger.logDatabaseError("REFUND_TOKENS", "worker", refundResult.error || "Failed to refund tokens");
+            } else {
+                inferenceLogger.log("Tokens refunded successfully", { 
+                    inferenceId, 
+                    tokenReservationId
+                });
+            }
+        } catch (refundError) {
+            const refundErr = refundError instanceof Error ? refundError : new Error("Unknown refund error");
+            errorLogger.logDatabaseError("REFUND_TOKENS", "worker", refundErr.message);
         }
     }
 
-    public getStatus(): { isRunning: boolean } {
-        return { isRunning: this.isRunning };
-    }
 }

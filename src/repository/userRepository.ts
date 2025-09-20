@@ -47,7 +47,6 @@ export class UserRepository {
                 tokens: 100.00, // Ensure 100 tokens default
                 role: "user" // Force user role
             });
-            this.userLogger.logUserCreation(newUser.id, newUser.email);
             return newUser;
         } catch (error) {
             this.errorLogger.logDatabaseError("CREATE_USER", "users", (error as Error).message);
@@ -61,7 +60,6 @@ export class UserRepository {
 
         try {
             const user = await this.userDao.validateLogin(email, password);
-            this.userLogger.logUserLogin(email, !!user);
             return user;
         } catch (error) {
             this.errorLogger.logDatabaseError("VALIDATE_LOGIN", "users", (error as Error).message);
@@ -71,13 +69,13 @@ export class UserRepository {
 
     // Retrieves a user by their ID.
     public async getUserById(id: string): Promise<User | null> {
-        this.userLogger.log("Retrieving user by ID", { userId: id, operation: "GET_USER_BY_ID" });
+        // Remove duplicate log - this method gets called frequently internally
         return await this.userDao.findById(id);
     }
 
     // Retrieves a user by their email.
     public async getUserByEmail(email: string): Promise<User | null> {
-        this.userLogger.log("Retrieving user by email", { email, operation: "GET_USER_BY_EMAIL" });
+        // Remove duplicate log - this method gets called frequently internally  
         return await this.userDao.findByEmail(email);
     }
 
@@ -98,8 +96,6 @@ export class UserRepository {
 
         try {
             const user = await this.userDao.update(id, data);
-            const updatedFields = Object.keys(data);
-            this.userLogger.logUserUpdate(id, updatedFields);
             return user;
         } catch (error) {
             this.errorLogger.logDatabaseError("UPDATE_USER", "users", (error as Error).message);
@@ -128,7 +124,7 @@ export class UserRepository {
         try {
             const success = await this.userDao.delete(id);
             if (success) {
-                this.userLogger.logUserDeletion(id);
+                // Remove duplicate log - controller already logs this
             } else {
                 this.errorLogger.logDatabaseError("DELETE_USER", "users", "User not found");
             }

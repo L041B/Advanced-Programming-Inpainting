@@ -22,8 +22,8 @@ interface AuthenticatedRequest extends Request {
 }
 
 export class TokenMiddleware {
-    private static tokenManagementService = TokenService.getInstance();
-    private static userManagementRepository = UserRepository.getInstance();
+    private static readonly tokenManagementService = TokenService.getInstance();
+    private static readonly userManagementRepository = UserRepository.getInstance();
 
     // Verify user has available tokens (return 401 if zero balance)
     static async validateTokenBalance(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {

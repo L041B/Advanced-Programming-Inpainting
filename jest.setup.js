@@ -43,26 +43,8 @@ jest.mock("./src/models/Dataset", () => ({
   },
 }));
 
-jest.mock("./src/models/Execution", () => ({
-  Execution: {
-    findByPk: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    destroy: jest.fn(),
-  },
-}));
 
-// Mock DAO layer
-jest.mock("./src/dao/executionDao", () => ({
-  ExecutionDao: {
-    getInstance: jest.fn().mockReturnValue({
-      isOwner: jest.fn(),
-      findById: jest.fn(),
-      create: jest.fn(),
-    }),
-  },
-}));
+
 
 // Mock repository layer
 jest.mock("./src/repository/datasetRepository", () => ({

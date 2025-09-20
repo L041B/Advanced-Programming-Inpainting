@@ -50,8 +50,6 @@ export class InferenceRepository {
     }
 
     public async getInferenceById(id: string): Promise<Inference | null> {
-        this.inferenceLogger.log("Retrieving inference by ID", { inferenceId: id });
-
         try {
             return await this.inferenceDao.findById(id);
         } catch (error) {
@@ -62,8 +60,6 @@ export class InferenceRepository {
     }
 
     public async getInferenceByIdAndUserId(id: string, userId: string): Promise<Inference | null> {
-        this.inferenceLogger.log("Retrieving inference by ID and user ID", { inferenceId: id, userId });
-
         try {
             const inference = await this.inferenceDao.findByIdAndUserId(id, userId);
             return inference;
@@ -79,7 +75,6 @@ export class InferenceRepository {
 
         try {
             const inferences = await this.inferenceDao.findAllByUserId(userId);
-            this.inferenceLogger.logUserInferencesRetrieval(userId, inferences.length);
             return inferences;
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
@@ -93,8 +88,6 @@ export class InferenceRepository {
         limit: number,
         offset: number
     ): Promise<{ rows: Inference[], count: number }> {
-        this.inferenceLogger.log("Retrieving user inferences with pagination", { userId, limit, offset });
-
         try {
             const result = await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
             return result;
@@ -136,3 +129,4 @@ export class InferenceRepository {
         }
     }
 }
+      

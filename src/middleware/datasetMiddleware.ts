@@ -3,6 +3,7 @@ import ffmpeg from "fluent-ffmpeg";
 import sharp from "sharp";
 import path from "path";
 import fs from "fs/promises";
+import multer from "multer";
 import { loggerFactory, DatasetRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 import { DatasetRepository } from "../repository/datasetRepository";
 import { FileStorage } from "../utils/fileStorage";
@@ -23,14 +24,98 @@ interface DatasetData {
 }
 
 export class DatasetMiddleware {
-    private static datasetRepository = DatasetRepository.getInstance();
-    private static tokenService = TokenService.getInstance();
+    private static readonly datasetRepository = DatasetRepository.getInstance();
+    private static readonly tokenService = TokenService.getInstance();
 
     private static readonly PRICING_STRUCTURE = {
         SINGLE_IMAGE_DATASET: 0.65,
         VIDEO_FRAME_DATASET: 0.4,
         ZIP_FILE_DATASET: 0.7
     };
+
+    // Modern multer configuration without callbacks
+    static readonly fileStorageConfig = multer.diskStorage({
+        destination: (request, uploadedFile, callback) => {
+            const tempStoragePath = path.join(process.cwd(), "uploads", "temp");
+            // Ensure directory exists asynchronously
+            fs.mkdir(tempStoragePath, { recursive: true })
+                .then(() => callback(null, tempStoragePath))
+                .catch((error) => {
+                    const err = error instanceof Error ? error : new Error("Unknown error");
+                    errorLogger.logDatabaseError("FILE_STORAGE", "file_system", err.message);
+                    callback(err, "");
+                });
+        },
+        filename: (request, uploadedFile, callback) => {
+            try {
+                const timestamp = Date.now();
+                const randomSuffix = Math.floor(Math.random() * 999999);
+                const fileExtension = path.extname(uploadedFile.originalname);
+                const generatedName = `upload_${timestamp}_${randomSuffix}${fileExtension}`;
+                callback(null, generatedName);
+            } catch (error) {
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                errorLogger.logFileUploadError(uploadedFile.originalname, uploadedFile.size, err.message);
+                callback(err, "");
+            }
+        }
+    });
+
+    static readonly fileUploadHandler = multer({
+        storage: DatasetMiddleware.fileStorageConfig,
+        limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+        fileFilter: (request, uploadedFile, callback) => {
+            try {
+                const supportedExtensions = /jpeg|jpg|png|mp4|avi|mov|zip/;
+                const extensionCheck = supportedExtensions.test(
+                    path.extname(uploadedFile.originalname).toLowerCase()
+                );
+                const mimeTypeCheck = supportedExtensions.test(uploadedFile.mimetype);
+                
+                if (mimeTypeCheck && extensionCheck) {
+                    callback(null, true);
+                } else {
+                    const error = new Error("File type not supported");
+                    errorLogger.logFileUploadError(
+                        uploadedFile.originalname, 
+                        uploadedFile.size, 
+                        "Unsupported file type"
+                    );
+                    callback(error);
+                }
+            } catch (error) {
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                errorLogger.logFileUploadError(uploadedFile.originalname, uploadedFile.size, err.message);
+                callback(err);
+            }
+        }
+    });
+
+    // Modern file validation utility
+    static async validateUploadedFiles(files: { image?: Express.Multer.File[]; mask?: Express.Multer.File[] }): Promise<{ success: boolean; error?: string }> {
+        try {
+            if (!files.image || !files.mask || files.image.length === 0 || files.mask.length === 0) {
+                return { success: false, error: "Both image and mask files are required" };
+            }
+
+            const imageFile = files.image[0];
+            const maskFile = files.mask[0];
+
+            // Validate file existence
+            const imageExists = await fs.access(imageFile.path).then(() => true).catch(() => false);
+            const maskExists = await fs.access(maskFile.path).then(() => true).catch(() => false);
+
+            if (!imageExists || !maskExists) {
+                return { success: false, error: "Uploaded files not found on disk" };
+            }
+
+            return { success: true };
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logFileUploadError("validation", 0, err.message);
+            return { success: false, error: "File validation failed" };
+        }
+    }
 
     // Create an empty dataset
     static async createEmptyDataset(userId: string, name: string, tags?: string[]): Promise<{ success: boolean; dataset?: Record<string, unknown>; error?: string }> {
@@ -62,14 +147,14 @@ export class DatasetMiddleware {
 
     // Process and add data to dataset with token management
     static async processAndAddData(
-        userId: string, 
-        datasetName: string, 
-        imageFile: Express.Multer.File, 
+        userId: string,
+        datasetName: string,
+        imageFile: Express.Multer.File,
         maskFile: Express.Multer.File
-    ): Promise<{ 
-        success: boolean; 
-        processedItems?: number; 
-        error?: string; 
+    ): Promise<{
+        success: boolean;
+        processedItems?: number;
+        error?: string;
         message?: string;
         details?: {
             requiredTokens: number;
@@ -78,271 +163,249 @@ export class DatasetMiddleware {
             operationType: string;
             actionRequired: string;
         };
-        reservationId?: string; 
-        tokenCost?: number 
+        reservationId?: string;
+        tokenCost?: number;
     }> {
-        let tempFiles: string[] = [];
+        const tempFiles: string[] = [imageFile.path, maskFile.path];
         let tokenReservationId: string | undefined;
-        let calculatedTokenCost = 0;
 
         try {
-            // Add uploaded files to cleanup list
-            tempFiles.push(imageFile.path, maskFile.path);
-            
-            // Determine file types
-            const imageExt = path.extname(imageFile.originalname).toLowerCase();
-            const maskExt = path.extname(maskFile.originalname).toLowerCase();
-
-            const imageFormats = [".png", ".jpg", ".jpeg"];
-            const videoFormats = [".mp4", ".avi", ".mov"];
-            const zipFormats = [".zip"];
-
-            let tokenCost = 0;
-            let processedFrameCount = 0; // For videos
-
-            // Pre-calculate EXACT token cost by processing content first
-            if (zipFormats.includes(imageExt)) {
-                // For ZIP files, analyze content to get exact cost
-                const zipBuffer = await fs.readFile(imageFile.path);
-                const zip = new AdmZip(zipBuffer);
-                const entries = zip.getEntries().filter(entry => !entry.isDirectory);
-                
-                // Count actual pairs in ZIP
-                const subdirs = new Map<string, { images: number, videos: number, videoFrames: number }>();
-                
-                for (const entry of entries) {
-                    const pathParts = entry.entryName.split("/");
-                    if (pathParts.length < 2) continue;
-                    
-                    const subdir = pathParts[0];
-                    const filename = pathParts[pathParts.length - 1];
-                    const ext = path.extname(filename).toLowerCase();
-                    
-                    if (!subdirs.has(subdir)) {
-                        subdirs.set(subdir, { images: 0, videos: 0, videoFrames: 0 });
-                    }
-                    
-                    const subdirData = subdirs.get(subdir)!;
-                    const isVideo = videoFormats.includes(ext);
-                    
-                    if (!filename.toLowerCase().includes("mask")) {
-                        if (isVideo) {
-                            // Extract frames to get exact count
-                            try {
-                                const videoBuffer = entry.getData();
-                                const frames = await this.extractFramesFromVideo(videoBuffer);
-                                subdirData.videos++;
-                                subdirData.videoFrames += frames.length;
-                            } catch (error) {
-                                // Skip invalid videos
-                                continue;
-                            }
-                        } else if (imageFormats.includes(ext)) {
-                            subdirData.images++;
-                        }
-                    }
-                }
-                
-                // Calculate exact cost: 0.7 per pair (image-mask or video-mask)
-                let totalPairs = 0;
-                for (const [, data] of subdirs) {
-                    totalPairs += data.images + data.videos; // Each video counts as 1 pair regardless of frames
-                }
-                
-                tokenCost = totalPairs * this.PRICING_STRUCTURE.ZIP_FILE_DATASET; // 0.7 per pair
-                
-            } else if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
-                // Single image-mask pair: exactly 0.65
-                tokenCost = this.PRICING_STRUCTURE.SINGLE_IMAGE_DATASET; // 0.65
-                
-            } else if (videoFormats.includes(imageExt)) {
-                // Video: extract frames first to get exact count
-                const videoBuffer = await fs.readFile(imageFile.path);
-                const frameBuffers = await this.extractFramesFromVideo(videoBuffer);
-                processedFrameCount = frameBuffers.length;
-                
-                // Cost: 0.4 per frame (regardless of mask type)
-                tokenCost = processedFrameCount * this.PRICING_STRUCTURE.VIDEO_FRAME_DATASET; // 0.4 per frame
-                
-                datasetLogger.log("Video frame extraction for cost calculation", { 
-                    videoName: imageFile.originalname,
-                    actualFrameCount: processedFrameCount,
-                    exactCost: tokenCost
-                });
-                
-            } else {
-                errorLogger.logFileUploadError(imageFile.originalname, imageFile.size, "Unsupported file format");
+            const { tokenCost, processedFrameCount } = await this.calculateTokenCost(imageFile, maskFile);
+            if (tokenCost === -1) {
+                await FileStorage.cleanupTempFiles(tempFiles);
                 return { success: false, error: "Unsupported file format" };
             }
 
-            // Store the calculated cost for later use
-            calculatedTokenCost = tokenCost;
+            const reservation = await this.handleTokenReservation(userId, datasetName, tokenCost);
+            if (!reservation.success) {
+                await FileStorage.cleanupTempFiles(tempFiles);
+                return reservation.errorResponse ?? {
+                    success: false,
+                    error: "Token reservation failed",
+                    message: "Failed to reserve tokens for this operation. Please try again."
+                };
+            }
+            tokenReservationId = reservation.reservationId;
 
-            // Reserve tokens with EXACT calculated cost
-            const reservationResult = await DatasetMiddleware.tokenService.reserveTokens(
-                userId,
-                tokenCost,
-                "dataset_upload",
-                `${datasetName}_${Date.now()}`
+            const dataset = await this.getDatasetOrHandleError(userId, datasetName, tokenReservationId, tempFiles);
+            if (!dataset) return { success: false, error: "Dataset not found" };
+
+            const processedData = await this.processUploadedFiles(
+                imageFile,
+                maskFile,
+                `${userId}/${datasetName}`,
+                dataset.nextUploadIndex
             );
 
-            if (!reservationResult.success) {
-                await FileStorage.cleanupTempFiles(tempFiles);
-                
-                if (reservationResult.error?.includes("Insufficient tokens")) {
-                    // Parse detailed error for structured response
-                    const errorParts = reservationResult.error.match(/Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/);
-                    
-                    if (errorParts) {
-                        const required = parseFloat(errorParts[1]);
-                        const current = parseFloat(errorParts[2]);
-                        const shortfall = parseFloat(errorParts[3]);
-                        
-                        // NOTE: The aborted transaction is already recorded by TokenService
-                        errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${required}`);
-                        return { 
-                            success: false, 
-                            error: "Insufficient tokens",
-                            message: `You need ${required} tokens for this dataset upload operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
-                            details: {
-                                requiredTokens: required,
-                                currentBalance: current,
-                                shortfall: shortfall,
-                                operationType: "dataset upload",
-                                actionRequired: "Token recharge needed"
-                            }
-                        };
-                    } else {
-                        errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${tokenCost}`);
-                        return { 
-                            success: false, 
-                            error: "Insufficient tokens",
-                            message: reservationResult.error
-                        };
-                    }
-                }
-                
-                errorLogger.logDatabaseError("RESERVE_TOKENS", "dataset_upload", reservationResult.error || "Token reservation failed");
-                return { 
-                    success: false, 
-                    error: "Token reservation failed",
-                    message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
-                };
-            }
+            this.logFrameCountIfMismatch(imageFile, processedData, processedFrameCount);
 
-            tokenReservationId = reservationResult.reservationId!;
+            const result = await this.addDataToDatasetAndIncrementIndex(userId, datasetName, processedData, dataset.nextUploadIndex + 1);
 
-            // Get dataset info
-            const dataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
-
-            if (!dataset) {
-                await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
-                await FileStorage.cleanupTempFiles(tempFiles);
-                errorLogger.logDatabaseError("PROCESS_DATA", "datasets", "Dataset not found");
-                return { success: false, error: "Dataset not found" };
-            }
-
-            const currentUploadIndex = dataset.nextUploadIndex;
-            const subfolder = `${userId}/${datasetName}`;
-
-            datasetLogger.logDataProcessing(userId, datasetName, imageExt, true);
-
-            let processedData: DatasetData;
-
-            // Process the actual data (reuse extracted frames for videos)
-            if (zipFormats.includes(imageExt)) {
-                const zipBuffer = await fs.readFile(imageFile.path);
-                processedData = await this.processZipFile(zipBuffer, subfolder, currentUploadIndex);
-                
-            } else if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
-                const imageBuffer = await fs.readFile(imageFile.path);
-                const maskBuffer = await fs.readFile(maskFile.path);
-                processedData = await this.processImageMaskPair(
-                    imageBuffer, 
-                    maskBuffer, 
-                    subfolder, 
-                    imageFile.originalname, 
-                    maskFile.originalname, 
-                    currentUploadIndex
-                );
-                
-            } else if (videoFormats.includes(imageExt)) {
-                const videoBuffer = await fs.readFile(imageFile.path);
-                const maskBuffer = await fs.readFile(maskFile.path);
-                
-                if (imageFormats.includes(maskExt)) {
-                    processedData = await this.processVideoWithSingleMask(
-                        videoBuffer, 
-                        maskBuffer, 
-                        subfolder, 
-                        imageFile.originalname, 
-                        maskFile.originalname, 
-                        currentUploadIndex
-                    );
-                } else if (videoFormats.includes(maskExt)) {
-                    processedData = await this.processVideoWithMaskVideo(
-                        videoBuffer, 
-                        maskBuffer, 
-                        subfolder, 
-                        imageFile.originalname, 
-                        maskFile.originalname, 
-                        currentUploadIndex
-                    );
-                } else {
-                    await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
-                    await FileStorage.cleanupTempFiles(tempFiles);
-                    errorLogger.logFileUploadError(imageFile.originalname, imageFile.size, "Invalid mask format for video");
-                    return { success: false, error: "Invalid mask format for video" };
-                }
-            } else {
-                await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
-                await FileStorage.cleanupTempFiles(tempFiles);
-                errorLogger.logFileUploadError(imageFile.originalname, imageFile.size, "Unsupported file format");
-                return { success: false, error: "Unsupported file format" };
-            }
-
-            // Verify the processed data matches our cost calculation
-            if (videoFormats.includes(imageExt) && processedData.pairs.length !== processedFrameCount) {
-                datasetLogger.log("Frame count mismatch detected", {
-                    expected: processedFrameCount,
-                    actual: processedData.pairs.length,
-                    adjustingCost: true
-                });
-            }
-
-            // Add processed data to dataset
-            const result = await this.addDataToDatasetAndIncrementIndex(userId, datasetName, processedData, currentUploadIndex + 1);
-            
             if (result.success) {
-                // DON'T confirm token usage here - let the controller handle it
-                
                 await FileStorage.cleanupTempFiles(tempFiles);
-                
                 datasetLogger.logDatasetUpdate(userId, datasetName, result.processedItems);
-                
-                return { 
-                    success: true, 
+                return {
+                    success: true,
                     processedItems: result.processedItems,
                     reservationId: tokenReservationId,
-                    tokenCost: calculatedTokenCost // Return the calculated cost
+                    tokenCost: tokenCost
                 };
             } else {
-                await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
+                await this.refundTokensIfNeeded(tokenReservationId);
                 await FileStorage.cleanupTempFiles(tempFiles);
                 return result;
             }
-
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("PROCESS_AND_ADD_DATA", "datasets", err.message);
-            
-            if (tokenReservationId) {
-                await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
-            }
-            
-            await FileStorage.cleanupTempFiles(tempFiles);
-            return { success: false, error: "Failed to process data" };
+            await this.handleProcessAndAddDataError(error, tokenReservationId, tempFiles);
+            return { success: false, error: "Failed to process data", message: (error instanceof Error ? error.message : String(error)) };
         }
+    }
+
+    private static async getDatasetOrHandleError(
+        userId: string,
+        datasetName: string,
+        tokenReservationId: string | undefined,
+        tempFiles: string[]
+    ) {
+        const dataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
+        if (!dataset) {
+            await this.refundTokensIfNeeded(tokenReservationId);
+            await FileStorage.cleanupTempFiles(tempFiles);
+            errorLogger.logDatabaseError("PROCESS_DATA", "datasets", "Dataset not found");
+            return null;
+        }
+        return dataset;
+    }
+
+    private static logFrameCountIfMismatch(
+        imageFile: Express.Multer.File,
+        processedData: DatasetData,
+        processedFrameCount?: number
+    ) {
+        const imageExt = path.extname(imageFile.originalname).toLowerCase();
+        if (this.isVideoFile(imageExt) && processedData.pairs.length !== processedFrameCount) {
+            datasetLogger.log("Frame count mismatch detected", {
+                expected: processedFrameCount,
+                actual: processedData.pairs.length,
+                adjustingCost: true
+            });
+        }
+    }
+
+    private static async refundTokensIfNeeded(tokenReservationId: string | undefined) {
+        if (tokenReservationId) {
+            await DatasetMiddleware.tokenService.refundTokens(tokenReservationId);
+        }
+    }
+
+    private static async handleProcessAndAddDataError(
+        error: unknown,
+        tokenReservationId: string | undefined,
+        tempFiles: string[]
+    ) {
+        const err = error instanceof Error ? error : new Error("Unknown error");
+        errorLogger.logDatabaseError("PROCESS_AND_ADD_DATA", "datasets", err.message);
+        await this.refundTokensIfNeeded(tokenReservationId);
+        await FileStorage.cleanupTempFiles(tempFiles);
+    }
+
+    private static isVideoFile(extension: string): boolean {
+        return [".mp4", ".avi", ".mov"].includes(extension);
+    }
+
+    private static async calculateZipTokenCost(zipFile: Express.Multer.File): Promise<number> {
+        const zipBuffer = await fs.readFile(zipFile.path);
+        const zip = new AdmZip(zipBuffer);
+        const entries = zip.getEntries().filter(entry => !entry.isDirectory);
+        const subdirs = new Map<string, { images: number; videos: number }>();
+        const imageFormats = [".png", ".jpg", ".jpeg"];
+        const videoFormats = [".mp4", ".avi", ".mov"];
+
+        for (const entry of entries) {
+            const pathParts = entry.entryName.split("/");
+            if (pathParts.length < 2) continue;
+            const subdir = pathParts[0];
+            if (!subdirs.has(subdir)) subdirs.set(subdir, { images: 0, videos: 0 });
+
+            const filename = pathParts[pathParts.length - 1];
+            if (filename.toLowerCase().includes("mask")) continue;
+
+            const ext = path.extname(filename).toLowerCase();
+            const subdirData = subdirs.get(subdir)!;
+            if (videoFormats.includes(ext)) subdirData.videos++;
+            else if (imageFormats.includes(ext)) subdirData.images++;
+        }
+
+        const totalPairs = Array.from(subdirs.values()).reduce((sum, data) => sum + data.images + data.videos, 0);
+        return totalPairs * this.PRICING_STRUCTURE.ZIP_FILE_DATASET;
+    }
+
+    private static async calculateTokenCost(imageFile: Express.Multer.File, maskFile: Express.Multer.File): Promise<{ tokenCost: number; processedFrameCount?: number }> {
+        const imageExt = path.extname(imageFile.originalname).toLowerCase();
+        const maskExt = path.extname(maskFile.originalname).toLowerCase();
+        const imageFormats = [".png", ".jpg", ".jpeg"];
+        const videoFormats = [".mp4", ".avi", ".mov"];
+        const zipFormats = [".zip"];
+
+        if (zipFormats.includes(imageExt)) {
+            const tokenCost = await this.calculateZipTokenCost(imageFile);
+            return { tokenCost };
+        }
+
+        if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
+            return { tokenCost: this.PRICING_STRUCTURE.SINGLE_IMAGE_DATASET };
+        }
+
+        if (videoFormats.includes(imageExt)) {
+            const videoBuffer = await fs.readFile(imageFile.path);
+            const frameBuffers = await this.extractFramesFromVideo(videoBuffer);
+            const processedFrameCount = frameBuffers.length;
+            const tokenCost = processedFrameCount * this.PRICING_STRUCTURE.VIDEO_FRAME_DATASET;
+            datasetLogger.log("Video frame extraction for cost calculation", { videoName: imageFile.originalname, actualFrameCount: processedFrameCount, exactCost: tokenCost });
+            return { tokenCost, processedFrameCount };
+        }
+
+        errorLogger.logFileUploadError(imageFile.originalname, imageFile.size, "Unsupported file format");
+        return { tokenCost: -1 };
+    }
+
+    private static async handleTokenReservation(userId: string, datasetName: string, tokenCost: number) {
+        const reservationResult = await DatasetMiddleware.tokenService.reserveTokens(userId, tokenCost, "dataset_upload", `${datasetName}_${Date.now()}`);
+
+        if (reservationResult.success) {
+            return { success: true, reservationId: reservationResult.reservationId! };
+        }
+
+        let errorResponse: {
+            success: boolean;
+            error: string;
+            message: string;
+            details?: {
+                requiredTokens: number;
+                currentBalance: number;
+                shortfall: number;
+                operationType: string;
+                actionRequired: string;
+            };
+        } = {
+            success: false,
+            error: "Token reservation failed",
+            message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
+        };
+
+        if (reservationResult.error?.includes("Insufficient tokens")) {
+            const errorRegex = /Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/;
+            const errorParts = errorRegex.exec(reservationResult.error);
+            errorResponse.error = "Insufficient tokens";
+
+            if (errorParts) {
+                const [required, current, shortfall] = errorParts.slice(1).map(parseFloat);
+                errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${required}`);
+                errorResponse.message = `You need ${required} tokens for this dataset upload operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`;
+                errorResponse.details = { requiredTokens: required, currentBalance: current, shortfall, operationType: "dataset upload", actionRequired: "Token recharge needed" };
+            } else {
+                errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${tokenCost}`);
+                errorResponse.message = reservationResult.error;
+            }
+        } else {
+            errorLogger.logDatabaseError("RESERVE_TOKENS", "dataset_upload", reservationResult.error || "Token reservation failed");
+        }
+
+        return { success: false, errorResponse };
+    }
+
+    private static async processUploadedFiles(imageFile: Express.Multer.File, maskFile: Express.Multer.File, subfolder: string, uploadIndex: number): Promise<DatasetData> {
+        const imageExt = path.extname(imageFile.originalname).toLowerCase();
+        const maskExt = path.extname(maskFile.originalname).toLowerCase();
+        const imageFormats = [".png", ".jpg", ".jpeg"];
+        const videoFormats = [".mp4", ".avi", ".mov"];
+        const zipFormats = [".zip"];
+
+        datasetLogger.logDataProcessing(imageFile.originalname, subfolder, imageExt, true);
+
+        if (zipFormats.includes(imageExt)) {
+            const zipBuffer = await fs.readFile(imageFile.path);
+            return this.processZipFile(zipBuffer, subfolder, uploadIndex);
+        }
+
+        const imageBuffer = await fs.readFile(imageFile.path);
+        const maskBuffer = await fs.readFile(maskFile.path);
+
+        if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
+            return this.processImageMaskPair(imageBuffer, maskBuffer, subfolder, imageFile.originalname, maskFile.originalname, uploadIndex);
+        }
+
+        if (videoFormats.includes(imageExt)) {
+            if (imageFormats.includes(maskExt)) {
+                return this.processVideoWithSingleMask(imageBuffer, maskBuffer, subfolder, imageFile.originalname, maskFile.originalname, uploadIndex);
+            }
+            if (videoFormats.includes(maskExt)) {
+                return this.processVideoWithMaskVideo(imageBuffer, maskBuffer, subfolder, imageFile.originalname, maskFile.originalname, uploadIndex);
+            }
+            throw new Error("Invalid mask format for video");
+        }
+
+        throw new Error("Unsupported file format combination");
     }
 
     // Process image-mask pair - updated to include upload index
@@ -483,11 +546,35 @@ export class DatasetMiddleware {
     // Process ZIP file - updated to handle upload indexing for multiple subdirectories
     private static async processZipFile(zipBuffer: Buffer, subfolder: string, startUploadIndex: number): Promise<DatasetData> {
         const zip = new AdmZip(zipBuffer);
-        const entries = zip.getEntries();
-        const pairs: DatasetData["pairs"] = [];
+        const subdirs = this.groupZipEntriesBySubdirectory(zip.getEntries());
 
-        // Group entries by subdirectory with better file classification
+        datasetLogger.log("ZIP file analyzed", {
+            totalEntries: zip.getEntries().length,
+            subdirectoriesFound: subdirs.size,
+            subdirectoryNames: Array.from(subdirs.keys())
+        });
+
+        const { pairs, processedSubdirs, skippedSubdirs } = await this.processZipSubdirectories(subdirs, subfolder, startUploadIndex);
+
+        if (pairs.length === 0 && subdirs.size > 0) {
+            const errorMessage = "ZIP processing failed: No valid image-mask pairs were found in any subdirectory.";
+            errorLogger.logFileUploadError("ZIP", zipBuffer.length, errorMessage);
+            throw new Error(errorMessage);
+        }
+
+        datasetLogger.log("ZIP processing completed successfully", {
+            totalSubdirectories: subdirs.size,
+            processedSubdirs,
+            skippedSubdirs,
+            totalPairs: pairs.length
+        });
+
+        return { type: "image-mask", pairs };
+    }
+
+    private static groupZipEntriesBySubdirectory(entries: AdmZip.IZipEntry[]): Map<string, { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }> {
         const subdirs = new Map<string, { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }>();
+        const supportedFormats = [".png", ".jpg", ".jpeg", ".mp4", ".avi", ".mov"];
 
         for (const entry of entries) {
             if (entry.isDirectory) continue;
@@ -499,8 +586,6 @@ export class DatasetMiddleware {
             const filename = pathParts[pathParts.length - 1];
             const ext = path.extname(filename).toLowerCase();
 
-            // Skip unsupported file formats early
-            const supportedFormats = [".png", ".jpg", ".jpeg", ".mp4", ".avi", ".mov"];
             if (!supportedFormats.includes(ext)) {
                 errorLogger.logFileUploadError(filename, undefined, `Unsupported file format: ${ext}`);
                 continue;
@@ -510,207 +595,114 @@ export class DatasetMiddleware {
                 subdirs.set(subdir, { images: [], masks: [] });
             }
 
+            const isMask = filename.toLowerCase().includes("mask") || pathParts.some(part => part.toLowerCase().includes("mask"));
             const subdirData = subdirs.get(subdir)!;
-            
-            // Improved mask detection logic
-            const isMask = filename.toLowerCase().includes("mask") || 
-                          pathParts.some(part => part.toLowerCase() === "masks") ||
-                          pathParts.some(part => part.toLowerCase().includes("mask"));
-            
+
             if (isMask) {
                 subdirData.masks.push(entry);
             } else {
                 subdirData.images.push(entry);
             }
         }
+        return subdirs;
+    }
 
-        datasetLogger.log("ZIP file analyzed", {
-            totalEntries: entries.length,
-            subdirectoriesFound: subdirs.size,
-            subdirectoryNames: Array.from(subdirs.keys())
-        });
-
-        // Process each subdirectory independently with comprehensive validation
+    private static async processZipSubdirectories(subdirs: Map<string, { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }>, subfolder: string, startUploadIndex: number) {
+        let pairs: DatasetData["pairs"] = [];
         let processedSubdirs = 0;
         let skippedSubdirs = 0;
         let currentUploadIndex = startUploadIndex;
-        const subdirResults = new Map<string, { processed: boolean; reason?: string; pairs: number }>();
 
         for (const [subdirName, { images, masks }] of subdirs) {
-            datasetLogger.log("Evaluating subdirectory", { 
-                subdirName, 
-                images: images.length, 
-                masks: masks.length
-            });
-
-            // Validation 1: Check if subdirectory has both images and masks
-            if (images.length === 0 && masks.length === 0) {
-                errorLogger.logValidationError("subdirectory", subdirName, "Empty directory");
-                subdirResults.set(subdirName, { processed: false, reason: "empty_directory", pairs: 0 });
+            if (!this.validateSubdirectory(subdirName, images, masks)) {
                 skippedSubdirs++;
                 continue;
             }
 
-            // Validation 2: Check if subdirectory has images but no masks
-            if (images.length > 0 && masks.length === 0) {
-                errorLogger.logValidationError("subdirectory", subdirName, "Has images but no masks");
-                subdirResults.set(subdirName, { processed: false, reason: "missing_masks", pairs: 0 });
-                skippedSubdirs++;
-                continue;
-            }
-
-            // Validation 3: Check if subdirectory has masks but no images
-            if (images.length === 0 && masks.length > 0) {
-                errorLogger.logValidationError("subdirectory", subdirName, "Has masks but no images");
-                subdirResults.set(subdirName, { processed: false, reason: "missing_images", pairs: 0 });
-                skippedSubdirs++;
-                continue;
-            }
-
-            // Validation 4: Check file format compatibility within this specific subdirectory
-            const hasValidFormats = this.validateSubdirectoryFormats(images, masks);
-            if (!hasValidFormats) {
-                errorLogger.logValidationError("subdirectory", subdirName, "No valid format combinations found");
-                subdirResults.set(subdirName, { processed: false, reason: "invalid_formats", pairs: 0 });
-                skippedSubdirs++;
-                continue;
-            }
-
-            // If we get here, the subdirectory passes all validations - process it
             try {
-                datasetLogger.log("Processing subdirectory", { 
-                    subdirName, 
-                    images: images.length, 
-                    masks: masks.length,
-                    uploadIndex: currentUploadIndex
-                });
-
-                // Sort files by name for consistent association WITHIN THE SAME SUBDIRECTORY
-                images.sort((a, b) => a.name.localeCompare(b.name));
-                masks.sort((a, b) => a.name.localeCompare(b.name));
-
-                // Create one-to-one associations ONLY within this specific subdirectory
-                const minLength = Math.min(images.length, masks.length);
-                let subdirPairsProcessed = 0;
-                
-                for (let i = 0; i < minLength; i++) {
-                    const imageEntry = images[i];
-                    const maskEntry = masks[i];
-                    
-                    try {
-                        const imageBuffer = imageEntry.getData();
-                        const maskBuffer = maskEntry.getData();
-                        
-                        const imageExt = path.extname(imageEntry.name).toLowerCase();
-                        const maskExt = path.extname(maskEntry.name).toLowerCase();
-                        
-                        const imageFormats = [".png", ".jpg", ".jpeg"];
-                        const videoFormats = [".mp4", ".avi", ".mov"];
-                        const zipSubfolder = `${subfolder}/${subdirName}`;
-
-                        let subData: DatasetData;
-
-                        if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
-                            // Image + Mask pair - each pair gets its own upload index
-                            subData = await this.processImageMaskPair(
-                                imageBuffer, 
-                                maskBuffer, 
-                                zipSubfolder, 
-                                imageEntry.name, 
-                                maskEntry.name,
-                                currentUploadIndex
-                            );
-                            currentUploadIndex++; // Increment for next pair
-
-                        } else if (videoFormats.includes(imageExt)) {
-                            
-                            if (imageFormats.includes(maskExt)) {
-                                // Video + Single Mask - all frames get same upload index
-                                subData = await this.processVideoWithSingleMask(
-                                    imageBuffer, 
-                                    maskBuffer, 
-                                    zipSubfolder, 
-                                    imageEntry.name, 
-                                    maskEntry.name,
-                                    currentUploadIndex
-                                );
-                            } else if (videoFormats.includes(maskExt)) {
-                                // Video + Mask Video - all frames get same upload index
-                                subData = await this.processVideoWithMaskVideo(
-                                    imageBuffer, 
-                                    maskBuffer, 
-                                    zipSubfolder, 
-                                    imageEntry.name, 
-                                    maskEntry.name,
-                                    currentUploadIndex
-                                );
-                            } else {
-                                errorLogger.logFileUploadError(imageEntry.name, undefined, "Unsupported mask format for video");
-                                continue;
-                            }
-                            currentUploadIndex++; // Increment after processing video
-
-                        } else {
-                            errorLogger.logFileUploadError(imageEntry.name, undefined, "Unsupported file formats");
-                            continue;
-                        }
-
-                        // Add pairs to the main collection
-                        pairs.push(...subData.pairs);
-                        subdirPairsProcessed += subData.pairs.length;
-
-                    } catch (pairError) {
-                        const err = pairError instanceof Error ? pairError : new Error("Unknown error");
-                        errorLogger.logFileUploadError(imageEntry.name, undefined, err.message);
-                        // Continue with next pair instead of breaking
-                        continue;
-                    }
-                }
-
-                // Log summary for this subdirectory
-                if (subdirPairsProcessed > 0) {
-                    datasetLogger.log("Subdirectory processed successfully", {
-                        subdirName,
-                        pairsProcessed: subdirPairsProcessed,
-                        totalFiles: images.length + masks.length
-                    });
-                    
-                    processedSubdirs++;
-                    subdirResults.set(subdirName, { processed: true, pairs: subdirPairsProcessed });
-                } else {
-                    errorLogger.logValidationError("subdirectory", subdirName, "No successfully processed pairs");
-                    subdirResults.set(subdirName, { processed: false, reason: "no_valid_pairs", pairs: 0 });
-                    skippedSubdirs++;
-                }
-
+                const result = await this.processSingleSubdirectory(subdirName, { images, masks }, subfolder, currentUploadIndex);
+                pairs.push(...result.pairs);
+                currentUploadIndex = result.nextUploadIndex;
+                processedSubdirs++;
             } catch (subdirError) {
                 const err = subdirError instanceof Error ? subdirError : new Error("Unknown error");
                 errorLogger.logDatabaseError("PROCESS_ZIP_SUBDIRECTORY", "file_system", err.message);
-                subdirResults.set(subdirName, { processed: false, reason: "critical_error", pairs: 0 });
                 skippedSubdirs++;
-                // Continue with next subdirectory instead of failing completely
-                continue;
+            }
+        }
+        return { pairs, processedSubdirs, skippedSubdirs };
+    }
+
+    private static validateSubdirectory(subdirName: string, images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[]): boolean {
+        if (images.length === 0 || masks.length === 0) {
+            errorLogger.logValidationError("subdirectory", subdirName, "Missing images or masks");
+            return false;
+        }
+        if (!this.validateSubdirectoryFormats(images, masks)) {
+            errorLogger.logValidationError("subdirectory", subdirName, "No valid format combinations found");
+            return false;
+        }
+        return true;
+    }
+
+    private static async processSingleSubdirectory(subdirName: string, files: { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }, subfolder: string, currentUploadIndex: number) {
+        const { images, masks } = files;
+        images.sort((a, b) => a.name.localeCompare(b.name));
+        masks.sort((a, b) => a.name.localeCompare(b.name));
+
+        const pairs: DatasetData["pairs"] = [];
+        const minLength = Math.min(images.length, masks.length);
+        let subdirPairsProcessed = 0;
+
+        for (let i = 0; i < minLength; i++) {
+            try {
+                const subData = await this.processZipPair(images[i], masks[i], `${subfolder}/${subdirName}`, currentUploadIndex);
+                pairs.push(...subData.pairs);
+                subdirPairsProcessed += subData.pairs.length;
+                currentUploadIndex = subData.nextUploadIndex;
+            } catch (pairError) {
+                const err = pairError instanceof Error ? pairError : new Error("Unknown error");
+                errorLogger.logFileUploadError(images[i].name, undefined, err.message);
             }
         }
 
-        // Final validation and comprehensive summary
-        if (pairs.length === 0) {
-            const errorMessage = `No valid image-mask pairs found in ZIP file. Processed: ${processedSubdirs}/${subdirs.size} subdirectories successfully. Skipped: ${skippedSubdirs} subdirectories.`;
-            errorLogger.logFileUploadError("ZIP", zipBuffer.length, errorMessage);
-            throw new Error(errorMessage);
+        if (subdirPairsProcessed > 0) {
+            datasetLogger.log("Subdirectory processed successfully", { subdirName, pairsProcessed: subdirPairsProcessed });
+        } else {
+            errorLogger.logValidationError("subdirectory", subdirName, "No successfully processed pairs");
         }
 
-        datasetLogger.log("ZIP processing completed successfully", { 
-            totalSubdirectories: subdirs.size,
-            processedSubdirectories: processedSubdirs,
-            skippedSubdirectories: skippedSubdirs,
-            totalPairs: pairs.length
-        });
+        return { pairs, nextUploadIndex: currentUploadIndex };
+    }
 
-        return {
-            type: "image-mask",
-            pairs
-        };
+    private static async processZipPair(imageEntry: AdmZip.IZipEntry, maskEntry: AdmZip.IZipEntry, zipSubfolder: string, uploadIndex: number) {
+        const imageBuffer = imageEntry.getData();
+        const maskBuffer = maskEntry.getData();
+        const imageExt = path.extname(imageEntry.name).toLowerCase();
+        const maskExt = path.extname(maskEntry.name).toLowerCase();
+        const imageFormats = [".png", ".jpg", ".jpeg"];
+        const videoFormats = [".mp4", ".avi", ".mov"];
+
+        let subData: DatasetData;
+        let nextUploadIndex = uploadIndex;
+
+        if (imageFormats.includes(imageExt) && imageFormats.includes(maskExt)) {
+            subData = await this.processImageMaskPair(imageBuffer, maskBuffer, zipSubfolder, imageEntry.name, maskEntry.name, uploadIndex);
+            nextUploadIndex++;
+        } else if (videoFormats.includes(imageExt)) {
+            if (imageFormats.includes(maskExt)) {
+                subData = await this.processVideoWithSingleMask(imageBuffer, maskBuffer, zipSubfolder, imageEntry.name, maskEntry.name, uploadIndex);
+            } else if (videoFormats.includes(maskExt)) {
+                subData = await this.processVideoWithMaskVideo(imageBuffer, maskBuffer, zipSubfolder, imageEntry.name, maskEntry.name, uploadIndex);
+            } else {
+                throw new Error("Unsupported mask format for video");
+            }
+            nextUploadIndex++;
+        } else {
+            throw new Error("Unsupported file formats");
+        }
+
+        return { pairs: subData.pairs, nextUploadIndex };
     }
 
     // Helper method to validate subdirectory format combinations
@@ -743,100 +735,125 @@ export class DatasetMiddleware {
 
     // Extract frames from video with better error handling and logging
     private static async extractFramesFromVideo(videoBuffer: Buffer): Promise<Buffer[]> {
-        return new Promise((resolve, reject) => {
-            const tempDir = FileStorage.getTempDir();
-            const timestamp = Date.now();
-            const videoPath = path.join(tempDir, `video_${timestamp}.mp4`);
-            const outputPattern = path.join(tempDir, `frame_${timestamp}_%03d.png`);
+        const tempDir = FileStorage.getTempDir();
+        const timestamp = Date.now();
+        const videoPath = path.join(tempDir, `video_${timestamp}.mp4`);
+        const outputPattern = path.join(tempDir, `frame_${timestamp}_%03d.png`);
 
-            datasetLogger.log("Starting video frame extraction", { 
-                videoSize: videoBuffer.length, 
-                videoPath, 
-                outputPattern 
+        datasetLogger.log("Starting video frame extraction", { 
+            videoSize: videoBuffer.length, 
+            videoPath, 
+            outputPattern 
+        });
+
+        try {
+            await DatasetMiddleware.checkFfmpegAvailable();
+            await fs.writeFile(videoPath, videoBuffer);
+            return await DatasetMiddleware.runFfmpegExtraction(videoPath, outputPattern, tempDir, timestamp);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("VIDEO_EXTRACTION", "file_system", err.message);
+            throw err;
+        }
+    }
+
+    // Helper function for FFmpeg extraction
+    private static async handleFfmpegEnd(
+        resolve: (value: Buffer[]) => void,
+        reject: (reason?: unknown) => void,
+        tempDir: string,
+        timestamp: number,
+        videoPath: string
+    ) {
+        try {
+            const files = await fs.readdir(tempDir);
+            const frameFiles = files.filter(f =>
+                f.startsWith(`frame_${timestamp}`) && f.endsWith(".png")
+            ).sort((a, b) => a.localeCompare(b));
+
+            const frames: Buffer[] = [];
+            for (const file of frameFiles) {
+                const framePath = path.join(tempDir, file);
+                const frameBuffer = await fs.readFile(framePath);
+                frames.push(frameBuffer);
+                await fs.unlink(framePath).catch(() => {}); // Ignore cleanup errors
+            }
+
+            await fs.unlink(videoPath).catch(() => {}); // Ignore cleanup errors
+
+            if (frames.length === 0) {
+                errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "No frames extracted from video");
+                reject(new Error("No frames were extracted from the video. The video might be corrupted or in an unsupported format."));
+                return;
+            }
+
+            datasetLogger.log("Video frame extraction completed", {
+                frameCount: frames.length,
+                totalSize: frames.reduce((sum, frame) => sum + frame.length, 0)
             });
 
-            // First test FFmpeg availability
+            resolve(frames);
+        } catch (error) {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            errorLogger.logDatabaseError("VIDEO_EXTRACTION", "file_system", err.message);
+            reject(err instanceof Error ? err : new Error(String(error)));
+        }
+    }
+
+    private static runFfmpegExtraction(
+        videoPath: string,
+        outputPattern: string,
+        tempDir: string,
+        timestamp: number
+    ): Promise<Buffer[]> {
+        return new Promise((resolve, reject) => {
+            const command = ffmpeg(videoPath)
+                .outputOptions([
+                    "-vf", "fps=1", // Extract 1 frame per second
+                    "-q:v", "2"     // High quality
+                ])
+                .output(outputPattern)
+                .on("start", (commandLine) => {
+                    datasetLogger.log("FFmpeg command started", { command: commandLine });
+                })
+                .on("end", async () => {
+                    await DatasetMiddleware.handleFfmpegEnd(resolve, reject, tempDir, timestamp, videoPath);
+                })
+                .on("error", (error) => {
+                    errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", error.message);
+                    // Cleanup on error
+                    fs.unlink(videoPath).catch(() => {});
+                    reject(new Error(`Video processing failed: ${error.message}`));
+                });
+
+            // Add timeout to prevent hanging
+            const timeout = setTimeout(() => {
+                command.kill("SIGKILL");
+                fs.unlink(videoPath).catch(() => {});
+                errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "Processing timeout (60 seconds)");
+                reject(new Error("Video processing timeout (60 seconds)"));
+            }, 60000);
+
+            command.on("end", () => clearTimeout(timeout));
+            command.on("error", () => clearTimeout(timeout));
+
+            command.run();
+        });
+    }
+
+    // Helper function for FFmpeg availability check
+    private static checkFfmpegAvailable(): Promise<void> {
+        return new Promise((resolve, reject) => {
             ffmpeg.getAvailableFormats((err) => {
                 if (err) {
                     errorLogger.logDatabaseError("FFMPEG_CHECK", "system", `FFmpeg not available: ${err.message}`);
                     reject(new Error(`FFmpeg is not available: ${err.message}`));
-                    return;
+                } else {
+                    resolve();
                 }
-
-                fs.writeFile(videoPath, videoBuffer)
-                    .then(() => {
-                        const command = ffmpeg(videoPath)
-                            .outputOptions([
-                                "-vf", "fps=1", // Extract 1 frame per second
-                                "-q:v", "2"     // High quality
-                            ])
-                            .output(outputPattern)
-                            .on("start", (commandLine) => {
-                                datasetLogger.log("FFmpeg command started", { command: commandLine });
-                            })
-                            .on("end", async () => {
-                                try {
-                                    const files = await fs.readdir(tempDir);
-                                    const frameFiles = files.filter(f => 
-                                        f.startsWith(`frame_${timestamp}`) && f.endsWith(".png")
-                                    ).sort();
-
-                                    const frames: Buffer[] = [];
-                                    for (const file of frameFiles) {
-                                        const framePath = path.join(tempDir, file);
-                                        const frameBuffer = await fs.readFile(framePath);
-                                        frames.push(frameBuffer);
-                                        await fs.unlink(framePath).catch(() => {}); // Ignore cleanup errors
-                                    }
-                                    
-                                    await fs.unlink(videoPath).catch(() => {}); // Ignore cleanup errors
-                                    
-                                    if (frames.length === 0) {
-                                        errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "No frames extracted from video");
-                                        reject(new Error("No frames were extracted from the video. The video might be corrupted or in an unsupported format."));
-                                        return;
-                                    }
-                                    
-                                    datasetLogger.log("Video frame extraction completed", { 
-                                        frameCount: frames.length,
-                                        totalSize: frames.reduce((sum, frame) => sum + frame.length, 0)
-                                    });
-                                    
-                                    resolve(frames);
-                                } catch (error) {
-                                    const err = error instanceof Error ? error : new Error("Unknown error");
-                                    errorLogger.logDatabaseError("VIDEO_EXTRACTION", "file_system", err.message);
-                                    reject(error);
-                                }
-                            })
-                            .on("error", (error) => {
-                                errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", error.message);
-                                // Cleanup on error
-                                fs.unlink(videoPath).catch(() => {});
-                                reject(new Error(`Video processing failed: ${error.message}`));
-                            });
-
-                        // Add timeout to prevent hanging
-                        const timeout = setTimeout(() => {
-                            command.kill("SIGKILL");
-                            fs.unlink(videoPath).catch(() => {});
-                            errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "Processing timeout (60 seconds)");
-                            reject(new Error("Video processing timeout (60 seconds)"));
-                        }, 60000);
-
-                        command.on("end", () => clearTimeout(timeout));
-                        command.on("error", () => clearTimeout(timeout));
-                        
-                        command.run();
-                    })
-                    .catch((writeError) => {
-                        errorLogger.logDatabaseError("VIDEO_EXTRACTION", "file_system", `Failed to write video file: ${writeError.message}`);
-                        reject(new Error(`Failed to write video file: ${writeError.message}`));
-                    });
             });
         });
     }
-
     // Validate that an image is binary (only black and white pixels)
     private static async validateBinaryMask(imageBuffer: Buffer): Promise<boolean> {
         try {
@@ -867,13 +884,17 @@ export class DatasetMiddleware {
         nextUploadIndex: number
     ): Promise<{ success: boolean; processedItems?: number; error?: string }> {
         try {
-            // Get existing dataset
+            // Get existing dataset with detailed logging
+            console.log(`Searching for dataset: userId=${userId}, name=${datasetName}`);
             const dataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
 
             if (!dataset) {
+                console.error(`Dataset not found: userId=${userId}, name=${datasetName}`);
                 errorLogger.logDatabaseError("ADD_DATA_TO_DATASET", "datasets", "Dataset not found");
                 return { success: false, error: "Dataset not found" };
             }
+
+            console.log(`Found dataset: id=${dataset.id}, name=${dataset.name}, currentNextIndex=${dataset.nextUploadIndex}`);
 
             let currentData: DatasetData = dataset.data as DatasetData || { type: data.type, pairs: [] };
             
@@ -881,6 +902,8 @@ export class DatasetMiddleware {
             if (!currentData.pairs) {
                 currentData.pairs = [];
             }
+            
+            console.log(`Current data pairs: ${currentData.pairs.length}, New pairs to add: ${data.pairs.length}`);
             
             // Store file paths directly (no base64 conversion)
             const updatedData: DatasetData = {
@@ -891,23 +914,48 @@ export class DatasetMiddleware {
                 ]
             };
 
+            console.log(`Preparing to update dataset with: totalPairs=${updatedData.pairs.length}, nextUploadIndex=${nextUploadIndex}`);
+
             // Update dataset with both data and nextUploadIndex in a single operation
             await DatasetMiddleware.datasetRepository.updateDataset(userId, datasetName, { 
                 data: updatedData,
                 nextUploadIndex: nextUploadIndex
             });
 
+            // Verify the update was successful
+            const verificationDataset = await DatasetMiddleware.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
+            if (!verificationDataset) {
+                console.error("Dataset verification failed: could not retrieve dataset after update");
+                return { success: false, error: "Dataset update verification failed" };
+            }
+
+            const verificationData = verificationDataset.data as DatasetData;
+            const actualPairCount = verificationData?.pairs?.length || 0;
+            
+            console.log(`Dataset update verification: expectedPairs=${updatedData.pairs.length}, actualPairs=${actualPairCount}, nextIndex=${verificationDataset.nextUploadIndex}`);
+
+            if (actualPairCount !== updatedData.pairs.length) {
+                console.error(`Data mismatch after update: expected ${updatedData.pairs.length} pairs, got ${actualPairCount}`);
+                return { success: false, error: "Data verification failed after update" };
+            }
+
             datasetLogger.log("Dataset updated successfully", { 
                 userId, 
                 datasetName, 
                 processedItems: data.pairs.length,
-                totalItems: updatedData.pairs.length,
-                nextUploadIndex
+                totalItems: actualPairCount,
+                nextUploadIndex: verificationDataset.nextUploadIndex
             });
 
             return { success: true, processedItems: data.pairs.length };
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
+            console.error("Error in addDataToDatasetAndIncrementIndex:", {
+                userId,
+                datasetName,
+                error: err.message,
+                stack: err.stack
+            });
             errorLogger.logDatabaseError("ADD_DATA_TO_DATASET", "datasets", err.message);
             return { success: false, error: "Failed to add data to dataset" };
         }

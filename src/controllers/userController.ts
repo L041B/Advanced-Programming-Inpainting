@@ -269,103 +269,49 @@ export class UserController {
     };
 
     // Add new method to handle token cost calculation for operations
-    public calculateOperationCost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-        const startTime = Date.now();
-        this.apiLogger.logRequest(req);
-
-        try {
-            type DatasetUploadData = {
-                single_image?: number;
-                video_frame?: number;
-                zip_file?: number;
-            };
-            type InferenceData = {
-                single_image?: number;
-                video_frame?: number;
-            };
-            const { operationType, operationData } = req.body as {
-                operationType: "dataset_upload" | "inference";
-                operationData: DatasetUploadData | InferenceData;
-            };
-
-            let costResult;
-            let tokensRequired: number;
-
-            if (operationType === "dataset_upload") {
-                // Map operationData to the expected structure for calculateDatasetUploadCost
-                const uploadInfo: {
-                    images?: number;
-                    videos?: { frames: number }[];
-                    zipFiles?: number;
-                    isZipUpload?: boolean;
-                } = {};
-
-                if ("single_image" in operationData) {
-                    uploadInfo.images = operationData.single_image;
-                }
-                if ("video_frame" in operationData) {
-                    // Assume video_frame is the total number of frames, create a single video object
-                    uploadInfo.videos = [{ frames: operationData.video_frame! }];
-                }
-                if ("zip_file" in operationData) {
-                    uploadInfo.zipFiles = operationData.zip_file;
-                    uploadInfo.isZipUpload = true;
-                }
-
-                costResult = this.tokenService.calculateDatasetUploadCost(uploadInfo);
-                tokensRequired = costResult.totalCost;
-            } else if (operationType === "inference") {
-                // Build the expected datasetContent object for inference cost calculation
-                let datasetContent: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>, type?: string } = {};
-
-                // If operationData contains single_image or video_frame, create dummy pairs for cost estimation
-                if ("single_image" in operationData && operationData.single_image) {
-                    datasetContent.pairs = Array.from({ length: operationData.single_image }, (_, i) => ({
-                        imagePath: `image_${i}`,
-                        maskPath: `mask_${i}`,
-                        uploadIndex: i
-                    }));
-                    datasetContent.type = "image";
-                }
-                if ("video_frame" in operationData && operationData.video_frame) {
-                    datasetContent.pairs = [
-                        ...(datasetContent.pairs || []),
-                        ...Array.from({ length: operationData.video_frame }, (_, i) => ({
-                            imagePath: `video_frame_${i}`,
-                            maskPath: `mask_${i}`,
-                            frameIndex: i,
-                            uploadIndex: "video1"
-                        }))
-                    ];
-                    datasetContent.type = "video-frames";
-                }
-
-                costResult = this.tokenService.calculateInferenceCost(datasetContent);
-                tokensRequired = costResult.totalCost;
-            } else {
-                res.status(400).json({ 
-                    success: false, 
-                    message: "Invalid operation type. Must be 'dataset_upload' or 'inference'" 
-                });
-                return;
-            }
-
-            res.status(200).json({
-                success: true,
-                message: "Token cost calculated successfully",
-                data: {
-                    operationType,
-                    tokensRequired,
-                    costBreakdown: costResult.breakdown,
-                    estimatedCost: costResult
-                }
-            });
-            this.apiLogger.logResponse(req, res, Date.now() - startTime);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Error calculating operation cost");
-            res.status(500).json({ success: false, message: err.message });
-            this.errorLogger.logDatabaseError("CALCULATE_COST", "token_service", err.message);
-            this.apiLogger.logError(req, err);
+    private buildUploadInfo(operationData: { single_image?: number; video_frame?: number; zip_file?: number }) {
+        const uploadInfo: {
+            images?: number;
+            videos?: { frames: number }[];
+            zipFiles?: number;
+            isZipUpload?: boolean;
+        } = {};
+        if ("single_image" in operationData) {
+            uploadInfo.images = operationData.single_image;
         }
-    };
+        if ("video_frame" in operationData) {
+            uploadInfo.videos = [{ frames: operationData.video_frame! }];
+        }
+        if ("zip_file" in operationData) {
+            uploadInfo.zipFiles = operationData.zip_file;
+            uploadInfo.isZipUpload = true;
+        }
+        return uploadInfo;
+    }
+
+    private buildInferenceContent(operationData: { single_image?: number; video_frame?: number }) {
+        let datasetContent: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>, type?: string } = {};
+        if ("single_image" in operationData && operationData.single_image) {
+            datasetContent.pairs = Array.from({ length: operationData.single_image }, (_, i) => ({
+                imagePath: `image_${i}`,
+                maskPath: `mask_${i}`,
+                uploadIndex: i
+            }));
+            datasetContent.type = "image";
+        }
+        if ("video_frame" in operationData && operationData.video_frame) {
+            datasetContent.pairs = [
+                ...(datasetContent.pairs || []),
+                ...Array.from({ length: operationData.video_frame }, (_, i) => ({
+                    imagePath: `video_frame_${i}`,
+                    maskPath: `mask_${i}`,
+                    frameIndex: i,
+                    uploadIndex: "video1"
+                }))
+            ];
+            datasetContent.type = "video-frames";
+        }
+        return datasetContent;
+    }
+
 }

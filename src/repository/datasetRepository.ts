@@ -36,7 +36,7 @@ export class DatasetRepository {
             const newDataset = await this.datasetDao.create({
                 ...data,
                 data: data.data !== undefined ? data.data : null,
-                tags: data.tags !== undefined ? data.tags : []
+                tags: data.tags ?? []
             });
             return newDataset;
         } catch (error) {
@@ -94,10 +94,32 @@ export class DatasetRepository {
         this.datasetLogger.logRepositoryOperation("UPDATE_DATASET", userId, name);
 
         try {
+            console.log(`Repository: updating dataset ${name} for user ${userId} with data:`, {
+                hasData: !!data.data,
+                dataType: data.data ? typeof data.data : "undefined",
+                nextUploadIndex: data.nextUploadIndex,
+                tags: data.tags
+            });
+
             const dataset = await this.datasetDao.update(userId, name, data);
+            
+            console.log("Repository: dataset update completed successfully:", {
+                id: dataset.id,
+                name: dataset.name,
+                userId: dataset.userId,
+                nextUploadIndex: dataset.nextUploadIndex,
+                dataExists: !!dataset.data
+            });
+
             return dataset;
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
+            console.error("Repository: dataset update failed:", {
+                userId,
+                name,
+                error: err.message,
+                stack: err.stack
+            });
             this.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
             throw error;
         }
@@ -169,7 +191,7 @@ export class DatasetRepository {
 
         try {
             const existingDataset = await this.datasetDao.findById(datasetId);
-            if (!existingDataset || !existingDataset.userId || !existingDataset.name) {
+            if (!existingDataset?.userId || !existingDataset?.name) {
                 throw new Error("Dataset not found or missing userId/name");
             }
             const dataset = await this.datasetDao.update(existingDataset.userId, existingDataset.name, data);
@@ -186,7 +208,7 @@ export class DatasetRepository {
 
         try {
             const dataset = await this.datasetDao.findById(datasetId);
-            if (!dataset || !dataset.userId || !dataset.name) {
+            if (!(dataset?.userId && dataset?.name)) {
                 this.errorLogger.logDatabaseError("DELETE_DATASET_BY_ID", "datasets", "Dataset not found or missing userId/name");
                 return false;
             }

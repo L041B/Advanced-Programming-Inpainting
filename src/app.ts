@@ -7,7 +7,6 @@ import fs from "fs";           // Node.js module for interacting with the file s
 
 import { DbConnection } from "./config/database"; // The database connection handler.
 import userRoutes from "./routes/userRoutes";         // Router for user-related endpoints.
-import executionRoutes from "./routes/executionRoutes"; // Router for image processing execution endpoints.
 import appRoutes from "./routes/appRoutes";         // Router for application-level endpoints.
 import datasetRoutes from "./routes/datasetRoutes";
 import inferenceRoutes from "./routes/inferenceRoutes";
@@ -53,8 +52,6 @@ if (!fs.existsSync(uploadsDir)) {
 app.use("/", appRoutes);
 // Mount the user-related routes under the '/api/users' path.
 app.use("/api/users", userRoutes); 
-// Mount the execution-related routes under the '/api/executions' path.
-app.use("/api/executions", executionRoutes); 
 
 app.use("/api/datasets", datasetRoutes);
 app.use("/api/inferences", inferenceRoutes);

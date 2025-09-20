@@ -1,6 +1,5 @@
 // Import all model classes
 import { User } from "./User";
-import { Execution } from "./Execution";
 import { Dataset } from "./Dataset";
 import { Inference } from "./Inference";
 import { TokenTransaction } from "./TokenTransaction";
@@ -10,14 +9,7 @@ User.initialize();
 TokenTransaction.initialize();
 Dataset.initialize();
 Inference.initialize();
-Execution.initialize();
 
-// Step 2: Set up all associations after models are initialized
-// User associations
-User.hasMany(Execution, { 
-    foreignKey: "userId", 
-    as: "executions"
-});
 
 User.hasMany(Dataset, {
     foreignKey: "userId",
@@ -34,11 +26,6 @@ User.hasMany(TokenTransaction, {
     as: "tokenTransactions"
 });
 
-// Execution associations
-Execution.belongsTo(User, { 
-    foreignKey: "userId", 
-    as: "user"
-});
 
 // Dataset associations
 Dataset.belongsTo(User, {
@@ -70,7 +57,6 @@ TokenTransaction.belongsTo(User, {
 
 export {
     User,
-    Execution,
     Dataset,
     Inference,
     TokenTransaction

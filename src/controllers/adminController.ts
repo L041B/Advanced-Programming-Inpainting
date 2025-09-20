@@ -289,9 +289,14 @@ export class AdminController {
                 distinct: true
             });
 
-            // Format the response data with dataset analysis
-            const formattedDatasets = datasets.map(dataset => {
-                const data = (dataset as unknown as { data: {
+            // Helper function to analyze dataset content and return formatted object
+
+            interface DatasetWithUser {
+                id: string;
+                userId: string | null;
+                name: string;
+                tags: string[];
+                data?: {
                     pairs?: Array<{
                         imagePath: string;
                         maskPath: string;
@@ -299,67 +304,92 @@ export class AdminController {
                         uploadIndex?: string | number;
                     }>;
                     type?: string;
-                } }).data || {};
-                
-                const user = (dataset as unknown as { user: {
+                };
+                nextUploadIndex?: number;
+                createdAt: Date;
+                updatedAt: Date;
+                isDeleted: boolean;
+                user?: {
                     id: string;
                     name: string;
                     surname: string;
                     email: string;
                     tokens: number;
                     role: string;
-                } | null }).user; // User can be null for orphaned datasets
+                } | null;
+            }
 
-                const pairs = data.pairs || [];
-                
-                // Analyze dataset content
-                let datasetType = "empty";
-                let itemCount = 0;
-                let estimatedTokenCost = 0;
+            function calculateEstimatedTokenCost(pairs: Array<{ uploadIndex?: string | number }>, datasetType: string): number {
                 const uploadIndexes = new Set<string>();
+                let estimatedTokenCost = 0;
 
-                if (pairs.length > 0) {
-                    itemCount = pairs.length;
-                    datasetType = data.type || "unknown";
-                    
-                    // Count unique upload indexes to estimate inference cost
-                    pairs.forEach((pair) => {
-                        if (pair.uploadIndex !== undefined && pair.uploadIndex !== null) {
-                            uploadIndexes.add(pair.uploadIndex.toString());
-                        }
-                    });
+                pairs.forEach((pair) => {
+                    if (pair.uploadIndex !== undefined && pair.uploadIndex !== null) {
+                        uploadIndexes.add(pair.uploadIndex.toString());
+                    }
+                });
 
-                    // Estimate inference cost based on upload indexes
+                if (uploadIndexes.size > 0) {
                     for (const uploadIndex of uploadIndexes) {
-                        const indexPairs = pairs.filter((p) => 
+                        const indexPairs = pairs.filter((p) =>
                             p.uploadIndex !== undefined && p.uploadIndex.toString() === uploadIndex
                         );
-                        
+
                         if (indexPairs.length === 1) {
                             estimatedTokenCost += 2.75; // Single image
                         } else {
                             estimatedTokenCost += indexPairs.length * 1.5; // Video frames
                         }
                     }
-
-                    // Fallback for datasets without uploadIndex
-                    if (uploadIndexes.size === 0) {
-                        if (datasetType === "video-frames") {
-                            estimatedTokenCost = itemCount * 1.5;
-                        } else {
-                            estimatedTokenCost = itemCount * 2.75;
-                        }
-                    }
+                } else if (datasetType === "video-frames") {
+                    estimatedTokenCost = pairs.length * 1.5;
+                } else {
+                    estimatedTokenCost = pairs.length * 2.75;
                 }
 
-                // Filter by type if specified
+                return estimatedTokenCost;
+            }
+
+            function analyzeDataset(dataset: DatasetWithUser, type: string | undefined) {
+                // Ensure data is always an object, never null
+                const data = (dataset.data ?? {}) as {
+                    pairs?: Array<{
+                        imagePath: string;
+                        maskPath: string;
+                        frameIndex?: number;
+                        uploadIndex?: string | number;
+                    }>;
+                    type?: string;
+                };
+
+                const user = dataset.user as {
+                    id: string;
+                    name: string;
+                    surname: string;
+                    email: string;
+                    tokens: number;
+                    role: string;
+                } | null; // User can be null for orphaned datasets
+
+                const pairs = data.pairs || [];
+
+                let datasetType = "empty";
+                let itemCount = 0;
+                let estimatedTokenCost = 0;
+
+                if (pairs.length > 0) {
+                    itemCount = pairs.length;
+                    datasetType = data.type || "unknown";
+                    estimatedTokenCost = calculateEstimatedTokenCost(pairs, datasetType);
+                }
+
                 if (type && typeof type === "string" && datasetType !== type) {
                     return null;
                 }
 
                 return {
-                    id: dataset.id, // Include dataset ID per future reference
-                    userId: dataset.userId, // Can be null for orphaned datasets
+                    id: dataset.id,
+                    userId: dataset.userId,
                     name: dataset.name,
                     tags: dataset.tags,
                     datasetType,
@@ -370,7 +400,7 @@ export class AdminController {
                     updatedAt: dataset.updatedAt,
                     isDeleted: dataset.isDeleted,
                     status: dataset.isDeleted ? "deleted" : "active",
-                    isOrphaned: !user, // NEW: Flag to indicate orphaned datasets
+                    isOrphaned: !user,
                     user: user ? {
                         id: user.id,
                         name: user.name,
@@ -385,9 +415,24 @@ export class AdminController {
                         email: "user-deleted@system.local",
                         currentTokens: 0,
                         role: "user"
-                    } // Handle orphaned datasets with deleted users
+                    }
                 };
-            }).filter((dataset): dataset is NonNullable<typeof dataset> => dataset !== null);
+            }
+            
+            // Ensure 'type' is a string or undefined
+            const typeString = typeof type === "string" ? type : undefined;
+
+            // Format the response data with dataset analysis
+            const formattedDatasets = datasets
+                .map(dataset => {
+                    // Ensure dataset.data is never null
+                    const safeDataset = {
+                        ...dataset,
+                        data: dataset.data ?? {}
+                    };
+                    return analyzeDataset(safeDataset as DatasetWithUser, typeString);
+                })
+                .filter((dataset): dataset is NonNullable<typeof dataset> => dataset !== null);
 
             // Calculate summary statistics with orphaned info
             const typeBreakdown = formattedDatasets.reduce((acc: Record<string, number>, dataset) => {

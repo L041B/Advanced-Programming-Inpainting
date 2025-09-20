@@ -85,52 +85,6 @@ export class UserRouteLogger extends BaseLoggerDecorator {
     }
 }
 
-// Execution Route Logger Decorator
-export class ExecutionRouteLogger extends BaseLoggerDecorator {
-    log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "EXECUTION_ACTION", ...data });
-    }
-
-    // Log execution creation events
-    logExecutionCreation(executionId: string, userId: string, status: string): void {
-        this.logger.info("EXECUTION_CREATED", { type: "EXECUTION_ACTION", executionId, userId, status });
-    }
-
-    // Log execution retrieval events
-    logExecutionRetrieval(executionId: string, userId?: string): void {
-        this.logger.info("EXECUTION_RETRIEVED", { type: "EXECUTION_ACTION", executionId, userId });
-    }
-
-    // Log execution update events
-    logExecutionUpdate(executionId: string, userId: string, updatedFields: string[]): void {
-        this.logger.info("EXECUTION_UPDATED", { type: "EXECUTION_ACTION", executionId, userId, updatedFields });
-    }
-
-    // Log execution deletion events
-    logExecutionDeletion(executionId: string, userId: string): void {
-        this.logger.info("EXECUTION_DELETED", { type: "EXECUTION_ACTION", executionId, userId });
-    }
-
-    // Log execution status check events
-    logExecutionStatusCheck(executionId: string): void {
-        this.logger.info("EXECUTION_STATUS_CHECKED", { type: "EXECUTION_ACTION", executionId });
-    }
-
-    // Log execution download events
-    logExecutionDownload(executionId: string, userId?: string): void {
-        this.logger.info("EXECUTION_DOWNLOADED", { type: "EXECUTION_ACTION", executionId, userId });
-    }
-
-    // Log preview generation events
-    logPreviewGeneration(success: boolean): void {
-        this.logger.info("PREVIEW_GENERATED", { type: "EXECUTION_ACTION", success });
-    }
-
-    // Log user executions retrieval events
-    logUserExecutionsRetrieval(userId: string, count: number): void {
-        this.logger.info("USER_EXECUTIONS_RETRIEVED", { type: "EXECUTION_ACTION", userId, count });
-    }
-}
 
 // Auth Route Logger Decorator
 export class AuthRouteLogger extends BaseLoggerDecorator {
