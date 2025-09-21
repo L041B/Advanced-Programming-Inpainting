@@ -1,16 +1,18 @@
-import axios from "axios";
+// Adapter to interact with the Python-based black-box inference service
+import axios from "axios"; // HTTP client for making requests
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
 import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
-// Initialize loggers
-const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
-const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
+// Define interfaces for request and response payloads
 interface ProcessingRequest {
     userId: string;
     data: Record<string, unknown>;
     parameters: Record<string, unknown>;
 }
 
+// Response from the Python service
 interface ProcessingResponse {
     success: boolean;
     images?: Array<{ originalPath: string; outputPath: string }>;
@@ -18,21 +20,40 @@ interface ProcessingResponse {
     error?: string;
 }
 
+// InferenceBlackBoxAdapter provides an abstraction layer to communicate with the external Python service.
 export class InferenceBlackBoxAdapter {
+    private static instance: InferenceBlackBoxAdapter;
     private readonly pythonServiceUrl: string;
+    private readonly errorManager: ErrorManager;
+    private readonly inferenceLogger: InferenceRouteLogger;
+    private readonly errorLogger: ErrorRouteLogger;
 
-    constructor() {
+    // Private constructor to enforce Singleton pattern.
+    private constructor() {
         this.pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://python-inference:5000";
-        inferenceLogger.log("BlackBox adapter initialized", { serviceUrl: this.pythonServiceUrl });
+        this.errorManager = ErrorManager.getInstance();
+        this.inferenceLogger = loggerFactory.createInferenceLogger();
+        this.errorLogger = loggerFactory.createErrorLogger();
+        
+        this.inferenceLogger.log("BlackBox adapter initialized", { serviceUrl: this.pythonServiceUrl });
     }
 
+    // Provides access to the single instance of InferenceBlackBoxAdapter.
+    public static getInstance(): InferenceBlackBoxAdapter {
+        if (!InferenceBlackBoxAdapter.instance) {
+            InferenceBlackBoxAdapter.instance = new InferenceBlackBoxAdapter();
+        }
+        return InferenceBlackBoxAdapter.instance;
+    }
+
+    // Sends data to the Python service for processing and handles the response.
     async processDataset(
         userId: string, 
         datasetData: Record<string, unknown>, 
         parameters: Record<string, unknown>
     ): Promise<ProcessingResponse> {
         try {
-            inferenceLogger.logBlackBoxProcessingStarted(userId);
+            this.inferenceLogger.logBlackBoxProcessingStarted(userId);
 
             const request: ProcessingRequest = {
                 userId,
@@ -52,35 +73,59 @@ export class InferenceBlackBoxAdapter {
                 }
             );
 
+            // Handle response
             if (response.data.success) {
-                inferenceLogger.logBlackBoxProcessingCompleted(
+                this.inferenceLogger.logBlackBoxProcessingCompleted(
                     userId, 
                     response.data.images?.length || 0,
                     response.data.videos?.length || 0
                 );
                 return response.data;
             } else {
-                throw new Error(response.data.error || "Processing failed");
+                const errorMessage = response.data.error || "Processing failed";
+                this.inferenceLogger.logBlackBoxProcessingFailed(userId, errorMessage);
+                throw this.errorManager.createError(ErrorStatus.inferenceProcessingFailedError, errorMessage);
             }
         } catch (error) {
+            // Handle standardized errors (don't re-wrap them)
+            if (error instanceof Error && "errorType" in error) {
+                throw error;
+            }
+
+            // Log and wrap other errors
             const err = error instanceof Error ? error : new Error("Unknown error");
-            inferenceLogger.logBlackBoxProcessingFailed(userId, err.message);
+            this.inferenceLogger.logBlackBoxProcessingFailed(userId, err.message);
             
+            // Handle Axios errors
             if (axios.isAxiosError(error)) {
-                const axiosError = `Python service error: ${error.message}`;
+                let axiosError: string;
+                let errorType: ErrorStatus;
+
+                // Differentiate between response errors and network errors
                 if (error.response) {
-                    errorLogger.logDatabaseError("BLACKBOX_HTTP_ERROR", "python_service", 
-                        `Status: ${error.response.status}, Message: ${axiosError}`);
+                    // Server responded with error status
+                    axiosError = `Python service HTTP error: Status ${error.response.status} - ${error.message}`;
+                    errorType = ErrorStatus.externalServiceError;
+                    this.errorLogger.logDatabaseError("BLACKBOX_HTTP_ERROR", "python_service", 
+                        `Status: ${error.response.status}, Message: ${error.message}`);
                 } else if (error.request) {
-                    errorLogger.logDatabaseError("BLACKBOX_NETWORK_ERROR", "python_service", axiosError);
+                    // Request was made but no response received (network error, timeout, etc.)
+                    axiosError = `Python service network error: ${error.message}`;
+                    errorType = ErrorStatus.externalServiceError;
+                    this.errorLogger.logDatabaseError("BLACKBOX_NETWORK_ERROR", "python_service", error.message);
                 } else {
-                    errorLogger.logDatabaseError("BLACKBOX_REQUEST_ERROR", "python_service", axiosError);
+                    // Something else happened in setting up the request
+                    axiosError = `Python service request setup error: ${error.message}`;
+                    errorType = ErrorStatus.externalServiceError;
+                    this.errorLogger.logDatabaseError("BLACKBOX_REQUEST_ERROR", "python_service", error.message);
                 }
-                throw new Error(axiosError);
+                
+                throw this.errorManager.createError(errorType, axiosError);
             }
             
-            errorLogger.logDatabaseError("BLACKBOX_PROCESSING", "python_service", err.message);
-            throw error;
+            // Handle any other unexpected errors
+            this.errorLogger.logDatabaseError("BLACKBOX_PROCESSING", "python_service", err.message);
+            throw this.errorManager.createError(ErrorStatus.inferenceProcessingFailedError, err.message);
         }
     }
 }

@@ -5,7 +5,7 @@ import { Logger } from "./logger";
 
 // Define a common interface for log data to ensure type safety.
 interface LogData {
-    [key: string]: string | number | boolean | undefined | string[];
+    [key: string]: string | number | boolean | undefined | string[] | Record<string, unknown>;
 }
 
 // Define a common interface for authenticated requests
@@ -21,7 +21,7 @@ export interface LoggerDecorator {
     log(message: string, data?: LogData): void;
 }
 
-// Base Decorator
+// Base Logger Decorator 
 export abstract class BaseLoggerDecorator implements LoggerDecorator {
     protected logger: winston.Logger;
 
@@ -29,6 +29,7 @@ export abstract class BaseLoggerDecorator implements LoggerDecorator {
         this.logger = Logger.getInstance();
     }
 
+    // Abstract log method to be implemented by subclasses
     abstract log(message: string, data?: LogData): void;
 }
 
@@ -68,20 +69,29 @@ export class UserRouteLogger extends BaseLoggerDecorator {
         this.logger.info("USER_TOKENS_UPDATED", { type: "USER_ACTION", userId, newTokenAmount });
     }
 
-    logTokenReservation(userId: string, amount: number, operationType: string, reservationId: string): void {
-        this.logger.info("TOKENS_RESERVED", { type: "TOKEN_ACTION", userId, amount, operationType, reservationId });
+    // Log token reservation events
+    logTokenReservation(userId: string, amount: number, operationType: string, operationId: string): void {
+        this.logger.info("TOKENS_RESERVED", { type: "TOKEN_ACTION", userId, amount, operationType, operationId });
     }
 
-    logTokenUsage(userId: string, amount: number, operationType: string): void {
-        this.logger.info("TOKENS_USED", { type: "TOKEN_ACTION", userId, amount, operationType });
+    // Log token confirmation events
+    logTokenConfirmation(reservationId: string, tokensSpent: number, remainingBalance: number): void {
+        this.logger.info("TOKENS_CONFIRMED", { type: "TOKEN_ACTION", reservationId, tokensSpent, remainingBalance });
     }
 
-    logTokenRefund(userId: string, amount: number, operationType: string): void {
-        this.logger.info("TOKENS_REFUNDED", { type: "TOKEN_ACTION", userId, amount, operationType });
+    // Log token refund events
+    logTokenRefund(reservationId: string, refundAmount: number, restoredBalance: number): void {
+        this.logger.info("TOKENS_REFUNDED", { type: "TOKEN_ACTION", reservationId, refundAmount, restoredBalance });
     }
 
-    logTokenRecharge(userId: string, amount: number, adminUserId: string): void {
-        this.logger.info("TOKENS_RECHARGED", { type: "TOKEN_ACTION", userId, amount, adminUserId });
+    // Log admin token recharge events
+    logAdminTokenRecharge(adminUserId: string, targetUserEmail: string, amount: number, newBalance: number): void {
+        this.logger.info("ADMIN_TOKEN_RECHARGE", { type: "TOKEN_ACTION", adminUserId, targetUserEmail, amount, newBalance });
+    }
+
+    // Log token balance inquiries
+    logTokenBalanceCheck(userId: string, currentBalance: number): void {
+        this.logger.info("TOKEN_BALANCE_CHECKED", { type: "TOKEN_ACTION", userId, currentBalance });
     }
 }
 
@@ -303,18 +313,22 @@ export class InferenceRouteLogger extends BaseLoggerDecorator {
         this.logger.info("INFERENCE_WORKER_STARTED", { type: "INFERENCE_ACTION" });
     }
 
+    // Log worker stop events
     logWorkerStopped(): void {
         this.logger.info("INFERENCE_WORKER_STOPPED", { type: "INFERENCE_ACTION" });
     }
 
+    // Log worker start events
     logJobProcessingStarted(jobId: string, inferenceId: string): void {
         this.logger.info("JOB_PROCESSING_STARTED", { type: "INFERENCE_ACTION", jobId, inferenceId });
     }
 
+    // Log job completion events
     logJobProcessingCompleted(jobId: string, inferenceId: string): void {
         this.logger.info("JOB_PROCESSING_COMPLETED", { type: "INFERENCE_ACTION", jobId, inferenceId });
     }
 
+    // Log job failure events
     logJobProcessingFailed(jobId: string, inferenceId: string, error: string): void {
         this.logger.error("JOB_PROCESSING_FAILED", { type: "INFERENCE_ACTION", jobId, inferenceId, error });
     }
@@ -324,10 +338,12 @@ export class InferenceRouteLogger extends BaseLoggerDecorator {
         this.logger.info("BLACKBOX_PROCESSING_STARTED", { type: "INFERENCE_ACTION", userId });
     }
 
+    // Log blackbox processing completion events
     logBlackBoxProcessingCompleted(userId: string, imageCount?: number, videoCount?: number): void {
         this.logger.info("BLACKBOX_PROCESSING_COMPLETED", { type: "INFERENCE_ACTION", userId, imageCount, videoCount });
     }
 
+    // Log blackbox processing failure events
     logBlackBoxProcessingFailed(userId: string, error: string): void {
         this.logger.error("BLACKBOX_PROCESSING_FAILED", { type: "INFERENCE_ACTION", userId, error });
     }
@@ -337,7 +353,13 @@ export class InferenceRouteLogger extends BaseLoggerDecorator {
         this.logger.info("INFERENCE_QUEUE_CONNECTED", { type: "INFERENCE_ACTION" });
     }
 
+    // Log queue disconnection events
     logQueueClosed(): void {
         this.logger.info("INFERENCE_QUEUE_CLOSED", { type: "INFERENCE_ACTION" });
+    }
+
+    // Log data processing events (adding missing method used in service)
+    logDataProcessing(userId: string, datasetName: string, operationType: string, success: boolean): void {
+        this.logger.info("DATA_PROCESSING", { type: "INFERENCE_ACTION", userId, datasetName, operationType, success });
     }
 }

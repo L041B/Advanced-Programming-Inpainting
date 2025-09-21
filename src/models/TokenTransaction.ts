@@ -1,6 +1,8 @@
+// Import necessary modules from Sequelize and database configuration.
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
 
+// TokenTransaction model representing a token transaction in the system.
 export class TokenTransaction extends Model {
   public id!: string;
   public userId!: string;
@@ -9,14 +11,15 @@ export class TokenTransaction extends Model {
   public amount!: number; // Positive for recharge, negative for usage
   public balanceBefore!: number;
   public balanceAfter!: number;
-  public status!: "pending" | "completed" | "refunded" | "aborted"; // Added "aborted"
+  public status!: "pending" | "completed" | "refunded" | "aborted"; 
   public description!: string | null;
-  
   public readonly createdAt!: Date;
 
+  // Initializes the TokenTransaction model, defining its schema and configuration with Sequelize.
   static initialize() {
     const sequelize: Sequelize = DbConnection.getSequelizeInstance();
 
+    // Initialize the TokenTransaction model with its attributes and options.
     TokenTransaction.init(
       {
         id: {
@@ -68,7 +71,7 @@ export class TokenTransaction extends Model {
         modelName: "TokenTransaction",
         tableName: "token_transactions",
         timestamps: true,
-        updatedAt: false, // Only track creation time
+        updatedAt: false, 
         underscored: true,
       }
     );

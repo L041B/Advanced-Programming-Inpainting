@@ -1,11 +1,14 @@
 import path from "path";
 import fs from "fs/promises";
 import { v4 as uuidv4 } from "uuid";
+import { ErrorRouteLogger } from "./loggerDecorator";
 
+// Manages file storage operations such as saving, reading, and deleting files
 export class FileStorage {
-    private static readonly UPLOAD_DIR = path.join(process.cwd(), "uploads");
+    private static readonly UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIRECTORY || "./uploads");
     private static readonly DATASETS_DIR = path.join(FileStorage.UPLOAD_DIR, "datasets");
     private static readonly TEMP_DIR = path.join(FileStorage.UPLOAD_DIR, "temp");
+    private static readonly errorLogger = new ErrorRouteLogger();
 
     // Initialize storage directories
     static async init(): Promise<void> {
@@ -16,12 +19,14 @@ export class FileStorage {
 
     // Save buffer to disk and return relative file path
     static async saveFile(buffer: Buffer, originalName: string, subfolder?: string): Promise<string> {
+        // Generate unique filename
         const ext = path.extname(originalName);
         const filename = `${uuidv4()}${ext}`;
         const directory = subfolder 
             ? path.join(FileStorage.DATASETS_DIR, subfolder)
             : FileStorage.DATASETS_DIR;
         
+        // Ensure directory exists
         await fs.mkdir(directory, { recursive: true });
         const filePath = path.join(directory, filename);
         await fs.writeFile(filePath, buffer);
@@ -52,7 +57,7 @@ export class FileStorage {
         try {
             await fs.unlink(fullPath);
         } catch (error) {
-            console.error(`Failed to delete file ${fullPath}:`, error);
+            this.errorLogger.logFileUploadError(relativePath, undefined, `Failed to delete file: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
 
@@ -70,9 +75,10 @@ export class FileStorage {
     static async cleanupTempFiles(filePaths: string[]): Promise<void> {
         for (const filePath of filePaths) {
             try {
+                // Delete temp file
                 await fs.unlink(filePath);
             } catch (error) {
-                console.error(`Failed to delete temp file ${filePath}:`, error);
+                this.errorLogger.logFileUploadError(filePath, undefined, `Failed to delete temp file: ${error instanceof Error ? error.message : "Unknown error"}`);
             }
         }
     }

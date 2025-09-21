@@ -36,6 +36,7 @@ const createAuthError = (message: string, errorType: ErrorStatus, status: number
 export const checkAuthHeader = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const authHeader = req.headers["authorization"];
     
+    // If no Authorization header is present, log and return an error.
     if (!authHeader) {
         authLogger.log("Authorization check failed - missing header", { 
             reason: "Authorization header missing", 
@@ -44,6 +45,7 @@ export const checkAuthHeader = (req: AuthenticatedRequest, res: Response, next: 
             method: req.method
         });
         
+        // Create and pass a standardized error to the next middleware
         const error = createAuthError(
             "Access token required",
             ErrorStatus.jwtNotValid,
@@ -60,6 +62,7 @@ export const extractToken = (req: AuthenticatedRequest, res: Response, next: Nex
     const authHeader = req.headers["authorization"]!;
     const token = authHeader.split(" ")[1];
 
+    // If token is not present or malformed, log and return an error.
     if (!token) {
         authLogger.log("Token extraction failed", {
             reason: "Invalid token format, expected \"Bearer <token>\"",
@@ -75,6 +78,7 @@ export const extractToken = (req: AuthenticatedRequest, res: Response, next: Nex
         return;
     }
     
+    // Attach the token to the request object for downstream middleware
     req.token = token;
     next();
 };
@@ -85,6 +89,7 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
     // Ensure the JWT_SECRET is defined in environment variables.
     const secret = process.env.JWT_SECRET;
     if (!secret) {
+        // Log fatal error and create a standardized error response
         errorLogger.log("FATAL: JWT_SECRET is not defined in environment variables.", { component: "authMiddleware" });
         const error = createAuthError(
             "Server security configuration error.",
@@ -94,12 +99,16 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
         next(error);
         return;
     }
+    // Verify the token
     try {
+        // If verification is successful, attach decoded payload to request object
         const decoded = jwt.verify(req.token!, secret) as { 
             userId: string; email: string; };
         
+        // Attach user info to request for downstream middleware
         req.user = decoded;
         
+        // Log successful verification
         authLogger.log("Token validation successful", {
             userId: decoded.userId,
             email: decoded.email,
@@ -112,6 +121,7 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
         if (error instanceof jwt.TokenExpiredError) reason = "Token expired";
         if (error instanceof jwt.JsonWebTokenError) reason = "Invalid token signature";
 
+        // Log the specific reason for token verification failure
         authLogger.log("Token verification failed", { reason, ip: req.ip, path: req.path });
         
         const authError = createAuthError(
@@ -127,12 +137,14 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
 // Verifies that the user from the token actually exists in the database.
 export const verifyUserExists = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
+        // Extract userId from the decoded token payload
         const userId = req.user && typeof req.user.userId === "string" ? req.user.userId : undefined;
         if (!userId) {
             authLogger.log("User verification failed", {
                 reason: "User ID missing from token",
                 ip: req.ip
             });
+            // If userId is missing, treat as invalid token
             const error = createAuthError(
                 "Invalid token - user not found",
                 ErrorStatus.jwtNotValid,
@@ -141,6 +153,7 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
             next(error);
             return;
         }
+        // Check if user exists in the database
         const user = await User.findByPk(userId);
         if (!user) {
             authLogger.log("User verification failed", {
@@ -150,6 +163,7 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
                 ip: req.ip
             });
             
+            // If user does not exist, treat as invalid token
             const error = createAuthError(
                 "Invalid token - user not found",
                 ErrorStatus.jwtNotValid,
@@ -159,6 +173,7 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
             return;
         }
         
+        // Log successful user verification
         authLogger.log("User verification successful", {
             userId,
             email: req.user && typeof req.user.email === "string" ? req.user.email : undefined
@@ -169,6 +184,7 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
         const err = error instanceof Error ? error : new Error("Unknown error");
         errorLogger.logDatabaseError("VERIFY_USER_EXISTS", "users", err.message);
         
+        // Pass a standardized error to the next middleware
         const authError = createAuthError(
             "User verification failed",
             ErrorStatus.readInternalServerError,
@@ -181,8 +197,10 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
 // Checks if the authenticated user is the same as the user being requested.
 export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
 
+    // Extract userId from request params or body
     const userIdToAccess = (req.params as { userId?: string }).userId || (req.body as { userId?: string }).userId;
     
+    // If no userId is specified in params or body, log and return an error.
     if (!userIdToAccess) {
         errorLogger.log("Authorization logic error", { 
             reason: "checkUserAuthorization was called on a route without a userId in params or body.",
@@ -197,6 +215,7 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
         return;
     }
 
+    // Check if the authenticated user matches the userId being accessed
     if (!req.user || req.user.userId !== userIdToAccess) {
         authLogger.log("Authorization check failed", {
             authenticatedUserId: req.user?.userId || "none",
@@ -214,6 +233,7 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
         return;
     }
 
+    // Log successful authorization
     authLogger.log("Authorization check successful", { authenticatedUserId: req.user.userId, authorized: true });
     next();
 };

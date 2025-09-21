@@ -1,21 +1,24 @@
+// Import necessary modules from Sequelize and database configuration.
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
 
+// Inference model representing an inference task in the system.
 export class Inference extends Model {
   public id!: string;
   public status!: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
   public modelId!: string;
   public parameters!: Record<string, unknown> | null;
   public result!: Record<string, unknown> | null;
-  public datasetId!: string; // Changed from datasetName to datasetId
+  public datasetId!: string; // Riportiamo a datasetId
   public userId!: string;
-  
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
+  // Initializes the Inference model, defining its schema and configuration with Sequelize.
   static initialize() {
     const sequelize: Sequelize = DbConnection.getSequelizeInstance();
 
+    // Initialize the Inference model with its attributes and options.
     Inference.init(
       {
         id: {
@@ -44,7 +47,7 @@ export class Inference extends Model {
         datasetId: {
           type: DataTypes.UUID,
           allowNull: false,
-          field: "dataset_id" // Changed from dataset_name
+          field: "dataset_id" // Torna a dataset_id
         },
         userId: {
           type: DataTypes.UUID,
@@ -67,6 +70,7 @@ export class Inference extends Model {
   }
 }
 
+// Initialize the Inference model
 Inference.initialize();
 
 

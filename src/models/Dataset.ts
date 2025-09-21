@@ -1,6 +1,8 @@
+// Import necessary modules from Sequelize and database configuration.
 import { DataTypes, Model, Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
 
+// Dataset model representing a dataset in the system.
 export class Dataset extends Model {
   public id!: string; // New UUID primary key
   public userId!: string | null; // Can be null when user is deleted
@@ -9,13 +11,14 @@ export class Dataset extends Model {
   public tags!: string[];
   public isDeleted!: boolean;
   public nextUploadIndex!: number;
-  
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
+  // Initializes the Dataset model, defining its schema and configuration with Sequelize.
   static initialize() {
     const sequelize: Sequelize = DbConnection.getSequelizeInstance();
 
+    // Initialize the Dataset model with its attributes and options.
     Dataset.init(
       {
         id: {
@@ -25,7 +28,7 @@ export class Dataset extends Model {
         },
         userId: {
           type: DataTypes.UUID,
-          allowNull: true, // Changed to allow NULL when user is deleted
+          allowNull: true, // Allow NULL when user is deleted
           field: "user_id"
         },
         name: {
@@ -60,7 +63,6 @@ export class Dataset extends Model {
         tableName: "datasets",
         timestamps: true,
         underscored: true
-        // Remove the unique index from here since we're using a partial index in SQL
       }
     );
   }
@@ -69,6 +71,5 @@ export class Dataset extends Model {
     // Associations will be set up in the index file
   }
 }
-
+// Initialize the Dataset model
 Dataset.initialize();
-    // Associations will be set up in the index file

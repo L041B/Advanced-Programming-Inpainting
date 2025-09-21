@@ -18,6 +18,58 @@ export class AdminController {
     private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
     // Recharge user tokens
+    private static validateEmail(email: unknown): string | null {
+        if (!email || typeof email !== "string") {
+            return "Valid email is required";
+        }
+        return null;
+    }
+
+    private static validateAmount(amount: unknown): { error: string | null; numericAmount: number } {
+        const numericAmount = parseFloat(amount as string);
+        if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
+            return {
+                error: "Valid positive numeric amount is required",
+                numericAmount
+            };
+        }
+        return { error: null, numericAmount };
+    }
+
+    private static handleValidationError(
+        res: Response,
+        logger: ErrorRouteLogger,
+        field: string,
+        value: unknown,
+        error: string,
+        extra?: object
+    ): void {
+        logger.logValidationError(field, value as string | number | undefined, error);
+        res.status(400).json({ error, ...extra });
+    }
+
+    private static handleRechargeResponse(
+        res: Response,
+        email: string,
+        numericAmount: number,
+        rechargeResult: { success: boolean; newBalance?: number; error?: string }
+    ): void {
+        if (rechargeResult.success) {
+            res.status(200).json({
+                success: true,
+                message: "Tokens recharged successfully",
+                data: {
+                    userEmail: email,
+                    amountAdded: numericAmount,
+                    newBalance: rechargeResult.newBalance
+                }
+            });
+        } else {
+            const statusCode = rechargeResult.error?.includes("not found") ? 404 : 400;
+            res.status(statusCode).json({ error: rechargeResult.error });
+        }
+    }
+
     static async rechargeUserTokens(req: AuthRequest, res: Response): Promise<void> {
         const startTime = Date.now();
         AdminController.apiLogger.logRequest(req);
@@ -26,48 +78,47 @@ export class AdminController {
             const adminUserId = req.user!.userId;
             const { email, amount } = req.body;
 
-            if (!email || typeof email !== "string") {
-                AdminController.errorLogger.logValidationError("email", email, "Valid email is required");
-                res.status(400).json({ error: "Valid email is required" });
+            const emailError = AdminController.validateEmail(email);
+            if (emailError) {
+                AdminController.handleValidationError(res, AdminController.errorLogger, "email", email, emailError);
                 return;
             }
 
-            // Converti amount in numero e valida
-            const numericAmount = parseFloat(amount);
-            
-            if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
-                AdminController.errorLogger.logValidationError("amount", amount, "Valid positive numeric amount is required");
-                res.status(400).json({ 
-                    error: "Valid positive numeric amount is required",
-                    received: {
-                        value: amount,
-                        type: typeof amount,
-                        parsed: numericAmount,
-                        isValid: !isNaN(numericAmount) && numericAmount > 0
+            const { error: amountError, numericAmount } = AdminController.validateAmount(amount);
+            if (amountError) {
+                AdminController.handleValidationError(
+                    res,
+                    AdminController.errorLogger,
+                    "amount",
+                    amount,
+                    amountError,
+                    {
+                        received: {
+                            value: amount,
+                            type: typeof amount,
+                            parsed: numericAmount,
+                            isValid: !isNaN(numericAmount) && numericAmount > 0
+                        }
                     }
-                });
+                );
                 return;
             }
 
-            const result = await AdminController.tokenService.rechargeUserTokens(
+            const rechargeRawResult = await AdminController.tokenService.rechargeUserTokens(
                 adminUserId,
                 email,
-                numericAmount // Usa il valore numerico convertito
+                numericAmount
             );
 
-            if (result.success) {
-                res.status(200).json({
-                    success: true,
-                    message: "Tokens recharged successfully",
-                    data: {
-                        userEmail: email,
-                        amountAdded: numericAmount, // Mostra il valore numerico
-                        newBalance: result.newBalance
-                    }
-                });
+            const rechargeResult: { success: boolean; newBalance?: number; error?: string } =
+                typeof rechargeRawResult === "number"
+                    ? { success: true, newBalance: rechargeRawResult }
+                    : rechargeRawResult;
+
+            if (typeof rechargeResult === "object" && rechargeResult !== null && "success" in rechargeResult) {
+                AdminController.handleRechargeResponse(res, email, numericAmount, rechargeResult);
             } else {
-                const statusCode = result.error?.includes("not found") ? 404 : 400;
-                res.status(statusCode).json({ error: result.error });
+                res.status(500).json({ error: "Unexpected response from token service" });
             }
             AdminController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
@@ -94,9 +145,16 @@ export class AdminController {
             }
 
             const transactionResult = await AdminController.tokenService.getUserTransactionHistory(user.id);
-            
-            if (!transactionResult.success) {
-                AdminController.errorLogger.logDatabaseError("GET_USER_TOKEN_INFO", "transactions", transactionResult.error || "Failed to get transactions");
+
+            // If transactionResult is an array, treat it as success; if it's an object with error, handle error
+            if (!Array.isArray(transactionResult)) {
+                AdminController.errorLogger.logDatabaseError(
+                    "GET_USER_TOKEN_INFO",
+                    "transactions",
+                    (typeof transactionResult === "object" && transactionResult !== null && "error" in transactionResult)
+                        ? (transactionResult as { error: string }).error
+                        : "Failed to get transactions"
+                );
                 res.status(500).json({ error: "Failed to get transaction history" });
                 return;
             }
@@ -113,7 +171,7 @@ export class AdminController {
                         currentBalance: user.tokens,
                         role: user.role
                     },
-                    transactions: transactionResult.transactions
+                    transactions: transactionResult
                 }
             });
             AdminController.apiLogger.logResponse(req, res, Date.now() - startTime);

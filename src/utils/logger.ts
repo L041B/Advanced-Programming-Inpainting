@@ -3,8 +3,10 @@ import winston from "winston";
 
 // Singleton Logger using Winston
 export class Logger {
+    // Singleton instance of the logger
     private static instance: winston.Logger;
 
+    // Private constructor to prevent direct instantiation
     private constructor() {}
 
     // Get the singleton instance of the logger

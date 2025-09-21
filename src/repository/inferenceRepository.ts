@@ -1,25 +1,26 @@
+// Import the Sequelize User model and the User Data Access Object (DAO).
 import { Inference } from "../models/Inference";
 import { InferenceDao } from "../dao/inferenceDao";
-import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { loggerFactory, InferenceRouteLogger } from "../factory/loggerFactory";
 
+// Define a simple interface for inference data.
 export interface InferenceData {
     status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
     modelId: string;
     parameters?: Record<string, unknown>;
-    datasetId: string; // Changed from datasetName to datasetId
+    datasetId: string;  // Torna a datasetId
     userId: string;
 }
 
+// InferenceRepository provides an abstraction layer over InferenceDao for inference-related operations.
 export class InferenceRepository {
     private static instance: InferenceRepository;
     private readonly inferenceDao: InferenceDao;
     private readonly inferenceLogger: InferenceRouteLogger;
-    private readonly errorLogger: ErrorRouteLogger;
 
     private constructor() {
         this.inferenceDao = InferenceDao.getInstance();
         this.inferenceLogger = loggerFactory.createInferenceLogger();
-        this.errorLogger = loggerFactory.createErrorLogger();
     }
 
     public static getInstance(): InferenceRepository {
@@ -29,104 +30,91 @@ export class InferenceRepository {
         return InferenceRepository.instance;
     }
 
+    // Creates a new inference in the database.
     public async createInference(data: Omit<InferenceData, "status">): Promise<Inference> {
-        this.inferenceLogger.log("Creating new inference", {
-            userId: data.userId,
-            datasetId: data.datasetId,
-            modelId: data.modelId
-        });
-
         try {
-            const newInference = await this.inferenceDao.create({
+            this.inferenceLogger.log("Repository creating inference", { 
+                userId: data.userId, 
+                datasetId: data.datasetId, 
+                modelId: data.modelId,
+                hasDatasetId: !!data.datasetId,
+                hasUserId: !!data.userId,
+                hasModelId: !!data.modelId
+            });
+            
+            // Validate required fields before passing to DAO
+            if (!data.userId || !data.datasetId || !data.modelId) {
+                this.inferenceLogger.log("Repository validation failed", { 
+                    userId: data.userId, 
+                    datasetId: data.datasetId, 
+                    modelId: data.modelId,
+                    error: "Missing required fields in repository" 
+                });
+                throw new Error(`Repository validation failed: Missing userId (${!!data.userId}), datasetId (${!!data.datasetId}), or modelId (${!!data.modelId})`);
+            }
+            
+            const inference = await this.inferenceDao.create({
                 ...data,
                 status: "PENDING"
             });
-            return newInference;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", err.message);
-            throw error;
-        }
-    }
-
-    public async getInferenceById(id: string): Promise<Inference | null> {
-        try {
-            return await this.inferenceDao.findById(id);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID", "inferences", err.message);
-            throw error;
-        }
-    }
-
-    public async getInferenceByIdAndUserId(id: string, userId: string): Promise<Inference | null> {
-        try {
-            const inference = await this.inferenceDao.findByIdAndUserId(id, userId);
+            
+            this.inferenceLogger.log("Repository inference created successfully", { 
+                inferenceId: inference.id, 
+                userId: data.userId 
+            });
+            
             return inference;
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_INFERENCE_BY_ID_AND_USER", "inferences", err.message);
+            // Let DAO errors bubble up with proper logging
+            const err = error as Error & { errorType?: string };
+            this.inferenceLogger.log("Repository inference creation failed", { 
+                userId: data.userId, 
+                datasetId: data.datasetId,
+                error: err.message, 
+                errorType: err.errorType 
+            });
             throw error;
         }
     }
 
+    // Retrieves an inference by its ID.
+    public async getInferenceById(id: string): Promise<Inference | null> {
+        return await this.inferenceDao.findById(id);
+    }
+
+    // Retrieves an inference by its ID and associated user ID.
+    public async getInferenceByIdAndUserId(id: string, userId: string): Promise<Inference | null> {
+        return await this.inferenceDao.findByIdAndUserId(id, userId);
+    }
+
+    // Retrieves all inferences for a given user.
     public async getUserInferences(userId: string): Promise<Inference[]> {
-        this.inferenceLogger.log("Retrieving all user inferences", { userId });
-
-        try {
-            const inferences = await this.inferenceDao.findAllByUserId(userId);
-            return inferences;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_USER_INFERENCES", "inferences", err.message);
-            throw error;
-        }
+        return await this.inferenceDao.findAllByUserId(userId);
     }
 
+    // Retrieves inferences for a user with pagination support.
     public async getUserInferencesWithPagination(
         userId: string,
         limit: number,
         offset: number
     ): Promise<{ rows: Inference[], count: number }> {
-        try {
-            const result = await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
-            return result;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_USER_INFERENCES_PAGINATED", "inferences", err.message);
-            throw error;
-        }
+        return await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
     }
 
+    // Updates the status of an inference.
     public async updateInferenceStatus(
         id: string,
         status: InferenceData["status"],
         result?: Record<string, unknown>
     ): Promise<void> {
-        this.inferenceLogger.log("Updating inference status", { inferenceId: id, newStatus: status });
-
-        try {
-            await this.inferenceDao.updateStatus(id, status, result);
-            this.inferenceLogger.log("Inference status updated successfully", { inferenceId: id, status });
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("UPDATE_INFERENCE_STATUS", "inferences", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.inferenceDao.updateStatus(id, status, result);
     }
 
+    // Updates an existing inference in the database.
     public async updateInference(id: string, data: Partial<InferenceData>): Promise<Inference> {
-        this.inferenceLogger.log("Updating inference", { inferenceId: id });
-
-        try {
-            const inference = await this.inferenceDao.update(id, data);
-            this.inferenceLogger.log("Inference updated successfully", { inferenceId: id });
-            return inference;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("UPDATE_INFERENCE", "inferences", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.inferenceDao.update(id, data);
     }
 }
-      
+

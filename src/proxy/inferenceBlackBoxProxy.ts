@@ -1,25 +1,29 @@
+// import necessary modules and types
 import { InferenceQueue } from "../queue/inferenceQueue";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
 import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
-// Initialize loggers
-const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
-const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
-
-interface ProxyResponse {
-    success: boolean;
-    jobId?: string;
-    message?: string;
-    error?: string;
-}
-
+/** Proxy class to abstract and manage interactions with the InferenceQueue.
+ *  Provides a clean interface for queuing inference jobs and retrieving their status,
+ *  while handling validation and error management internally.
+ */
 export class InferenceBlackBoxProxy {
     private static instance: InferenceBlackBoxProxy;
     private readonly inferenceQueue: InferenceQueue;
+    private readonly errorManager: ErrorManager;
+    private readonly inferenceLogger: InferenceRouteLogger;
+    private readonly errorLogger: ErrorRouteLogger;
 
+    // Private constructor to enforce Singleton pattern.
     private constructor() {
         this.inferenceQueue = InferenceQueue.getInstance();
+        this.errorManager = ErrorManager.getInstance();
+        this.inferenceLogger = loggerFactory.createInferenceLogger();
+        this.errorLogger = loggerFactory.createErrorLogger();
     }
 
+    // Provides access to the single instance of InferenceBlackBoxProxy.
     public static getInstance(): InferenceBlackBoxProxy {
         if (!InferenceBlackBoxProxy.instance) {
             InferenceBlackBoxProxy.instance = new InferenceBlackBoxProxy();
@@ -27,26 +31,20 @@ export class InferenceBlackBoxProxy {
         return InferenceBlackBoxProxy.instance;
     }
 
+    // Queues a new inference job and returns the job ID.
     public async processDataset(
         inferenceId: string,
         userId: string,
         datasetData: Record<string, unknown>,
         parameters: Record<string, unknown>
-    ): Promise<ProxyResponse> {
+    ): Promise<string> { 
         try {
-            inferenceLogger.log("Queuing inference job", { inferenceId, userId });
+            this.inferenceLogger.log("Queuing inference job", { inferenceId, userId });
 
             // Validate input data before queuing
-            const validation = this.validateJobData(datasetData, parameters);
-            if (!validation.success) {
-                errorLogger.logValidationError("jobData", inferenceId, validation.error || "Validation failed");
-                return {
-                    success: false,
-                    error: validation.error
-                };
-            }
+            this.validateJobData(datasetData, parameters);
 
-            // Add job to queue
+            // Add job to queue 
             const job = await this.inferenceQueue.addInferenceJob({
                 inferenceId,
                 userId,
@@ -54,90 +52,56 @@ export class InferenceBlackBoxProxy {
                 parameters
             });
 
-            return {
-                success: true,
-                jobId: job.id?.toString(),
-                message: "Inference job queued successfully"
-            };
+            return job.id?.toString() || "";
 
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("QUEUE_INFERENCE_JOB", "inference_queue", err.message);
+            // Handle standardized errors 
+            if (error instanceof Error && "errorType" in error) {
+                throw error;
+            }
             
-            return {
-                success: false,
-                error: "Failed to queue inference job"
-            };
+            // Handle any other unexpected errors
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            this.errorLogger.logDatabaseError("QUEUE_INFERENCE_JOB", "inference_queue", err.message);
+            throw this.errorManager.createError(ErrorStatus.jobAdditionFailedError, err.message);
         }
     }
 
+    // Retrieves the status of a queued inference job by its ID.
     public async getJobStatus(jobId: string): Promise<{
-        success: boolean;
-        status?: string;
+        status: string;
         progress?: number;
         result?: unknown;
         error?: string;
     }> {
-        try {
-            const jobStatus = await this.inferenceQueue.getJobStatus(jobId);
-            
-            if (!jobStatus) {
-                errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_queue", "Job not found");
-                return {
-                    success: false,
-                    error: "Job not found"
-                };
-            }
-
-            inferenceLogger.logInferenceStatusCheck(jobId);
-            return {
-                success: true,
-                ...jobStatus
-            };
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_queue", err.message);
-            
-            return {
-                success: false,
-                error: "Failed to get job status"
-            };
-        }
+        const jobStatus = await this.inferenceQueue.getJobStatus(jobId);
+        
+        this.inferenceLogger.logInferenceStatusCheck(jobId);
+        return jobStatus;
     }
 
-    private validateJobData(datasetData: Record<string, unknown>, parameters: Record<string, unknown>): {
-        success: boolean;
-        error?: string;
-    } {
+    // Validates the dataset and parameters for the inference job.
+    private validateJobData(datasetData: Record<string, unknown>, parameters: Record<string, unknown>): void {
         // Validate dataset data structure
         if (!datasetData || typeof datasetData !== "object") {
-            errorLogger.logValidationError("datasetData", "object", "Invalid dataset data");
-            return {
-                success: false,
-                error: "Invalid dataset data"
-            };
+            this.errorLogger.logValidationError("datasetData", "object", "Invalid dataset data");
+            throw this.errorManager.createError(ErrorStatus.invalidDatasetDataError);
         }
 
+        // Check for 'pairs' array in datasetData
         const data = datasetData as { pairs?: Array<{ imagePath: string; maskPath: string }> };
         if (!data.pairs || !Array.isArray(data.pairs) || data.pairs.length === 0) {
-            errorLogger.logValidationError("datasetPairs", data.pairs?.length?.toString() || "0", "Dataset contains no valid pairs");
-            return {
-                success: false,
-                error: "Dataset contains no valid pairs"
-            };
+            this.errorLogger.logValidationError("datasetPairs", data.pairs?.length?.toString() || "0", "Dataset contains no valid pairs");
+            throw this.errorManager.createError(ErrorStatus.emptyDatasetError);
         }
 
         // Validate parameters
         if (parameters && typeof parameters !== "object") {
-            errorLogger.logValidationError("parameters", typeof parameters, "Invalid parameters format");
-            return {
-                success: false,
-                error: "Invalid parameters format"
-            };
+            this.errorLogger.logValidationError("parameters", typeof parameters, "Invalid parameters format");
+            throw this.errorManager.createError(ErrorStatus.invalidParametersError);
         }
 
-        inferenceLogger.logJobValidation(true, data.pairs.length);
-
-        return { success: true };
+        // Log successful validation
+        this.inferenceLogger.logJobValidation(true, data.pairs.length);
     }
 }

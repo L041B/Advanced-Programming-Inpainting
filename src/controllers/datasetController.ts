@@ -1,8 +1,12 @@
-import { Request, Response } from "express";
-import { DatasetMiddleware } from "../middleware/datasetMiddleware";
+// import necessary modules and types
+import { Request, Response, NextFunction } from "express";
+import { DatasetService } from "../services/datasetService";
 import { DatasetRepository } from "../repository/datasetRepository";
 import { loggerFactory, DatasetRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
 
+// Extend Request type to include user and token info
 interface AuthRequest extends Request {
     user?: {
         userId: string;
@@ -19,244 +23,91 @@ interface AuthRequest extends Request {
     };
 }
 
-interface TokenReservationDetails {
-    requiredTokens: number;
-    currentBalance: number;
-    shortfall: number;
-    operationType: string;
-    actionRequired: string;
-}
-
-interface UploadResult {
-    success: boolean;
-    processedItems: number;
-    reservationId?: string;
-    error?: string;
-    message?: string;
-    details?: TokenReservationDetails;
-}
-
+// Controller class for dataset-related operations
 export class DatasetController {
     private static readonly datasetRepository = DatasetRepository.getInstance();
     private static readonly datasetLogger: DatasetRouteLogger = loggerFactory.createDatasetLogger();
     private static readonly apiLogger: ApiRouteLogger = loggerFactory.createApiLogger();
     private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
+    private static readonly errorManager = ErrorManager.getInstance();
 
-    // Create an empty dataset
-    static async createEmptyDataset(req: AuthRequest, res: Response): Promise<void> {
+    // Create an empty dataset - uses unified error handling
+    static async createEmptyDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
+        // Input validation is handled by middleware
         try {
             const { name, tags } = req.body;
             const userId = req.user!.userId;
-
-            if (!name || typeof name !== "string") {
-                DatasetController.errorLogger.logValidationError("name", name, "Dataset name is required");
-                res.status(400).json({ error: "Dataset name is required" });
-                return;
-            }
-
-            const result = await DatasetMiddleware.createEmptyDataset(userId, name, tags);
+            // Create dataset
+            const dataset = await DatasetService.createEmptyDataset(userId, name, tags);
             
-            if (result.success) {
-                // Remove duplicate log - middleware already logs dataset creation
-                res.status(201).json({ 
-                    message: "Empty dataset created successfully",
-                    dataset: result.dataset 
-                });
-            } else {
-                res.status(400).json({ error: result.error });
-            }
+            // Log creation
+            res.status(201).json({ 
+                message: "Empty dataset created successfully",
+                dataset: dataset.toJSON()
+            });
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("CREATE_DATASET", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            next(error); // Pass to error middleware
         }
     }
 
-    // Upload data to dataset (images, videos, zip files)
-    static async uploadDataToDataset(req: AuthRequest, res: Response): Promise<void> {
+    // Upload data to dataset - uses unified error handling
+    static async uploadDataToDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        // Start timing and log request
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
+        // Input validation is handled by middleware
         try {
-            const validationResult = DatasetController.validateUploadRequest(req);
-            if (!validationResult.valid) {
-                res.status(400).json({ error: validationResult.error });
-                return;
-            }
+            const { datasetName } = req.body;
+            const userId = req.user!.userId;
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            const imageFile = files.image[0];
+            const maskFile = files.mask[0];
 
-            const { datasetName, userId, imageFile, maskFile } = validationResult.data!;
+            // Log file upload
             DatasetController.datasetLogger.logFileUpload(userId, datasetName, imageFile.originalname, imageFile.size);
 
-            const result = await DatasetMiddleware.processAndAddData(userId, datasetName, imageFile, maskFile);
+            // Process and add data to dataset
+            const result = await DatasetService.processAndAddData(userId, datasetName, imageFile, maskFile);
 
-            // Ensure processedItems is always a number
-            if (result.success) {
-                // If processedItems is undefined, default to 0
-                if (typeof result.processedItems !== "number") {
-                    result.processedItems = 0;
-                }
-                await DatasetController.handleSuccessfulUpload(req, result as UploadResult, userId);
-                res.status(200).json({ 
-                    message: "Data uploaded and processed successfully",
-                    processedItems: result.processedItems,
-                    tokenSpent: req.operationResult?.tokensSpent || 0,
-                    userTokens: req.operationResult?.remainingBalance || 0
-                });
-            } else {
-                // If processedItems is undefined, default to 0 for error case as well
-                if (typeof result.processedItems !== "number") {
-                    // Type assertion to satisfy UploadResult interface
-                    (result as UploadResult).processedItems = 0;
-                }
-                DatasetController.handleUploadError(result as UploadResult, res);
-            }
+            // Handle token transaction for successful upload
+            await DatasetController.handleSuccessfulUpload(req, result, userId);
+            
+            // Final response with token info if applicable
+            res.status(200).json({ 
+                message: "Data uploaded and processed successfully",
+                processedItems: result.processedItems,
+                tokenSpent: req.operationResult?.tokensSpent || 0,
+                userTokens: req.operationResult?.remainingBalance || 0
+            });
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("UPLOAD_DATASET_DATA", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            next(error); // Pass to error middleware
         }
     }
 
-    private static validateUploadRequest(req: AuthRequest): { valid: boolean; error?: string; data?: { datasetName: string; userId: string; imageFile: Express.Multer.File; maskFile: Express.Multer.File } } {
-        const { datasetName } = req.body;
-        const userId = req.user!.userId;
-        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-        if (!datasetName || typeof datasetName !== "string") {
-            DatasetController.errorLogger.logValidationError("datasetName", datasetName, "Dataset name is required");
-            return { valid: false, error: "Dataset name is required" };
-        }
-
-        if (!files?.image || !files?.mask) {
-            DatasetController.errorLogger.logFileUploadError(undefined, undefined, "Both image and mask files are required");
-            return { valid: false, error: "Both image and mask files are required" };
-        }
-
-        return {
-            valid: true,
-            data: {
-                datasetName,
-                userId,
-                imageFile: files.image[0],
-                maskFile: files.mask[0]
-            }
-        };
-    }
-
-    private static async handleSuccessfulUpload(req: AuthRequest, result: UploadResult, userId: string): Promise<void> {
-        const tokenInfo = await DatasetController.processTokenTransaction(result, userId);
-        
-        req.operationResult = {
-            tokensSpent: tokenInfo.tokenSpent,
-            remainingBalance: tokenInfo.userTokens,
-            operationType: "dataset_upload"
-        };
-
-        if (result.reservationId) {
-            req.tokenReservation = {
-                reservationKey: result.reservationId,
-                reservedAmount: tokenInfo.tokenSpent
-            };
-        }
-
-        // Remove duplicate log - middleware already logs dataset update
-    }
-
-    private static async processTokenTransaction(result: UploadResult, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
-        const { TokenService } = await import("../services/tokenService");
-        const tokenService = TokenService.getInstance();
-
-        if (result.reservationId) {
-            return await DatasetController.handleTokenReservation(tokenService, result.reservationId, userId);
-        } else {
-            return await DatasetController.handleTokenFallback(tokenService, userId);
-        }
-    }
-
-    private static async handleTokenReservation(tokenService: import("../services/tokenService").TokenService, reservationId: string, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
-        const confirmResult = await tokenService.confirmTokenUsage(reservationId);
-        
-        if (confirmResult.success) {
-            return {
-                tokenSpent: confirmResult.tokensSpent || 0,
-                userTokens: confirmResult.remainingBalance || 0
-            };
-        } else {
-            return await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
-        }
-    }
-
-    private static async handleTokenFallback(tokenService: import("../services/tokenService").TokenService, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
-        const transactionResult = await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
-        const balanceResult = await tokenService.getUserTokenBalance(userId);
-        
-        return {
-            tokenSpent: transactionResult.tokenSpent,
-            userTokens: balanceResult.success ? balanceResult.balance || 0 : 0
-        };
-    }
-
-    private static async getTokenInfoFromTransaction(tokenService: import("../services/tokenService").TokenService, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
-        const transactionHistoryResult = await tokenService.getUserTransactionHistory(userId, 1);
-        let tokenSpent = 0;
-
-        if (transactionHistoryResult.success && transactionHistoryResult.transactions && transactionHistoryResult.transactions.length > 0) {
-            const lastTransaction = transactionHistoryResult.transactions[0];
-            
-            if (lastTransaction.operationType === "dataset_upload") {
-                const transactionTime = new Date(lastTransaction.createdAt).getTime();
-                const now = Date.now();
-                
-                if ((now - transactionTime) < 5000) {
-                    tokenSpent = Math.abs(Number(lastTransaction.amount));
-                }
-            }
-        }
-
-        const balanceResult = await tokenService.getUserTokenBalance(userId);
-        const userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
-
-        return { tokenSpent, userTokens };
-    }
-
-    private static handleUploadError(result: UploadResult, res: Response): void {
-        if (result.details) {
-            res.status(401).json({ 
-                error: result.error,
-                message: result.message,
-                details: result.details
-            });
-        } else if (result.message) {
-            res.status(400).json({ 
-                error: result.error,
-                message: result.message
-            });
-        } else {
-            res.status(400).json({ error: result.error });
-        }
-    }
-
-    // Get all datasets for the authenticated user
-    static async getUserDatasets(req: AuthRequest, res: Response): Promise<void> {
+    // Get all datasets for the authenticated user - now uses unified error handling
+    static async getUserDatasets(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
+        // Input validation is handled by middleware
         try {
             const userId = req.user!.userId;
             const { includeDeleted = "false" } = req.query;
 
-            // Determina se includere i dataset eliminati
+            // Fetch datasets based on includeDeleted flag
             const datasets = includeDeleted === "true" 
                 ? await DatasetController.datasetRepository.getAllUserDatasetsIncludingDeleted(userId)
                 : await DatasetController.datasetRepository.getUserDatasets(userId);
 
+            // Map datasets to include item counts and status
             const datasetsWithCount = datasets.map((dataset) => {
                 const data = (dataset.data ?? {}) as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string };
                 const itemCount = data.pairs?.length || 0;
@@ -274,22 +125,11 @@ export class DatasetController {
                 };
             });
 
-            interface DatasetWithCount {
-                userId: string | null;
-                name: string;
-                tags: string[];
-                createdAt: Date;
-                updatedAt: Date;
-                itemCount: number;
-                type: string;
-                isDeleted: boolean;
-                status: string;
-            }
+            // Prepare summary
+            const activeDatasets = datasetsWithCount.filter(d => !d.isDeleted);
+            const deletedDatasets = datasetsWithCount.filter(d => d.isDeleted);
 
-            const activeDatasets: DatasetWithCount[] = datasetsWithCount.filter((d: DatasetWithCount) => !d.isDeleted);
-            const deletedDatasets: DatasetWithCount[] = datasetsWithCount.filter((d: DatasetWithCount) => d.isDeleted);
-
-            // Remove duplicate log - repository already logs this
+            // Final response
             res.status(200).json({ 
                 success: true,
                 message: "Datasets retrieved successfully",
@@ -303,38 +143,53 @@ export class DatasetController {
             });
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
+            // Log error
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
             const err = error instanceof Error ? error : new Error("Unknown error");
             DatasetController.errorLogger.logDatabaseError("GET_USER_DATASETS", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            
+            // Create standardized error and pass to middleware
+            const standardError = DatasetController.errorManager.createError(
+                ErrorStatus.readInternalServerError,
+                "Failed to retrieve user datasets"
+            );
+            // Pass to error middleware
+            next(standardError);
         }
     }
 
-    // Get a specific dataset by name
-    static async getDataset(req: AuthRequest, res: Response): Promise<void> {
+    // Get a specific dataset by name - now uses unified error handling
+    static async getDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        // Start timing and log request
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
+        // Input validation is handled by middleware
         try {
             const userId = req.user!.userId;
             const { name } = req.params;
 
+            // Fetch dataset by user ID and name
             const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
+            // If not found, throw standardized error
             if (!dataset) {
-                DatasetController.errorLogger.logDatabaseError("GET_DATASET", "datasets", "Dataset not found");
-                res.status(404).json({ error: "Dataset not found" });
-                return;
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.datasetNotFoundError,
+                    "Dataset not found"
+                );
             }
 
+            // Prepare response data
             interface DatasetData {
                 pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>;
                 type?: string;
             }
+            // Type assertion
             const data = dataset.data as DatasetData;
             const itemCount = data?.pairs?.length || 0;
 
-            // Remove duplicate log - repository already logs this
+            // Final response
             res.status(200).json({ 
                 success: true,
                 message: "Dataset retrieved successfully",
@@ -348,33 +203,52 @@ export class DatasetController {
                     type: data?.type || "empty"
                 }
             });
+            // Log response
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("GET_DATASET", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            
+            // Pass standardized errors directly, wrap others
+            if (error instanceof Error && "errorType" in error) {
+                next(error);
+            } else {
+                // Log error
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                DatasetController.errorLogger.logDatabaseError("GET_DATASET", "datasets", err.message);
+                
+                // Create standardized error and pass to middleware
+                const standardError = DatasetController.errorManager.createError(
+                    ErrorStatus.readInternalServerError,
+                    "Failed to retrieve dataset"
+                );
+                next(standardError);
+            }
         }
     }
 
-    // Get dataset data/contents with viewable image URLs
-    static async getDatasetData(req: AuthRequest, res: Response): Promise<void> {
+    // Get dataset data/contents - now uses unified error handling
+    static async getDatasetData(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
         try {
+            // Input validation is handled by middleware
             const userId = req.user!.userId;
             const { name } = req.params;
             const { page = 1, limit = 10 } = req.query;
 
+            // Fetch dataset by user ID and name
             const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
+            // If not found, throw standardized error
             if (!dataset) {
-                DatasetController.errorLogger.logDatabaseError("GET_DATASET_DATA", "datasets", "Dataset not found");
-                res.status(404).json({ error: "Dataset not found" });
-                return;
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.datasetNotFoundError,
+                    "Dataset not found"
+                );
             }
 
+            // Extract data pairs
             interface DatasetData {
                 pairs?: Array<{ 
                     imagePath: string; 
@@ -384,6 +258,7 @@ export class DatasetController {
                 }>;
                 type?: string;
             }
+            // Type assertion
             const data = dataset.data as DatasetData;
             const pairs = data?.pairs || [];
             
@@ -393,17 +268,13 @@ export class DatasetController {
             const startIndex = (pageNum - 1) * limitNum;
             const endIndex = startIndex + limitNum;
             
+            // Slice the pairs array for pagination
             const paginatedPairs = pairs.slice(startIndex, endIndex);
 
-            // Generate temporary access tokens for images (valid for 1 hour)
+            // Generate temporary access tokens for images
             const baseUrl = `${req.protocol}://${req.get("host")}`;
             const items = await Promise.all(paginatedPairs.map(
-                async (pair: { 
-                    imagePath: string; 
-                    maskPath: string; 
-                    frameIndex?: number; 
-                    uploadIndex: number;
-                }, index: number) => {
+                async (pair, index: number) => {
                     const imageToken = await DatasetController.generateImageToken(userId, pair.imagePath);
                     const maskToken = await DatasetController.generateImageToken(userId, pair.maskPath);
                     
@@ -419,7 +290,7 @@ export class DatasetController {
                 }
             ));
 
-            // Remove duplicate log - repository already logs this
+            // Final response
             res.status(200).json({ 
                 success: true,
                 message: "Dataset data retrieved successfully",
@@ -433,16 +304,352 @@ export class DatasetController {
                     items
                 }
             });
+            // Log response
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("GET_DATASET_DATA", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            
+            // Pass standardized errors directly, wrap others
+            if (error instanceof Error && "errorType" in error) {
+                next(error);
+            } else {
+                // Log error
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                DatasetController.errorLogger.logDatabaseError("GET_DATASET_DATA", "datasets", err.message);
+                
+                const standardError = DatasetController.errorManager.createError(
+                    ErrorStatus.readInternalServerError,
+                    "Failed to retrieve dataset data"
+                );
+                next(standardError);
+            }
         }
     }
 
-    // Generate temporary token for image access (1 hour expiry)
+    // Serve individual images - now uses unified error handling
+    static async serveImage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        // No authentication middleware, uses temporary token in URL
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
+        // Validate request parameters
+        try {
+            const token = decodeURIComponent(req.params.imagePath);
+            const decoded = await DatasetController.verifyImageToken(token);
+
+            // Security check: ensure the path belongs to the user
+            if (!decoded.imagePath.startsWith(`datasets/${decoded.userId}/`)) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.userNotAuthorized,
+                    "Access denied to this image"
+                );
+            }
+
+            // Serve the image file
+            await DatasetController.serveImageFile(decoded.imagePath, res);
+
+            // Log response
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+
+            // Pass standardized errors directly, wrap others
+            if (error instanceof Error && "errorType" in error) {
+                next(error);
+            } else {
+                // Log error
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", err.message);
+
+                // Create standardized error and pass to middleware
+                const standardError = DatasetController.errorManager.createError(
+                    ErrorStatus.readInternalServerError,
+                    "Failed to serve image"
+                );
+                next(standardError);
+            }
+        }
+    }
+
+    // Verify and decode the temporary image access token
+    private static async verifyImageToken(token: string): Promise<{ userId: string; imagePath: string; type: string }> {
+        const jwt = await import("jsonwebtoken");
+        interface ImageTokenPayload {
+            userId: string;
+            imagePath: string;
+            type: string;
+            iat?: number;
+            exp?: number;
+        }
+
+        // Verify and decode the JWT token
+        try {
+            const verifyResult = jwt.default.verify(token, process.env.JWT_SECRET || "fallback_secret");
+            if (typeof verifyResult === "string") {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.jwtNotValid,
+                    "Invalid image token format"
+                );
+            }
+            return verifyResult as ImageTokenPayload;
+        } catch (error) {
+            if (error instanceof Error && "errorType" in error) {
+                throw error;
+            }
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.jwtNotValid,
+                "Invalid or expired image token"
+            );
+        }
+    }
+
+    // Serve the image file from storage
+    private static async serveImageFile(imagePath: string, res: Response): Promise<void> {
+        const { FileStorage } = await import("../utils/fileStorage");
+        try {
+            const imageBuffer = await FileStorage.readFile(imagePath);
+            const ext = imagePath.toLowerCase().split(".").pop();
+
+            let contentType = "image/png";
+            if (ext === "jpg" || ext === "jpeg") {
+                contentType = "image/jpeg";
+            }
+
+            res.set({
+                "Content-Type": contentType,
+                "Content-Length": imageBuffer.length.toString(),
+                "Cache-Control": "public, max-age=3600"
+            });
+
+            res.send(imageBuffer);
+        } catch (fileError) {
+            DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE_FILE", "file_system", fileError instanceof Error ? fileError.message : "Unknown file error");
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.resourceNotFoundError,
+                "Image file not found"
+            );
+        }
+    }
+
+    // Delete a dataset 
+    static async deleteDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
+        // Input validation is handled by middleware
+        try {
+            const userId = req.user!.userId;
+            const { name } = req.params;
+
+            // Attempt to delete the dataset
+            const success = await DatasetController.datasetRepository.deleteDataset(userId, name);
+
+            // If not found, throw standardized error
+            if (!success) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.datasetNotFoundError,
+                    "Dataset not found"
+                );
+            }
+
+            // Log deletion
+            DatasetController.datasetLogger.logDatasetDeletion(userId, name);
+            res.status(200).json({
+                success: true,
+                message: "Dataset deleted successfully"
+            });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            
+            // Pass standardized errors directly, wrap others
+            if (error instanceof Error && "errorType" in error) {
+                next(error);
+            } else {
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                DatasetController.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", err.message);
+                
+                const standardError = DatasetController.errorManager.createError(
+                    ErrorStatus.deleteInternalServerError,
+                    "Failed to delete dataset"
+                );
+                // Pass to error middleware
+                next(standardError);
+            }
+        }
+    }
+
+    // Update dataset metadata - now uses unified error handling
+    static async updateDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+        const startTime = Date.now();
+        DatasetController.apiLogger.logRequest(req);
+
+        // Input validation is handled by middleware
+        try {
+            // Extract parameters
+            const userId = req.user!.userId;
+            const currentName = req.params.name;
+            const { name: newName, tags } = req.body;
+
+            // Fetch current dataset
+            const currentDataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, currentName);
+            if (!currentDataset) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.datasetNotFoundError,
+                    "Dataset not found"
+                );
+            }
+
+            // Prepare update data
+            const updateData = await DatasetController.prepareUpdateData(userId, currentName, newName, tags);
+            const updatedDataset = await DatasetController.datasetRepository.updateDataset(userId, currentName, updateData);
+            if (updatedDataset.userId === null) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.readInternalServerError,
+                    "Dataset userId is null"
+                );
+            }
+            // Prepare response data
+            const responseData = DatasetController.prepareResponseData(
+                { 
+                    ...updatedDataset, 
+                    userId: updatedDataset.userId 
+                }, 
+                newName, 
+                currentName, 
+                tags
+            );
+
+            // Final response
+            res.status(200).json({
+                success: true,
+                message: "Dataset updated successfully",
+                data: responseData
+            });
+            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
+        } catch (error) {
+            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+
+            // Pass standardized errors directly, wrap others
+            if (error instanceof Error && "errorType" in error) {
+                next(error);
+            } else {
+                const err = error instanceof Error ? error : new Error("Unknown error");
+                DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
+
+                const standardError = DatasetController.errorManager.createError(
+                    ErrorStatus.updateInternalServerError,
+                    "Failed to update dataset"
+                );
+                next(standardError);
+            }
+        }
+    }
+
+    // Prepare update data, checking for name conflicts and sanitizing tags
+    private static async prepareUpdateData(userId: string, currentName: string, newName?: string, tags?: string[]): Promise<{ name?: string; tags?: string[] }> {
+        const updateData: { name?: string; tags?: string[] } = {};
+
+        // Check for name change and conflicts
+        if (newName && newName !== currentName) {
+            const nameConflict = await DatasetController.datasetRepository.datasetExists(userId, newName.trim());
+            // If a conflict is found, throw an error
+            if (nameConflict) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.resourceAlreadyPresent,
+                    `A dataset named '${newName.trim()}' already exists in your account. Please choose a different name.`
+                );
+            }
+            // Sanitize and set new name
+            updateData.name = newName.trim();
+        }
+
+        // Sanitize and set tags if provided
+        if (tags !== undefined) {
+            updateData.tags = tags.map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
+        }
+
+        return updateData;
+    }
+
+    // Prepare response data including change flags
+    private static prepareResponseData(
+        // Type annotation for updatedDataset
+        updatedDataset: {
+            userId: string;
+            name: string;
+            tags: string[];
+            data: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string } | null;
+            createdAt: Date;
+            updatedAt: Date;
+        }, 
+        newName?: string, 
+        currentName?: string, 
+        tags?: string[]
+    ): {
+        userId: string;
+        name: string;
+        tags: string[];
+        itemCount: number;
+        type: string;
+        createdAt: Date;
+        updatedAt: Date;
+        changes: {
+            nameChanged: boolean;
+            tagsChanged: boolean;
+            previousName: string | undefined;
+        };
+    } {
+        // Extract item count and type from dataset data
+        const datasetData = updatedDataset.data as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string } | null;
+        const itemCount = datasetData?.pairs?.length || 0;
+
+        return {
+            userId: updatedDataset.userId,
+            name: updatedDataset.name,
+            tags: updatedDataset.tags,
+            itemCount,
+            type: datasetData?.type || "empty",
+            createdAt: updatedDataset.createdAt,
+            updatedAt: updatedDataset.updatedAt,
+            changes: {
+                nameChanged: !!(newName && newName !== currentName),
+                tagsChanged: tags !== undefined,
+                previousName: newName && newName !== currentName ? currentName : undefined
+            }
+        };
+    }
+
+    // Private helper methods remain unchanged
+    private static async handleSuccessfulUpload(
+        req: AuthRequest, 
+        result: { processedItems: number; reservationId: string; tokenCost: number }, 
+        userId: string
+    ): Promise<void> {
+        try {
+            // Process token transaction
+            const tokenInfo = await DatasetController.processTokenTransaction(result, userId);
+            
+            // Attach token info to request for logging
+            req.operationResult = {
+                tokensSpent: tokenInfo.tokenSpent,
+                remainingBalance: tokenInfo.userTokens,
+                operationType: "dataset_upload"
+            };
+
+            // Attach reservation info to request for potential further use
+            req.tokenReservation = {
+                reservationKey: result.reservationId,
+                reservedAmount: tokenInfo.tokenSpent
+            };
+        } catch (error) {
+            // Log error but do not fail the upload
+            DatasetController.errorLogger.logDatabaseError("TOKEN_TRANSACTION", "tokens", 
+                error instanceof Error ? error.message : "Token transaction processing failed");
+        }
+    }
+
+    // Generate a temporary JWT token for image access
     private static async generateImageToken(userId: string, imagePath: string): Promise<string> {
         const jwt = await import("jsonwebtoken");
         const token = jwt.default.sign(
@@ -457,319 +664,55 @@ export class DatasetController {
         return encodeURIComponent(token);
     }
 
-    // Serve individual images from dataset with temporary token
-    static async serveImage(req: AuthRequest, res: Response): Promise<void> {
-        const startTime = Date.now();
-        DatasetController.apiLogger.logRequest(req);
-
-        try {
-            const token = decodeURIComponent(req.params.imagePath);
-            
-            // Verify the temporary token
-            const jwt = await import("jsonwebtoken");
-            interface ImageTokenPayload {
-                userId: string;
-                imagePath: string;
-                type: string;
-                iat?: number;
-                exp?: number;
-            }
-            let decoded: ImageTokenPayload;
-            try {
-                const verifyResult = jwt.default.verify(token, process.env.JWT_SECRET || "fallback_secret");
-                if (typeof verifyResult === "string") {
-                    DatasetController.errorLogger.logAuthenticationError(undefined, "Invalid image token format");
-                    res.status(401).json({ error: "Invalid or expired image token" });
-                    return;
-                }
-                decoded = verifyResult as ImageTokenPayload;
-            } catch (error) {
-                DatasetController.errorLogger.logAuthenticationError(undefined, "Image token verification failed");
-                DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Token verification failed"));
-                res.status(401).json({ error: "Invalid or expired image token" });
-                return;
-            }
-
-            const { userId, imagePath } = decoded;
-
-            // Security check: ensure the path belongs to the user
-            if (!imagePath.startsWith(`datasets/${userId}/`)) {
-                DatasetController.errorLogger.logAuthorizationError(userId, imagePath);
-                res.status(403).json({ error: "Access denied" });
-                return;
-            }
-
-            // Import FileStorage dynamically to avoid circular dependencies
-            const { FileStorage } = await import("../utils/fileStorage");
-            
-            try {
-                const imageBuffer = await FileStorage.readFile(imagePath);
-                const ext = imagePath.toLowerCase().split(".").pop();
-                
-                // Set appropriate content type
-                let contentType = "image/png";
-                if (ext === "jpg" || ext === "jpeg") {
-                    contentType = "image/jpeg";
-                }
-
-                res.set({
-                    "Content-Type": contentType,
-                    "Content-Length": imageBuffer.length.toString(),
-                    "Cache-Control": "public, max-age=3600"
-                });
-                
-                // Remove duplicate log - this is too granular for main logs
-                res.send(imageBuffer);
-            } catch (fileError) {
-                DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", fileError instanceof Error ? fileError.message : "Image file not found");
-                DatasetController.apiLogger.logError(req, fileError instanceof Error ? fileError : new Error("Image file not found"));
-                res.status(404).json({ error: "Image not found" });
-            }
-            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
-        }
-    }
-
-    // Delete a dataset
-    static async deleteDataset(req: AuthRequest, res: Response): Promise<void> {
-        const startTime = Date.now();
-        DatasetController.apiLogger.logRequest(req);
-
-        try {
-            const userId = req.user!.userId;
-            const { name } = req.params;
-
-            const success = await DatasetController.datasetRepository.deleteDataset(userId, name);
-
-            if (!success) {
-                DatasetController.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", "Dataset not found");
-                res.status(404).json({ error: "Dataset not found" });
-                return;
-            }
-
-            DatasetController.datasetLogger.logDatasetDeletion(userId, name);
-            res.status(200).json({
-                success: true,
-                message: "Dataset deleted successfully"
-            });
-            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
-        }
-    }
-
-    // Reserve tokens with EXACT calculated cost
-    private static async reserveTokens(userId: string, tokenCost: number, operationType: "dataset_upload" | "inference", datasetName: string): Promise<{ success: boolean; error?: string; message?: string; details?: TokenReservationDetails }> {
+    // Process token transaction and handle potential errors
+    private static async processTokenTransaction(
+        result: { processedItems: number; reservationId: string; tokenCost: number }, 
+        userId: string
+    ): Promise<{ tokenSpent: number; userTokens: number }> {
         const { TokenService } = await import("../services/tokenService");
         const tokenService = TokenService.getInstance();
 
-        // Effettua la prenotazione dei token necessari per l'operazione
-        const reservationResult = await tokenService.reserveTokens(
-            userId,
-            tokenCost,
-            operationType,
-            `${datasetName}_${Date.now()}`
-        );
-
-        if (!reservationResult.success) {
-            if (reservationResult.error?.includes("Insufficient tokens")) {
-                // Parse the detailed error message from TokenService
-                const regex = /Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/;
-                const errorParts = regex.exec(reservationResult.error);
-
-                if (errorParts) {
-                    const required = parseFloat(errorParts[1]);
-                    const current = parseFloat(errorParts[2]);
-                    const shortfall = parseFloat(errorParts[3]);
-
-                    DatasetController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${required}`);
-                    return {
-                        success: false,
-                        error: "Insufficient tokens",
-                        message: `You need ${required} tokens for this dataset upload operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
-                        details: {
-                            requiredTokens: required,
-                            currentBalance: current,
-                            shortfall: shortfall,
-                            operationType: "dataset upload",
-                            actionRequired: "Token recharge needed"
-                        }
-                    };
-                } else {
-                    // Fallback to the original detailed error message
-                    DatasetController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for dataset upload: ${tokenCost}`);
-                    return {
-                        success: false,
-                        error: "Insufficient tokens",
-                        message: reservationResult.error
-                    };
-                }
-            }
-
-            DatasetController.errorLogger.logDatabaseError("RESERVE_TOKENS", "dataset_upload", reservationResult.error || "Token reservation failed");
-            return {
-                success: false,
-                error: "Token reservation failed",
-                message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
-            };
-        }
-
-        return { success: true };
-    }
-
-    // Update dataset metadata (name, tags) with name conflict validation
-    static async updateDataset(req: AuthRequest, res: Response): Promise<void> {
-        const startTime = Date.now();
-        DatasetController.apiLogger.logRequest(req);
-
+        // Confirm token usage
         try {
-            const userId = req.user!.userId;
-            const currentName = req.params.name;
-            const { name: newName, tags } = req.body;
+            const confirmResult = await tokenService.confirmTokenUsage(result.reservationId);
 
-            // Validate input
-            const validationError = DatasetController.validateUpdateInput(newName, tags);
-            if (validationError) {
-                DatasetController.errorLogger.logValidationError("updateData", "invalid", validationError);
-                res.status(400).json({ error: validationError });
-                return;
+            if (typeof confirmResult.tokensSpent === "number" && typeof confirmResult.remainingBalance === "number") {
+                return {
+                    tokenSpent: confirmResult.tokensSpent || 0,
+                    userTokens: confirmResult.remainingBalance || 0
+                };
+            } else {
+                return await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
             }
-
-            // Get current dataset to verify it exists
-            const currentDataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, currentName);
-            if (!currentDataset) {
-                DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", "Dataset not found");
-                res.status(404).json({ error: "Dataset not found" });
-                return;
-            }
-
-            // Validate name change
-            const nameConflictError = await DatasetController.validateNameChange(userId, currentName, newName);
-            if (nameConflictError) {
-                res.status(nameConflictError.status).json(nameConflictError.body);
-                return;
-            }
-
-            // Validate tags
-            const tagsError = DatasetController.validateTags(tags);
-            if (tagsError) {
-                res.status(tagsError.status).json(tagsError.body);
-                return;
-            }
-
-            // Prepare update data
-            const updateData: { name?: string; tags?: string[] } = {};
-            if (newName && newName !== currentName) {
-                updateData.name = newName.trim();
-            }
-            if (tags !== undefined) {
-                updateData.tags = tags.map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0);
-            }
-
-            // Perform the update
-            const updatedDataset = await DatasetController.datasetRepository.updateDataset(userId, currentName, updateData);
-
-            // Remove duplicate log - repository already logs this
-            
-            // Prepare response data
-            const datasetData = updatedDataset.data as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string } | null;
-            const itemCount = datasetData?.pairs?.length || 0;
-
-            res.status(200).json({
-                success: true,
-                message: "Dataset updated successfully",
-                data: {
-                    userId: updatedDataset.userId,
-                    name: updatedDataset.name,
-                    tags: updatedDataset.tags,
-                    itemCount,
-                    type: datasetData?.type || "empty",
-                    createdAt: updatedDataset.createdAt,
-                    updatedAt: updatedDataset.updatedAt,
-                    changes: {
-                        nameChanged: newName && newName !== currentName,
-                        tagsChanged: tags !== undefined,
-                        previousName: newName && newName !== currentName ? currentName : undefined
-                    }
-                }
-            });
-            DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
-            DatasetController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            DatasetController.errorLogger.logDatabaseError("PROCESS_TOKEN_TRANSACTION", "tokens", error instanceof Error ? error.message : "Error during token transaction");
+            return await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
         }
     }
 
-    private static validateUpdateInput(newName: string | undefined, tags: string[] | undefined): string | null {
-        if (!newName && !tags) {
-            return "At least one field (name or tags) must be provided for update";
-        }
-        return null;
-    }
+    // Fallback method to get token info from recent transactions
+    private static async getTokenInfoFromTransaction(tokenService: import("../services/tokenService").TokenService, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
+        const transactionHistoryResult = await tokenService.getUserTransactionHistory(userId, 1);
+        let tokenSpent = 0;
 
-    private static async validateNameChange(
-        userId: string,
-        currentName: string,
-        newName: string | undefined
-    ): Promise<{ status: number; body: { error: string; message?: string; conflictingName?: string; currentName?: string } } | null> {
-        if (newName && newName !== currentName) {
-            if (typeof newName !== "string" || newName.trim().length === 0) {
-                DatasetController.errorLogger.logValidationError("name", newName, "Dataset name must be a non-empty string");
-                return {
-                    status: 400,
-                    body: { error: "Dataset name must be a non-empty string" }
-                };
-            }
-            const nameConflict = await DatasetController.datasetRepository.datasetExists(userId, newName.trim());
-            if (nameConflict) {
-                DatasetController.errorLogger.logValidationError("name", newName, "Dataset with this name already exists");
-                return {
-                    status: 409,
-                    body: {
-                        error: "Dataset name conflict",
-                        message: `A dataset named '${newName.trim()}' already exists in your account. Please choose a different name.`,
-                        conflictingName: newName.trim(),
-                        currentName: currentName
-                    }
-                };
-            }
-        }
-        return null;
-    }
-
-    private static validateTags(tags: unknown): { status: number, body: unknown } | null {
-        if (tags !== undefined) {
-            if (!Array.isArray(tags)) {
-                DatasetController.errorLogger.logValidationError("tags", typeof tags, "Tags must be an array");
-                return {
-                    status: 400,
-                    body: { error: "Tags must be an array of strings" }
-                };
-            }
-            for (const tag of tags as unknown[]) {
-                if (typeof tag !== "string" || tag.trim().length === 0) {
-                    DatasetController.errorLogger.logValidationError("tags", String(tag), "Each tag must be a non-empty string");
-                    return {
-                        status: 400,
-                        body: {
-                            error: "Invalid tag format",
-                            message: "Each tag must be a non-empty string",
-                            invalidTag: tag
-                        }
-                    };
+        // Check if the last transaction was a dataset upload within the last 5 seconds
+        if (Array.isArray(transactionHistoryResult) && transactionHistoryResult.length > 0) {
+            const lastTransaction = transactionHistoryResult[0];
+            
+            if (lastTransaction.operationType === "dataset_upload") {
+                const transactionTime = new Date(lastTransaction.createdAt).getTime();
+                const now = Date.now();
+                
+                if ((now - transactionTime) < 5000) {
+                    tokenSpent = Math.abs(Number(lastTransaction.amount));
                 }
             }
         }
-        return null;
+
+        // Get current user token balance
+        const balanceResult = await tokenService.getUserTokenBalance(userId) as { success?: boolean; balance?: number };
+        const userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
+
+        return { tokenSpent, userTokens };
     }
 }
-

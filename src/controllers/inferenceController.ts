@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import { InferenceRepository } from "../repository/inferenceRepository";
 import { DatasetRepository } from "../repository/datasetRepository";
 import { InferenceBlackBoxProxy } from "../proxy/inferenceBlackBoxProxy";
-import { InferenceMiddleware } from "../middleware/inferenceMiddleware";
+import { InferenceService } from "../services/inferenceService";
 import { loggerFactory, InferenceRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
 import jwt from "jsonwebtoken";
 import { TokenService } from "../services/tokenService";
 
@@ -28,269 +30,70 @@ export class InferenceController {
     private static readonly datasetRepository = DatasetRepository.getInstance();
     private static readonly blackBoxProxy = InferenceBlackBoxProxy.getInstance();
     private static readonly tokenService = TokenService.getInstance();
+    private static readonly errorManager = ErrorManager.getInstance();
     private static readonly inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
     private static readonly apiLogger: ApiRouteLogger = loggerFactory.createApiLogger();
     private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
-    // Create a new inference with token management
+    // Create a new inference with simplified parameters
     static async createInference(req: AuthRequest, res: Response): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
-
-        let tokenReservationId: string | undefined;
 
         try {
             const { datasetName, modelId = "default_inpainting", parameters = {} } = req.body;
             const userId = req.user!.userId;
 
-            // Validate input and dataset
-            const validationResult = await InferenceController.validateInferenceInput(userId, datasetName, modelId, parameters, res);
-            if (!validationResult) return;
+            InferenceController.inferenceLogger.logInferenceCreation("pending", userId, datasetName, modelId);
 
-            const { dataset, datasetData, costCalc } = validationResult;
-
-            // Reserve tokens
-            const reservationResult = await InferenceController.handleTokenReservation(userId, costCalc, datasetName, res);
-            if (!reservationResult.success) return;
-            tokenReservationId = reservationResult.reservationId!;
-
-            // Create inference record
-            const inference = await InferenceController.inferenceRepository.createInference({
+            // Use the service for business logic (simplified)
+            const result = await InferenceService.createInference(userId, {
+                datasetName,
                 modelId,
-                parameters: { ...parameters, tokenReservationId, tokenCost: costCalc.totalCost },
-                datasetId: dataset.id,
-                userId
+                parameters
             });
 
-            InferenceController.inferenceLogger.logInferenceCreation(inference.id, userId, datasetName, modelId);
+            InferenceController.inferenceLogger.logJobQueued(result.inference.id, userId, result.jobId);
 
-            // Queue the inference job
-            const proxyResult = await InferenceController.blackBoxProxy.processDataset(
-                inference.id,
-                userId,
-                datasetData as Record<string, unknown>,
-                { ...parameters, tokenReservationId, tokenCost: costCalc.totalCost }
-            );
+            res.status(201).json({
+                success: true,
+                message: "Inference created and queued successfully",
+                inference: {
+                    id: result.inference.id,
+                    status: result.inference.status,
+                    modelId: result.inference.modelId,
+                    datasetName,
+                    createdAt: result.inference.createdAt
+                },
+                jobId: result.jobId
+            });
 
-            if (proxyResult.success) {
-                await InferenceController.handleProxySuccess(
-                    req,
-                    res,
-                    userId,
-                    costCalc,
-                    { ...inference, parameters: inference.parameters ?? {} },
-                    dataset,
-                    proxyResult
-                );
-            } else {
-                await InferenceController.handleProxyFailure(tokenReservationId, inference.id, proxyResult, res);
-            }
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            await InferenceController.handleCreateInferenceError(tokenReservationId, error, req, res);
+            await InferenceController.handleServiceError(error, req, res, startTime);
         }
     }
 
-    private static async validateInferenceInput(
-        userId: string,
-        datasetName: string,
-        modelId: string,
-        parameters: Record<string, unknown>,
-        res: Response
-    ): Promise<null | { dataset: { id: string; name: string; data?: unknown }; datasetData: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>; type?: string }; costCalc: { totalCost: number; breakdown: unknown } }> {
-        const validation = await InferenceMiddleware.validateCreateInference(userId, {
-            datasetName,
-            modelId,
-            parameters
-        });
-
-        if (!validation.success) {
-            const statusCode = validation.error?.includes("not found") ? 404 : 400;
-            InferenceController.errorLogger.logValidationError("inference", datasetName, validation.error || "Validation failed");
-            res.status(statusCode).json({ error: validation.error });
-            return null;
-        }
-
-        const dataset = await InferenceController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
-
-        if (!dataset) {
-            InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "datasets", "Dataset not found");
-            res.status(404).json({ error: "Dataset not found" });
-            return null;
-        }
-
-        const datasetData = (dataset.data ?? {}) as {
-            pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>;
-            type?: string;
-        };
-
-        const costCalc = InferenceController.tokenService.calculateInferenceCost(datasetData);
-
-        if (costCalc.totalCost === 0) {
-            InferenceController.errorLogger.logValidationError("dataset", datasetName, "Dataset is empty or invalid");
-            res.status(400).json({ error: "Dataset is empty or invalid for inference" });
-            return null;
-        }
-
-        return { dataset, datasetData, costCalc };
-    }
-
-    private static async handleTokenReservation(
-        userId: string,
-        costCalc: { totalCost: number; breakdown: unknown },
-        datasetName: string,
-        res: Response
-    ): Promise<{ success: boolean; reservationId?: string }> {
-        const reservationResult = await InferenceController.tokenService.reserveTokens(
-            userId,
-            costCalc.totalCost,
-            "inference",
-            `${datasetName}_inference_${Date.now()}`
-        );
-
-        if (!reservationResult.success) {
-            if (reservationResult.error?.includes("Insufficient tokens")) {
-                const errorParts = /Required: ([\d.]+) tokens, Current balance: ([\d.]+) tokens, Shortfall: ([\d.]+) tokens/.exec(reservationResult.error);
-
-                if (errorParts) {
-                    const required = parseFloat(errorParts[1]);
-                    const current = parseFloat(errorParts[2]);
-                    const shortfall = parseFloat(errorParts[3]);
-                    InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${required}`);
-                    res.status(401).json({
-                        error: "Insufficient tokens",
-                        message: `You need ${required} tokens for this inference processing operation, but your current balance is ${current} tokens. You are short ${shortfall} tokens. Please contact an administrator to recharge your account.`,
-                        details: {
-                            requiredTokens: required,
-                            currentBalance: current,
-                            shortfall: shortfall,
-                            operationType: "inference processing",
-                            actionRequired: "Token recharge needed"
-                        }
-                    });
-                } else {
-                    InferenceController.errorLogger.logAuthorizationError(userId, `Insufficient tokens for inference: ${costCalc.totalCost}`);
-                    res.status(401).json({
-                        error: "Insufficient tokens",
-                        message: reservationResult.error,
-                        required: costCalc.totalCost,
-                        breakdown: costCalc.breakdown
-                    });
-                }
-            } else {
-                InferenceController.errorLogger.logDatabaseError("RESERVE_TOKENS", "inference", reservationResult.error || "Token reservation failed");
-                res.status(500).json({
-                    error: "Token reservation failed",
-                    message: reservationResult.error || "Failed to reserve tokens for this operation. Please try again."
-                });
-            }
-            return { success: false };
-        }
-        return { success: true, reservationId: reservationResult.reservationId! };
-    }
-
-    private static async handleProxySuccess(
-        req: AuthRequest,
-        res: Response,
-        userId: string,
-        costCalc: { totalCost: number; breakdown: unknown },
-        inference: {
-            id: string;
-            status: string;
-            modelId: string;
-            parameters: Record<string, unknown>;
-            datasetId: string;
-            userId: string;
-            createdAt: string | Date;
-            result?: unknown;
-        },
-        dataset: { id: string; name: string; data?: unknown },
-        proxyResult: { success: boolean; jobId?: string; error?: string; status?: string; progress?: number; result?: unknown }
-    ) {
-        const balanceResult = await InferenceController.tokenService.getUserTokenBalance(userId);
-        const userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
-
-        req.operationResult = {
-            tokensSpent: costCalc.totalCost,
-            remainingBalance: userTokens,
-            operationType: "inference"
-        };
-
-        req.tokenReservation = {
-            reservationKey: inference.parameters.tokenReservationId as string,
-            reservedAmount: costCalc.totalCost
-        };
-
-        res.status(201).json({
-            success: true,
-            message: "Inference created and queued successfully",
-            inference: {
-                id: inference.id,
-                status: inference.status,
-                modelId: inference.modelId,
-                datasetName: dataset.name,
-                createdAt: inference.createdAt,
-                tokenCost: costCalc.totalCost,
-                costBreakdown: costCalc.breakdown
-            },
-            jobId: proxyResult.jobId,
-            tokenSpent: costCalc.totalCost,
-            userTokens: userTokens
-        });
-    }
-
-    private static async handleProxyFailure(
-        tokenReservationId: string | undefined,
-        inferenceId: string,
-        proxyResult: { success: boolean; jobId?: string; error?: string; status?: string; progress?: number; result?: unknown },
-        res: Response
-    ) {
-        try {
-            if (tokenReservationId) {
-                const refundResult = await InferenceController.tokenService.refundTokens(tokenReservationId);
-                if (!refundResult.success) {
-                    InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundResult.error || "Failed to refund tokens");
-                }
-            }
-        } catch (refundError) {
-            const refundErr = refundError instanceof Error ? refundError : new Error("Unknown refund error");
-            InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundErr.message);
-        }
-
-        await InferenceController.inferenceRepository.updateInferenceStatus(
-            inferenceId,
-            "ABORTED",
-            { error: proxyResult.error, reason: "queue_failed" }
-        );
-
-        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inference_queue", proxyResult.error || "Failed to queue job");
-        res.status(500).json({
-            error: proxyResult.error || "Failed to queue inference job"
-        });
-    }
-
-    private static async handleCreateInferenceError(
-        tokenReservationId: string | undefined,
-        error: unknown,
-        req: AuthRequest,
-        res: Response
-    ) {
-        if (tokenReservationId) {
-            try {
-                const refundResult = await InferenceController.tokenService.refundTokens(tokenReservationId);
-                if (!refundResult.success) {
-                    InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundResult.error || "Failed to refund tokens");
-                }
-            } catch (refundError) {
-                const refundErr = refundError instanceof Error ? refundError : new Error("Unknown refund error");
-                InferenceController.errorLogger.logDatabaseError("REFUND_TOKENS", "controller", refundErr.message);
-            }
-        }
-
-        const err = error instanceof Error ? error : new Error("Unknown error");
-        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE", "inferences", err.message);
+    private static async handleServiceError(error: unknown, req: AuthRequest, res: Response, startTime: number): Promise<void> {
+        const err = error as Error & { status?: number; errorType?: ErrorStatus; getResponse?: () => { message: string; status: number } };
+        
+        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE_SERVICE", "inference", err.message);
         InferenceController.apiLogger.logError(req, err);
-        res.status(500).json({ error: "Internal server error" });
+
+        // Handle standardized errors from ErrorManager
+        if (err.getResponse && typeof err.getResponse === "function") {
+            const errorResponse = err.getResponse();
+            res.status(errorResponse.status).json({
+                error: errorResponse.message,
+                type: err.errorType
+            });
+        } else {
+            res.status(err.status || 500).json({
+                error: err.message || "Internal server error"
+            });
+        }
+
+        InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
     }
 
     // Get job status by job ID
@@ -301,15 +104,17 @@ export class InferenceController {
         try {
             const { jobId } = req.params;
 
+            InferenceController.inferenceLogger.logInferenceStatusCheck(jobId);
+
             const jobStatus = await InferenceController.blackBoxProxy.getJobStatus(jobId);
 
-            if (!jobStatus.success) {
-                InferenceController.errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_jobs", jobStatus.error || "Job not found");
+            if (jobStatus.error) {
+                InferenceController.errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_jobs", jobStatus.error);
                 res.status(404).json({ error: jobStatus.error || "Job not found" });
                 return;
             }
 
-            InferenceController.inferenceLogger.logInferenceStatusCheck(jobId);
+            InferenceController.inferenceLogger.logJobStatusRetrieved(jobId, jobStatus.status || "unknown");
             res.status(200).json({
                 success: true,
                 message: "Job status retrieved successfully",
@@ -441,7 +246,7 @@ export class InferenceController {
                 return {
                     originalPath: img.originalPath,
                     outputPath: img.outputPath,
-                    downloadUrl: `${baseUrl}/api/inferences/output/${token}`
+                    downloadUrl: `${baseUrl}/api/inferences/download/${token}`
                 };
             }));
 
@@ -451,7 +256,7 @@ export class InferenceController {
                 return {
                     originalVideoId: vid.originalVideoId,
                     outputPath: vid.outputPath,
-                    downloadUrl: `${baseUrl}/api/inferences/output/${token}`
+                    downloadUrl: `${baseUrl}/api/inferences/download/${token}`
                 };
             }));
 
@@ -496,23 +301,18 @@ export class InferenceController {
         try {
             const token = decodeURIComponent(req.params.token);
             
-            // Use middleware to validate file token (replaces the original validation)
-            const validation = await InferenceMiddleware.validateFileToken(token);
+            InferenceController.inferenceLogger.logOutputFileServed(`token_access_${token.substring(0, 10)}...`);
             
-            if (!validation.success) {
-                const statusCode = validation.error?.includes("Access denied") ? 403 : 401;
-                InferenceController.errorLogger.logAuthenticationError(undefined, validation.error || "Token validation failed");
-                res.status(statusCode).json({ error: validation.error });
-                return;
-            }
+            // Use the new service for file token validation
+            const validation = await InferenceService.validateFileToken(token);
 
             const { filePath } = validation;
 
             const { FileStorage } = await import("../utils/fileStorage");
             
             try {
-                const fileBuffer = await FileStorage.readFile(filePath!);
-                const ext = filePath!.toLowerCase().split(".").pop();
+                const fileBuffer = await FileStorage.readFile(filePath);
+                const ext = filePath.toLowerCase().split(".").pop();
                 
                 let contentType = "application/octet-stream";
                 if (ext === "jpg" || ext === "jpeg") {
@@ -528,12 +328,11 @@ export class InferenceController {
                 res.set({
                     "Content-Type": contentType,
                     "Content-Length": fileBuffer.length.toString(),
-                    "Content-Disposition": `attachment; filename="${filePath!.split("/").pop()}"`
+                    "Content-Disposition": `attachment; filename="${filePath.split("/").pop()}"`
                 });
                 
-                InferenceController.inferenceLogger.logOutputFileServed(filePath!);
+                InferenceController.inferenceLogger.logOutputFileServed(filePath);
                 res.send(fileBuffer);
-            // Catching file read errors to log and return a 404 response to the client
             } catch (fileError) {
                 const errMsg = fileError instanceof Error ? fileError.message : "Output file not found";
                 InferenceController.errorLogger.logDatabaseError("SERVE_OUTPUT_FILE", "file_system", errMsg);
@@ -541,11 +340,8 @@ export class InferenceController {
             }
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("SERVE_OUTPUT_FILE", "file_system", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            await InferenceController.handleServiceError(error, req, res, startTime);
         }
     }
 }
-        
+               

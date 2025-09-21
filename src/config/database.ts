@@ -12,6 +12,7 @@ function getDatabaseConfig() {
         }
     }
 
+    // Return the Sequelize configuration object.
     return {
         dialect: "postgres" as const,
         host: process.env.DB_HOST!,
@@ -59,22 +60,42 @@ export class DbConnection {
         try {
             logger.info("Connecting to database...");
 
-            // Set environment variables as PostgreSQL settings for admin creation
+            // Set environment variables as PostgreSQL settings for admin creation using parameterized queries
+            // The replacements prevent SQL injection
             if (process.env.ADMIN_NAME) {
-                await DbConnection.getSequelizeInstance().query(`SET app.admin_name = '${process.env.ADMIN_NAME}'`);
+                await DbConnection.getSequelizeInstance().query(
+                    "SET app.admin_name = :adminName",
+                    { replacements: { adminName: process.env.ADMIN_NAME } }
+                );
             }
             if (process.env.ADMIN_SURNAME) {
-                await DbConnection.getSequelizeInstance().query(`SET app.admin_surname = '${process.env.ADMIN_SURNAME}'`);
+                await DbConnection.getSequelizeInstance().query(
+                    "SET app.admin_surname = :adminSurname",
+                    { replacements: { adminSurname: process.env.ADMIN_SURNAME } }
+                );
             }
             if (process.env.ADMIN_EMAIL) {
-                await DbConnection.getSequelizeInstance().query(`SET app.admin_email = '${process.env.ADMIN_EMAIL}'`);
+                await DbConnection.getSequelizeInstance().query(
+                    "SET app.admin_email = :adminEmail",
+                    { replacements: { adminEmail: process.env.ADMIN_EMAIL } }
+                );
             }
             if (process.env.ADMIN_PASSWORD_HASH) {
-                await DbConnection.getSequelizeInstance().query(`SET app.admin_password_hash = '${process.env.ADMIN_PASSWORD_HASH}'`);
+                await DbConnection.getSequelizeInstance().query(
+                    "SET app.admin_password_hash = :adminPasswordHash",
+                    { replacements: { adminPasswordHash: process.env.ADMIN_PASSWORD_HASH } }
+                );
             }
 
+            // Test the connection and sync models
             await DbConnection.getSequelizeInstance().authenticate();
-            await DbConnection.getSequelizeInstance().sync({ alter: true });
+            
+            // Use safer sync options based on environment
+            const syncOptions = process.env.NODE_ENV === "production" 
+                ? {} 
+                : { alter: true }; // Allow alter only in development
+            
+            await DbConnection.getSequelizeInstance().sync(syncOptions);
             logger.info("Database connected and synchronized successfully");
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown database error");
@@ -86,7 +107,12 @@ export class DbConnection {
     // Synchronizes all defined models with the database.
     public static async sync(): Promise<void> {
         try {
-            await DbConnection.getInstance().sequelize.sync();
+            // Use safer sync options based on environment
+            const syncOptions = process.env.NODE_ENV === "production" 
+                ? {} 
+                : { alter: true }; // Allow alter only in development
+                
+            await DbConnection.getInstance().sequelize.sync(syncOptions);
             logger.info("Database synchronized successfully.");
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown sync error");

@@ -2,28 +2,34 @@ import os
 import cv2
 import numpy as np
 from flask import Flask, request, jsonify
-from PIL import Image
 import uuid
-import json
 import logging
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List
 import tempfile
-import shutil
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging to provide visibility into the service's operations.
+log_level = os.getenv('INFERENCE_BLACKBOX_LOG_LEVEL')
+if not log_level:
+    raise ValueError("INFERENCE_BLACKBOX_LOG_LEVEL environment variable is required")
+logging.basicConfig(level=getattr(logging, log_level.upper()))
 logger = logging.getLogger(__name__)
 
+# Initialize the Flask application.
 app = Flask(__name__)
 
 class InferenceBlackBox:
+    # Encapsulates all the business logic for processing datasets.
     def __init__(self):
-        self.upload_dir = "/usr/src/app/uploads"
+        # Initializes the blackbox, defining key directory paths from environment variables.
+        self.upload_dir = os.getenv('INFERENCE_BLACKBOX_UPLOAD_DIR')
+        if not self.upload_dir:
+            raise ValueError("INFERENCE_BLACKBOX_UPLOAD_DIR environment variable is required")
         self.output_dir = os.path.join(self.upload_dir, "inferences")
         os.makedirs(self.output_dir, exist_ok=True)
 
+    # Process a single image-mask pair. This method simulates a computer vision
+    # model (e.g., inpainting) by overlaying a semi-transparent mask on the image.
     def process_image_pair(self, image_path: str, mask_path: str) -> np.ndarray:
-        """Process a single image-mask pair using inpainting (overlay mask on image)"""
         try:
             # Read image and mask
             image_full_path = os.path.join(self.upload_dir, image_path)
@@ -50,7 +56,7 @@ class InferenceBlackBox:
             # Create alpha channel from mask
             mask_3channel = np.stack([mask_normalized] * 3, axis=-1)
             
-            # Blend image and mask (similar to 'lighten' blend mode)
+            # Blend image and mask 
             # This simulates inpainting by overlaying the mask
             result = image.astype(np.float32) * (1 - mask_3channel * 0.5) + mask.astype(np.float32) * (mask_3channel * 0.5)
             result = np.clip(result, 0, 255).astype(np.uint8)
@@ -61,21 +67,24 @@ class InferenceBlackBox:
             logger.error(f"Error processing image pair: {str(e)}")
             raise
 
+    # Save processed image to the output directory and return its relative path.
     def save_processed_image(self, image: np.ndarray, user_id: str, filename: str) -> str:
-        """Save processed image and return relative path"""
+        # Ensure user-specific output directory exists
         user_output_dir = os.path.join(self.output_dir, user_id)
         os.makedirs(user_output_dir, exist_ok=True)
         
+        # Generate unique filename to avoid collisions
         output_filename = f"{uuid.uuid4()}_{filename}"
         output_path = os.path.join(user_output_dir, output_filename)
         
+        # Save image
         cv2.imwrite(output_path, image)
         
         # Return relative path from uploads directory
         return os.path.relpath(output_path, self.upload_dir)
 
+    # Process video frames, reconstruct video, and return its relative path.
     def process_video_frames(self, frame_pairs: List[Dict], user_id: str, video_id: str) -> str:
-        """Process video frames and reconstruct video"""
         try:
             # Sort frames by frame index
             frame_pairs.sort(key=lambda x: x.get('frameIndex', 0))
@@ -94,13 +103,15 @@ class InferenceBlackBox:
                     cv2.imwrite(frame_path, processed_image)
                     processed_frames.append(frame_path)
                 
+                # Ensure there are frames to process
                 if not processed_frames:
                     raise ValueError("No frames to process")
                 
                 # Create output video
                 user_output_dir = os.path.join(self.output_dir, user_id)
                 os.makedirs(user_output_dir, exist_ok=True)
-                
+
+                # Generate unique filename to avoid collisions
                 output_filename = f"{uuid.uuid4()}_video_{video_id}.mp4"
                 output_path = os.path.join(user_output_dir, output_filename)
                 
@@ -111,7 +122,7 @@ class InferenceBlackBox:
                 # Create video writer with 1 FPS to match original sampling
                 # Since we extracted 1 frame per second, we reconstruct at 1 FPS
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                fps = 1.0  # 1 FPS - each frame lasts 1 second
+                fps = 1.0  
                 out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
                 
                 # Write all frames to video
@@ -120,6 +131,7 @@ class InferenceBlackBox:
                     if frame is not None:
                         out.write(frame)
                 
+                # Release video writer
                 out.release()
                 
                 # Return relative path from uploads directory
@@ -129,36 +141,41 @@ class InferenceBlackBox:
             logger.error(f"Error processing video frames: {str(e)}")
             raise
 
+    # Main method to process the entire dataset
     def process_dataset(self, user_id: str, dataset_data: Dict) -> Dict:
-        """Process entire dataset"""
         try:
             logger.info(f"Starting dataset processing for user: {user_id}")
             
+            # Extract pairs from dataset
             pairs = dataset_data.get('pairs', [])
             if not pairs:
                 return {"success": False, "error": "No data pairs found in dataset"}
             
-            # Group pairs by video ID (uploadIndex acts as video ID)
+            # Group pairs by video ID 
             video_groups = {}
             single_images = []
             
+            # Separate single images and video frames
             for pair in pairs:
                 upload_index = pair.get('uploadIndex')
                 frame_index = pair.get('frameIndex')
-                
-                if frame_index is not None:  # This is a video frame
+
+                # Group video frames by their upload index
+                if frame_index is not None: 
                     if upload_index not in video_groups:
                         video_groups[upload_index] = []
                     video_groups[upload_index].append(pair)
                 else:  # This is a single image
                     single_images.append(pair)
-            
+
+            # Initialize lists to keep track of processed images and videos
             processed_images = []
             processed_videos = []
             
             # Process single images
             for pair in single_images:
                 try:
+                    # Process the image pair
                     processed_image = self.process_image_pair(pair['imagePath'], pair['maskPath'])
                     
                     # Generate output filename
@@ -166,8 +183,10 @@ class InferenceBlackBox:
                     name, _ = os.path.splitext(original_filename)
                     output_filename = f"processed_{name}.png"
                     
+                    # Save processed image
                     output_path = self.save_processed_image(processed_image, user_id, output_filename)
                     
+                    # Append to results
                     processed_images.append({
                         "originalPath": pair['imagePath'],
                         "outputPath": output_path
@@ -180,8 +199,10 @@ class InferenceBlackBox:
             # Process video groups
             for video_id, frame_pairs in video_groups.items():
                 try:
+                    # Process video frames and reconstruct video
                     output_path = self.process_video_frames(frame_pairs, user_id, str(video_id))
                     
+                    # Append to results
                     processed_videos.append({
                         "originalVideoId": str(video_id),
                         "outputPath": output_path
@@ -190,7 +211,8 @@ class InferenceBlackBox:
                 except Exception as e:
                     logger.error(f"Error processing video {video_id}: {str(e)}")
                     continue
-            
+
+            # Log completion
             logger.info(f"Dataset processing completed. Images: {len(processed_images)}, Videos: {len(processed_videos)}")
             
             return {
@@ -206,20 +228,25 @@ class InferenceBlackBox:
 # Initialize the blackbox service
 blackbox = InferenceBlackBox()
 
+# Define Flask routes for the service
 @app.route('/process-dataset', methods=['POST'])
+# Endpoint to process a dataset
 def process_dataset():
     try:
+        # Parse JSON request
         data = request.get_json()
         
         if not data:
             return jsonify({"success": False, "error": "No JSON data provided"}), 400
         
+        # Extract user ID and dataset data
         user_id = data.get('userId')
         dataset_data = data.get('data')
         
         if not user_id or not dataset_data:
             return jsonify({"success": False, "error": "Missing userId or data"}), 400
         
+        # Process the dataset using the blackbox
         result = blackbox.process_dataset(user_id, dataset_data)
         
         return jsonify(result)
@@ -228,9 +255,24 @@ def process_dataset():
         logger.error(f"Error in process_dataset endpoint: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy", "service": "inference-blackbox"})
 
+# Run the Flask application
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    host = os.getenv('INFERENCE_BLACKBOX_HOST')
+    port_str = os.getenv('INFERENCE_BLACKBOX_PORT')
+    debug_str = os.getenv('INFERENCE_BLACKBOX_DEBUG')
+    
+    if not host:
+        raise ValueError("INFERENCE_BLACKBOX_HOST environment variable is required")
+    if not port_str:
+        raise ValueError("INFERENCE_BLACKBOX_PORT environment variable is required")
+    if not debug_str:
+        raise ValueError("INFERENCE_BLACKBOX_DEBUG environment variable is required")
+    
+    port = int(port_str)
+    debug = debug_str.lower() == 'true'
+    app.run(host=host, port=port, debug=debug)

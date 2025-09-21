@@ -20,6 +20,7 @@ export class User extends Model {
   static initialize() {
     const sequelize: Sequelize = DbConnection.getSequelizeInstance();
 
+    // Initialize the User model with its attributes and options.
     User.init(
       {
         id: {

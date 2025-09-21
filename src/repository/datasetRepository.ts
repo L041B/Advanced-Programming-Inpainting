@@ -1,7 +1,11 @@
+// Import the Sequelize User model and the User Data Access Object (DAO).
 import { Dataset } from "../models/Dataset";
 import { DatasetDao } from "../dao/datasetDao";
-import { loggerFactory, DatasetRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
+import { loggerFactory, DatasetRouteLogger } from "../factory/loggerFactory";
 
+// Define a simple interface for dataset data.
 export interface DatasetData {
     userId: string;
     name: string;
@@ -10,18 +14,21 @@ export interface DatasetData {
     nextUploadIndex?: number;
 }
 
+// DatasetRepository provides an abstraction layer over DatasetDao for dataset-related operations.
 export class DatasetRepository {
     private static instance: DatasetRepository;
     private readonly datasetDao: DatasetDao;
     private readonly datasetLogger: DatasetRouteLogger;
-    private readonly errorLogger: ErrorRouteLogger;
+    private readonly errorManager: ErrorManager;
 
+    // Private constructor to enforce Singleton pattern.
     private constructor() {
         this.datasetDao = DatasetDao.getInstance();
         this.datasetLogger = loggerFactory.createDatasetLogger();
-        this.errorLogger = loggerFactory.createErrorLogger();
+        this.errorManager = ErrorManager.getInstance();
     }
 
+    // Get the singleton instance of DatasetRepository.
     public static getInstance(): DatasetRepository {
         if (!DatasetRepository.instance) {
             DatasetRepository.instance = new DatasetRepository();
@@ -29,196 +36,102 @@ export class DatasetRepository {
         return DatasetRepository.instance;
     }
 
+    // Creates a new dataset in the database.
     public async createDataset(data: DatasetData): Promise<Dataset> {
-        this.datasetLogger.logRepositoryOperation("CREATE_DATASET", data.userId, data.name);
-
-        try {
-            const newDataset = await this.datasetDao.create({
-                ...data,
-                data: data.data !== undefined ? data.data : null,
-                tags: data.tags ?? []
-            });
-            return newDataset;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("CREATE_DATASET", "datasets", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.datasetDao.create({
+            ...data,
+            data: data.data !== undefined ? data.data : null,
+            tags: data.tags ?? []
+        });
     }
 
+    // Retrieves a dataset by userId and name.
     public async getDatasetByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
-        this.datasetLogger.logRepositoryOperation("GET_DATASET", userId, name);
-
-        try {
-            const dataset = await this.datasetDao.findByUserIdAndName(userId, name);
-            return dataset;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_DATASET", "datasets", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.datasetDao.findByUserIdAndName(userId, name);
     }
 
+    // Retrieves all datasets for a given user.
     public async getUserDatasets(userId: string): Promise<Dataset[]> {
-        this.datasetLogger.logRepositoryOperation("GET_USER_DATASETS", userId);
-
-        try {
-            const datasets = await this.datasetDao.findAllByUserId(userId);
-            return datasets;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_USER_DATASETS", "datasets", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.datasetDao.findAllByUserId(userId);
     }
 
+    // Retrieves datasets for a user with pagination support.
     public async getUserDatasetsWithPagination(
         userId: string,
         limit: number,
         offset: number
     ): Promise<{ rows: Dataset[], count: number }> {
-        this.datasetLogger.logRepositoryOperation("GET_USER_DATASETS_PAGINATED", userId);
-
-        try {
-            const result = await this.datasetDao.findByUserIdAndNameWithPagination(userId, limit, offset);
-            this.datasetLogger.logUserDatasetsRetrieval(userId, result.count);
-            return result;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_USER_DATASETS_PAGINATED", "datasets", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.datasetDao.findByUserIdAndNameWithPagination(userId, limit, offset);
     }
 
+    // Updates an existing dataset for a user by name.
     public async updateDataset(userId: string, name: string, data: Partial<DatasetData>): Promise<Dataset> {
-        this.datasetLogger.logRepositoryOperation("UPDATE_DATASET", userId, name);
-
-        try {
-            console.log(`Repository: updating dataset ${name} for user ${userId} with data:`, {
-                hasData: !!data.data,
-                dataType: data.data ? typeof data.data : "undefined",
-                nextUploadIndex: data.nextUploadIndex,
-                tags: data.tags
-            });
-
-            const dataset = await this.datasetDao.update(userId, name, data);
-            
-            console.log("Repository: dataset update completed successfully:", {
-                id: dataset.id,
-                name: dataset.name,
-                userId: dataset.userId,
-                nextUploadIndex: dataset.nextUploadIndex,
-                dataExists: !!dataset.data
-            });
-
-            return dataset;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            console.error("Repository: dataset update failed:", {
-                userId,
-                name,
-                error: err.message,
-                stack: err.stack
-            });
-            this.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
-            throw error;
-        }
+        // Log business intent before DAO call
+        this.datasetLogger.logRepositoryOperation("update_intent", userId, name);
+        
+        // DAO handles detailed logging and errors now, just pass through
+        return await this.datasetDao.update(userId, name, data);
     }
 
+    // Deletes a dataset for a user by name.
     public async deleteDataset(userId: string, name: string): Promise<boolean> {
-        this.datasetLogger.logRepositoryOperation("DELETE_DATASET", userId, name);
-
-        try {
-            const success = await this.datasetDao.delete(userId, name);
-            if (success) {
-                // Remove duplicate logging - controller already logs deletion
-            } else {
-                this.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", "Dataset not found");
-            }
-            return success;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("DELETE_DATASET", "datasets", err.message);
-            throw error;
-        }
+        // DAO handles logging and errors now, just pass through
+        return await this.datasetDao.delete(userId, name);
     }
 
+    // Checks if a dataset exists for a given user by name.
     public async datasetExists(userId: string, name: string): Promise<boolean> {
-        try {
-            return await this.datasetDao.exists(userId, name);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("CHECK_DATASET_EXISTS", "datasets", err.message);
-            throw error;
-        }
+        return await this.datasetDao.exists(userId, name);
     }
 
-    // Soft delete tutti i dataset di un utente (per quando l'utente viene eliminato)
+    // Soft deletes all datasets for a given user (marks them as deleted without removing).
     public async softDeleteAllUserDatasets(userId: string): Promise<number> {
-        try {
-            return await this.datasetDao.softDeleteAllByUserId(userId);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            throw new Error(`Failed to soft delete user datasets: ${err.message}`);
-        }
+        // Log business intent - this is a cascade operation from user deletion
+        this.datasetLogger.logRepositoryOperation("cascade_delete_intent", userId);
+        return await this.datasetDao.softDeleteAllByUserId(userId);
     }
 
-    // Ottieni tutti i dataset dell'utente INCLUSI quelli eliminati (con flag isDeleted)
+    // Retrieves all datasets for a user, including those marked as deleted.
     public async getAllUserDatasetsIncludingDeleted(userId: string): Promise<Dataset[]> {
-        try {
-            return await this.datasetDao.findAllByUserIdIncludingDeleted(userId);
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            throw new Error(`Failed to get all user datasets: ${err.message}`);
-        }
+        return await this.datasetDao.findAllByUserIdIncludingDeleted(userId);
     }
 
+    // Retrieves a dataset by its ID.
     public async getDatasetById(datasetId: string): Promise<Dataset | null> {
-        this.datasetLogger.logRepositoryOperation("GET_DATASET_BY_ID", "system", datasetId);
-
-        try {
-            const dataset = await this.datasetDao.findById(datasetId);
-            return dataset;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("GET_DATASET_BY_ID", "datasets", err.message);
-            throw error;
-        }
+        return await this.datasetDao.findById(datasetId);
     }
 
+    // Updates a dataset by its ID. This method requires business logic to first find the dataset.
     public async updateDatasetById(datasetId: string, data: Partial<DatasetData>): Promise<Dataset> {
-        this.datasetLogger.logRepositoryOperation("UPDATE_DATASET_BY_ID", "system", datasetId);
-
-        try {
-            const existingDataset = await this.datasetDao.findById(datasetId);
-            if (!existingDataset?.userId || !existingDataset?.name) {
-                throw new Error("Dataset not found or missing userId/name");
-            }
-            const dataset = await this.datasetDao.update(existingDataset.userId, existingDataset.name, data);
-            return dataset;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("UPDATE_DATASET_BY_ID", "datasets", err.message);
-            throw error;
+        // This method requires business logic - need to find dataset first
+        const existingDataset = await this.datasetDao.findById(datasetId);
+        if (!existingDataset?.userId || !existingDataset?.name) {
+            // Log business logic decision
+            this.datasetLogger.logRepositoryOperation("update_by_id_failed", "system", datasetId);
+            throw this.errorManager.createError(ErrorStatus.datasetNotFoundError, "Dataset not found or missing userId/name");
         }
+        
+        // Log business intent
+        this.datasetLogger.logRepositoryOperation("update_by_id_intent", existingDataset.userId, existingDataset.name);
+        return await this.datasetDao.update(existingDataset.userId, existingDataset.name, data);
     }
 
+    // Deletes a dataset by its ID. This method requires business logic to first find the dataset.
     public async deleteDatasetById(datasetId: string): Promise<boolean> {
-        this.datasetLogger.logRepositoryOperation("DELETE_DATASET_BY_ID", "system", datasetId);
-
-        try {
-            const dataset = await this.datasetDao.findById(datasetId);
-            if (!(dataset?.userId && dataset?.name)) {
-                this.errorLogger.logDatabaseError("DELETE_DATASET_BY_ID", "datasets", "Dataset not found or missing userId/name");
-                return false;
-            }
-            const success = await this.datasetDao.delete(dataset.userId, dataset.name);
-            return success;
-        } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            this.errorLogger.logDatabaseError("DELETE_DATASET_BY_ID", "datasets", err.message);
-            throw error;
+        // This method requires business logic - need to find dataset first
+        const dataset = await this.datasetDao.findById(datasetId);
+        if (!(dataset?.userId && dataset?.name)) {
+            // Log business logic decision
+            this.datasetLogger.logRepositoryOperation("delete_by_id_failed", "system", datasetId);
+            return false;
         }
+        
+        // Log business intent
+        this.datasetLogger.logRepositoryOperation("delete_by_id_intent", dataset.userId, dataset.name);
+        return await this.datasetDao.delete(dataset.userId, dataset.name);
     }
 }
-

@@ -1,7 +1,12 @@
+// Import necessary modules and models
 import { Dataset } from "../models/Dataset";
-import { Sequelize, Op } from "sequelize";
+import { Sequelize } from "sequelize";
 import { DbConnection } from "../config/database";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
+import { loggerFactory, DatasetRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
+// Define an interface for dataset data used in mutations.
 interface DatasetMutationData {
     userId: string;
     name: string;
@@ -11,14 +16,26 @@ interface DatasetMutationData {
     nextUploadIndex?: number;
 }
 
+/**  A Data Access Object (DAO) for the Dataset model.
+ * It abstracts all database interactions for datasets into a clean, reusable, and testable interface.
+ * Implemented as a Singleton to ensure a single, shared instance throughout the application.
+ */
 export class DatasetDao {
     private static instance: DatasetDao;
     private readonly sequelize: Sequelize;
+    private readonly errorManager: ErrorManager;
+    private readonly datasetLogger: DatasetRouteLogger;
+    private readonly errorLogger: ErrorRouteLogger;
 
+    // Private constructor to enforce Singleton pattern.
     private constructor() {
         this.sequelize = DbConnection.getSequelizeInstance();
+        this.errorManager = ErrorManager.getInstance();
+        this.datasetLogger = loggerFactory.createDatasetLogger();
+        this.errorLogger = loggerFactory.createErrorLogger();
     }
 
+    // Provides access to the single instance of DatasetDao.
     public static getInstance(): DatasetDao {
         if (!DatasetDao.instance) {
             DatasetDao.instance = new DatasetDao();
@@ -26,163 +43,246 @@ export class DatasetDao {
         return DatasetDao.instance;
     }
 
+    // Creates a new dataset in the database.
     public async create(datasetData: Required<Omit<DatasetMutationData, "isDeleted" | "nextUploadIndex">>): Promise<Dataset> {
         return await this.sequelize.transaction(async (t) => {
-            // Check for existing dataset only for the SAME user (not globally)
-            if (datasetData.userId) {
-                const existingDataset = await Dataset.findOne({
+            try {
+                // Check for existing dataset only for the SAME user (not globally)
+                if (datasetData.userId) {
+                    const existingDataset = await Dataset.findOne({
+                        where: { 
+                            userId: datasetData.userId,  // Only check within the same user's datasets
+                            name: datasetData.name, 
+                            isDeleted: false 
+                        },
+                        transaction: t
+                    });
+                    
+                    // If a dataset with the same name exists for this user, throw an error
+                    if (existingDataset) {
+                        this.errorLogger.logValidationError("name", datasetData.name, "Dataset with this name already exists");
+                        throw this.errorManager.createError(ErrorStatus.datasetAlreadyExistsError);
+                    }
+                }
+
+                // Force default values for isDeleted and nextUploadIndex
+                const dataset = await Dataset.create({
+                    ...datasetData,
+                    isDeleted: false,
+                    nextUploadIndex: 1
+                }, { transaction: t });
+
+                this.datasetLogger.logDatasetCreation(datasetData.userId, datasetData.name);
+                return dataset;
+            } catch (error) {
+                if (error instanceof Error && "errorType" in error) {
+                    throw error;
+                }
+                this.errorLogger.logDatabaseError("create", "Dataset", (error as Error).message);
+                throw this.errorManager.createError(ErrorStatus.datasetCreationFailedError);
+            }
+        });
+    }
+
+    // Updates an existing dataset's data.
+    public async update(userId: string, name: string, datasetData: Partial<DatasetMutationData>): Promise<Dataset> {
+        return await this.sequelize.transaction(async (t) => {
+            try {
+                // Find the dataset by userId and name to ensure correct ownership
+                const dataset = await Dataset.findOne({
                     where: { 
-                        userId: datasetData.userId,  // Only check within the same user's datasets
-                        name: datasetData.name, 
-                        isDeleted: false 
+                        userId,  
+                        name, 
+                        isDeleted: false
                     },
                     transaction: t
                 });
                 
-                if (existingDataset) {
-                    throw new Error("Dataset with this name already exists");
+                // If the dataset does not exist, throw an error
+                if (!dataset) {
+                    this.errorLogger.logDatabaseError("findOne", "Dataset", `Dataset not found: userId=${userId}, name=${name}`);
+                    throw this.errorManager.createError(ErrorStatus.datasetNotFoundError);
                 }
-            }
 
-            return await Dataset.create({
-                ...datasetData,
-                isDeleted: false,
-                nextUploadIndex: 1
-            }, { transaction: t });
+                // Log the update attempt with dataset size if data is being changed
+                this.datasetLogger.logDatasetUpdate(userId, name, datasetData.data ? Object.keys(datasetData.data).length : undefined);
+
+                // Perform the update
+                const [affectedRows] = await Dataset.update(datasetData, { 
+                    where: {
+                        id: dataset.id
+                    },
+                    transaction: t 
+                });
+
+                // If no rows were affected, something went wrong
+                if (affectedRows === 0) {
+                    this.errorLogger.logDatabaseError("update", "Dataset", `No rows affected for dataset: ${dataset.id}`);
+                    throw this.errorManager.createError(ErrorStatus.datasetUpdateFailedError);
+                }
+
+                // Reload the updated dataset to return fresh data
+                const updatedDataset = await Dataset.findByPk(dataset.id, { transaction: t });
+                
+                // This should never happen, but just in case
+                if (!updatedDataset) {
+                    this.errorLogger.logDatabaseError("findByPk", "Dataset", `Dataset disappeared after update: ${dataset.id}`);
+                    throw this.errorManager.createError(ErrorStatus.datasetUpdateFailedError);
+                }
+
+                // Log successful update
+                this.datasetLogger.logDatasetUpdate(userId, updatedDataset.name);
+                return updatedDataset;
+            } catch (error) {
+                if (error instanceof Error && "errorType" in error) {
+                    throw error;
+                }
+                this.errorLogger.logDatabaseError("update", "Dataset", (error as Error).message);
+                throw this.errorManager.createError(ErrorStatus.datasetUpdateFailedError);
+            }
         });
     }
 
-    public async update(userId: string, name: string, datasetData: Partial<DatasetMutationData>): Promise<Dataset> {
-        return await this.sequelize.transaction(async (t) => {
-            // FIXED: Find dataset by BOTH userId and name, ensuring we're updating the right dataset
-            const dataset = await Dataset.findOne({
-                where: { 
-                    userId,  // Add userId to the search criteria
-                    name, 
-                    isDeleted: false
-                },
-                transaction: t
-            });
-            
-            if (!dataset) {
-                console.error(`Dataset not found for update: userId=${userId}, name=${name}`);
-                throw new Error("Dataset not found");
-            }
-
-            // Log the update operation for debugging
-            console.log(`Updating dataset ${dataset.name} for user ${userId} with:`, {
-                hasData: !!datasetData.data,
-                dataSize: datasetData.data ? JSON.stringify(datasetData.data).length : 0,
-                nextUploadIndex: datasetData.nextUploadIndex,
-                tags: datasetData.tags,
-                newName: datasetData.name
-            });
-
-            // Perform the update
-            const [affectedRows] = await Dataset.update(datasetData, { 
-                where: {
-                    id: dataset.id
-                },
-                transaction: t 
-            });
-
-            if (affectedRows === 0) {
-                console.error(`No rows affected during update for dataset: ${dataset.id}`);
-                throw new Error("Failed to update dataset - no rows affected");
-            }
-
-            // Reload the updated dataset to return fresh data
-            const updatedDataset = await Dataset.findByPk(dataset.id, { transaction: t });
-            
-            if (!updatedDataset) {
-                console.error(`Could not reload dataset after update: ${dataset.id}`);
-                throw new Error("Dataset disappeared after update");
-            }
-
-            // Log successful update with actual values
-            console.log(`Dataset updated successfully. ID: ${updatedDataset.id}, Name: ${updatedDataset.name}, NextUploadIndex: ${updatedDataset.nextUploadIndex}, DataSize: ${updatedDataset.data ? JSON.stringify(updatedDataset.data).length : 0}`);
-            
-            return updatedDataset;
-        });
-    }
-
+    // Soft delete a dataset by setting its isDeleted flag to true.
     public async delete(userId: string, name: string): Promise<boolean> {
         return await this.sequelize.transaction(async (t) => {
-            const dataset = await Dataset.findOne({
-                where: { 
-                    name, 
-                    isDeleted: false,
-                    userId: { [Op.ne]: null } // Ensure userId is not null
-                },
-                transaction: t
-            });
-            
-            if (!dataset) {
-                return false;
-            }
+            try {
+                // Find the dataset by userId and name to ensure correct ownership
+                const [affectedCount] = await Dataset.update(
+                    { isDeleted: true },
+                    {
+                        where: {
+                            userId, 
+                            name,
+                            isDeleted: false
+                        },
+                        transaction: t
+                    }
+                );
 
-            await dataset.update({ isDeleted: true }, { transaction: t });
-            return true;
+                // Log the deletion attempt
+                if (affectedCount > 0) {
+                    this.datasetLogger.logDatasetDeletion(userId, name);
+                    return true;
+                } else {
+                    this.datasetLogger.logRepositoryOperation("delete_not_found", userId, name);
+                    return false;
+                }
+            } catch (error) {
+                this.errorLogger.logDatabaseError("delete", "Dataset", (error as Error).message);
+                throw this.errorManager.createError(ErrorStatus.datasetDeletionFailedError);
+            }
         });
     }
 
-    // Soft delete tutti i dataset di un utente specifico
+    // Soft delete all datasets for a specific user
     public async softDeleteAllByUserId(userId: string): Promise<number> {
         return await this.sequelize.transaction(async (t) => {
-            // Marca come eliminati solo i dataset NON già eliminati
-            const [affectedCount] = await Dataset.update(
-                { isDeleted: true },
-                {
-                    where: { 
-                        userId, 
-                        isDeleted: false // Solo quelli non già eliminati
-                    },
-                    transaction: t
-                }
-            );
-            
-            console.log(`Soft deleted ${affectedCount} datasets for user ${userId}`);
-            return affectedCount;
+            try {
+                // Mark as deleted only those datasets that are NOT already deleted
+                const [affectedCount] = await Dataset.update(
+                    { isDeleted: true },
+                    {
+                        where: { 
+                            userId, 
+                            isDeleted: false
+                        },
+                        transaction: t
+                    }
+                );
+                
+                // Log the bulk deletion operation
+                this.datasetLogger.logRepositoryOperation("soft_delete_all", userId);
+                return affectedCount;
+            } catch (error) {
+                this.errorLogger.logDatabaseError("softDeleteAll", "Dataset", (error as Error).message);
+                throw this.errorManager.createError(ErrorStatus.datasetDeletionFailedError);
+            }
         });
     }
 
-    // Trova tutti i dataset dell'utente INCLUSI quelli eliminati
+    // Find all datasets for a user, including deleted ones
     public async findAllByUserIdIncludingDeleted(userId: string): Promise<Dataset[]> {
-        return await Dataset.findAll({
-            where: { userId }, // Non filtrare per isDeleted - mostra tutto
-            order: [["createdAt", "DESC"]]
-        });
+        try {
+            // Retrieve all datasets regardless of deletion status
+            const datasets = await Dataset.findAll({
+                where: { userId }, 
+                order: [["createdAt", "DESC"]]
+            });
+            
+            // Log the retrieval operation
+            this.datasetLogger.logUserDatasetsRetrieval(userId, datasets.length);
+            return datasets;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("findAllIncludingDeleted", "Dataset", (error as Error).message);
+            throw this.errorManager.createError(ErrorStatus.readInternalServerError);
+        }
     }
 
-    // Trova dataset NON eliminati (comportamento normale)
+    // Find all datasets for a user, including deleted ones
     public async findAllByUserId(userId: string): Promise<Dataset[]> {
-        return await Dataset.findAll({
-            where: { 
-                userId, 
-                isDeleted: false // Solo quelli attivi
-            },
-            order: [["createdAt", "DESC"]]
-        });
+        try {
+            // Retrieve only non-deleted datasets
+            const datasets = await Dataset.findAll({
+                where: { 
+                    userId, 
+                    isDeleted: false // Solo quelli attivi
+                },
+                order: [["createdAt", "DESC"]]
+            });
+            
+            // Log the retrieval operation
+            this.datasetLogger.logUserDatasetsRetrieval(userId, datasets.length);
+            return datasets;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("findAllByUserId", "Dataset", (error as Error).message);
+            throw this.errorManager.createError(ErrorStatus.readInternalServerError);
+        }
     }
 
     // Find dataset by ID, allowing null userId for orphaned datasets
     public async findById(datasetId: string): Promise<Dataset | null> {
-        return await Dataset.findOne({
-            where: { id: datasetId, isDeleted: false }
-            // Note: Don't filter by userId here since we want to find orphaned datasets too
-        });
-    }
-
-    public async findByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
-        return await Dataset.findOne({
-            where: { 
-                userId,  // Ensure we're looking within the specific user's datasets
-                name, 
-                isDeleted: false
+        try {
+            // Find the dataset by its primary key, ensuring it's not deleted
+            const dataset = await Dataset.findOne({
+                where: { id: datasetId, isDeleted: false }
+            });
+            
+            // Log the retrieval operation
+            if (dataset) {
+                this.datasetLogger.logDatasetRetrieval(dataset.userId || "unknown", dataset.name);
             }
-        });
+            return dataset;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("findById", "Dataset", (error as Error).message);
+            throw this.errorManager.createError(ErrorStatus.readInternalServerError);
+        }
     }
 
+    // Find dataset by userId and name
+    public async findByUserIdAndName(userId: string, name: string): Promise<Dataset | null> {
+        try {
+            // Find the dataset by userId and name, ensuring it's not deleted
+            const dataset = await Dataset.findOne({
+                where: { 
+                    userId,
+                    name, 
+                    isDeleted: false
+                }
+            });
+            
+            // Log the retrieval operation
+            if (dataset) {
+                this.datasetLogger.logDatasetRetrieval(userId, name);
+            }
+            return dataset;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("findByUserIdAndName", "Dataset", (error as Error).message);
+            throw this.errorManager.createError(ErrorStatus.readInternalServerError);
+        }
+    }
+
+    // Find datasets for a user with pagination
     public async findByUserIdAndNameWithPagination(
         userId: string, 
         limit: number, 
@@ -196,15 +296,22 @@ export class DatasetDao {
         });
     }
 
+    // Check if a dataset exists by userId and name
     public async exists(userId: string, name: string): Promise<boolean> {
-        const dataset = await Dataset.findOne({
-            where: { 
-                userId,  // Only check within the specific user's datasets
-                name, 
-                isDeleted: false
-            },
-            attributes: ["id"]  // Changed from ["userId"] to ["id"] for better performance
-        });
-        return !!dataset;
+        try {
+            // Check for existence of a dataset by userId and name, ensuring it's not deleted
+            const dataset = await Dataset.findOne({
+                where: { 
+                    userId,
+                    name, 
+                    isDeleted: false
+                },
+                attributes: ["id"]
+            });
+            return !!dataset;
+        } catch (error) {
+            this.errorLogger.logDatabaseError("exists", "Dataset", (error as Error).message);
+            throw this.errorManager.createError(ErrorStatus.readInternalServerError);
+        }
     }
 }

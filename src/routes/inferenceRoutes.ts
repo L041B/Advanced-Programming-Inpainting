@@ -1,18 +1,16 @@
 import { Router } from "express";
 import { InferenceController } from "../controllers/inferenceController";
 import { authenticateToken } from "../middleware/authMiddleware";
-import { TokenMiddleware } from "../middleware/tokenMiddleware";
+import { validateInferenceCreation, validateInferenceAccess, validateFileAccess } from "../middleware/inferenceMiddleware";
 
 const router = Router();
 
-// Route for creating a new inference on a dataset (protected with token validation and cost injection)
+// Route for creating a new inference on a dataset (simplified - only auth required)
 router.post(
-  "/inference",
+  "/",
   ...authenticateToken,
-  TokenMiddleware.validateTokenBalance,
-  TokenMiddleware.injectTokenCostInResponse,
-  InferenceController.createInference,
-  TokenMiddleware.finalizeTokenUsage
+  ...validateInferenceCreation,
+  InferenceController.createInference
 );
 
 // Route for getting job status by job ID (protected)
@@ -22,12 +20,13 @@ router.get("/job/:jobId/status", ...authenticateToken, InferenceController.getJo
 router.get("/", ...authenticateToken, InferenceController.getUserInferences);
 
 // Route for getting a specific inference by ID (protected)
-router.get("/:id", ...authenticateToken, InferenceController.getInference);
+router.get("/:id", ...authenticateToken, ...validateInferenceAccess, InferenceController.getInference);
 
 // Route for getting inference results with download links (protected)
-router.get("/:id/results", ...authenticateToken, InferenceController.getInferenceResults);
+router.get("/:id/results", ...authenticateToken, ...validateInferenceAccess, InferenceController.getInferenceResults);
 
 // Route for serving inference output files (uses temporary token)
-router.get("/output/:token", InferenceController.serveOutputFile);
+router.get("/download/:token", ...validateFileAccess, InferenceController.serveOutputFile);
 
 export default router;
+

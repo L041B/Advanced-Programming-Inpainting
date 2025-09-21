@@ -229,10 +229,10 @@ export class UserController {
         try {
             const userId = req.user!.userId;
 
-            const balanceResult = await this.tokenService.getUserTokenBalance(userId);
-            
-            if (!balanceResult.success) {
-                this.errorLogger.logDatabaseError("GET_USER_TOKENS", "users", balanceResult.error || "Failed to get balance");
+            const balance = await this.tokenService.getUserTokenBalance(userId);
+
+            if (typeof balance !== "number") {
+                this.errorLogger.logDatabaseError("GET_USER_TOKENS", "users", "Failed to get balance");
                 res.status(500).json({ success: false, message: "Failed to get token balance" });
                 return;
             }
@@ -244,8 +244,8 @@ export class UserController {
                 success: true,
                 message: "Token balance retrieved successfully",
                 data: {
-                    balance: balanceResult.balance,
-                    recentTransactions: transactionResult.success ? transactionResult.transactions : [],
+                    balance: balance,
+                    recentTransactions: transactionResult,
                     tokenPricing: {
                         dataset_upload: {
                             single_image: 0.65,

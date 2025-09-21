@@ -1,10 +1,14 @@
+// import all necessary modules and types
 import Bull from "bull";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
 import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
 // Initialize loggers
 const inferenceLogger: InferenceRouteLogger = loggerFactory.createInferenceLogger();
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
+// Define the structure of job data
 interface InferenceJobData {
     inferenceId: string;
     userId: string;
@@ -12,11 +16,20 @@ interface InferenceJobData {
     parameters: Record<string, unknown>;
 }
 
+// InferenceQueue manages the Bull queue for processing inference jobs.
 export class InferenceQueue {
     private static instance: InferenceQueue;
     private readonly queue: Bull.Queue<InferenceJobData>;
+    private readonly errorManager: ErrorManager;
+    private readonly inferenceLogger: InferenceRouteLogger;
+    private readonly errorLogger: ErrorRouteLogger;
 
     private constructor() {
+        this.errorManager = ErrorManager.getInstance();
+        this.inferenceLogger = loggerFactory.createInferenceLogger();
+        this.errorLogger = loggerFactory.createErrorLogger();
+
+        // Configure Redis connection using environment variables with defaults
         const redisConfig = {
             host: process.env.REDIS_HOST || "localhost",
             port: parseInt(process.env.REDIS_PORT || "6379"),
@@ -24,6 +37,7 @@ export class InferenceQueue {
             db: parseInt(process.env.REDIS_DB || "0")
         };
 
+        // Initialize the Bull queue with Redis configuration and default job options
         try {
             this.queue = new Bull<InferenceJobData>("inference-processing", {
                 redis: redisConfig,
@@ -38,15 +52,17 @@ export class InferenceQueue {
                 }
             });
 
+            // Setup event listeners for logging and error handling
             this.setupEventListeners();
-            inferenceLogger.logQueueConnected();
+            this.inferenceLogger.logQueueConnected();
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("QUEUE_INITIALIZATION", "redis", err.message);
-            throw error;
+            this.errorLogger.logDatabaseError("QUEUE_INITIALIZATION", "redis", err.message);
+            throw this.errorManager.createError(ErrorStatus.queueInitializationFailedError, err.message);
         }
     }
 
+    // Provides access to the single instance of InferenceQueue.
     public static getInstance(): InferenceQueue {
         if (!InferenceQueue.instance) {
             InferenceQueue.instance = new InferenceQueue();
@@ -54,10 +70,12 @@ export class InferenceQueue {
         return InferenceQueue.instance;
     }
 
+    // Returns the Bull queue instance for job processing.
     public getQueue(): Bull.Queue<InferenceJobData> {
         return this.queue;
     }
 
+    // Adds a new inference job to the queue.
     public async addInferenceJob(jobData: InferenceJobData): Promise<Bull.Job<InferenceJobData>> {
         try {
             const job = await this.queue.add("process-inference", jobData, {
@@ -65,30 +83,33 @@ export class InferenceQueue {
                 delay: 0
             });
 
-            inferenceLogger.logJobAdded(jobData.inferenceId, jobData.userId, job.id?.toString());
+            // Log job addition
+            this.inferenceLogger.logJobAdded(jobData.inferenceId, jobData.userId, job.id?.toString());
             return job;
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("ADD_JOB_TO_QUEUE", "redis", err.message);
-            throw error;
+            this.errorLogger.logDatabaseError("ADD_JOB_TO_QUEUE", "redis", err.message);
+            throw this.errorManager.createError(ErrorStatus.jobAdditionFailedError, err.message);
         }
     }
 
+    // Retrieves the status of a job by its ID.
     public async getJobStatus(jobId: string): Promise<{
         status: string;
         progress?: number;
         result?: unknown;
         error?: string;
-    } | null> {
+    }> {
         try {
             const job = await this.queue.getJob(jobId);
             if (!job) {
-                errorLogger.logDatabaseError("GET_JOB_STATUS", "redis", "Job not found");
-                return null;
+                // Job not found - this is a 404 case, not a server error
+                throw this.errorManager.createError(ErrorStatus.jobNotFoundError);
             }
 
+            // Get the current state of the job
             const state = await job.getState();
-            inferenceLogger.logJobStatusRetrieved(jobId, state);
+            this.inferenceLogger.logJobStatusRetrieved(jobId, state);
             
             return {
                 status: state,
@@ -97,25 +118,31 @@ export class InferenceQueue {
                 error: job.failedReason
             };
         } catch (error) {
+            // Handle standardized errors 
+            if (error instanceof Error && "errorType" in error) {
+                throw error;
+            }
+            
+            // Handle any other unexpected errors
             const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("GET_JOB_STATUS", "redis", err.message);
-            return null;
+            this.errorLogger.logDatabaseError("GET_JOB_STATUS", "redis", err.message);
+            throw this.errorManager.createError(ErrorStatus.jobStatusRetrievalFailedError, err.message);
         }
     }
 
+    // Sets up event listeners for the Bull queue to handle logging and errors.
     private setupEventListeners(): void {
         this.queue.on("active", () => {
-            // Remove duplicate - worker already logs when processing starts
-            // inferenceLogger.logJobProcessingStarted(job.id?.toString() || "unknown", job.data.inferenceId);
         });
 
+        // Log job completion
         this.queue.on("completed", () => {
-            // Remove duplicate - worker already logs when processing completes
-            // inferenceLogger.logJobProcessingCompleted(job.id?.toString() || "unknown", job.data.inferenceId);
+           
         });
 
+        // Log job failure
         this.queue.on("failed", (job, error) => {
-            // Keep this one as it's different from worker logging - this is queue-level failure
+          
             inferenceLogger.logJobProcessingFailed(
                 job.id?.toString() || "unknown", 
                 job.data.inferenceId, 
@@ -123,22 +150,25 @@ export class InferenceQueue {
             );
         });
 
+        // Log stalled jobs
         this.queue.on("stalled", (job) => {
             errorLogger.logDatabaseError("JOB_STALLED", "redis", `Job ${job.id} stalled`);
         });
 
+        // Log queue errors
         this.queue.on("error", (error) => {
             errorLogger.logDatabaseError("QUEUE_ERROR", "redis", error.message);
         });
     }
 
+    // Closes the Bull queue connection gracefully.
     public async close(): Promise<void> {
         try {
             await this.queue.close();
-            inferenceLogger.logQueueClosed();
+            this.inferenceLogger.logQueueClosed();
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
-            errorLogger.logDatabaseError("CLOSE_QUEUE", "redis", err.message);
+            this.errorLogger.logDatabaseError("CLOSE_QUEUE", "redis", err.message);
         }
     }
 }

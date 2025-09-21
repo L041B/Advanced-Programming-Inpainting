@@ -7,7 +7,8 @@ export enum HttpStatus {
     UNAUTHORIZED = 401, // Client error: Unauthorized
     FORBIDDEN = 403, // Client error: Forbidden
     NOT_FOUND = 404, // Client error: Not found
-    INTERNAL_SERVER_ERROR = 500 // Server error: Internal server error
+    INTERNAL_SERVER_ERROR = 500, // Server error: Internal server error
+    SERVICE_UNAVAILABLE = 503 // Server error: Service unavailable
 }
 
 
@@ -42,6 +43,36 @@ export enum ErrorStatus {
     invalidFormatOrResourceNotFound, // Invalid format or resource not found error
     routeNotFound, // Route not found error
     functionNotWorking, // Function not working error
+    datasetNotFoundError, // Dataset not found error
+    datasetAlreadyExistsError, // Dataset already exists error
+    datasetUpdateFailedError, // Dataset update failed error
+    datasetDeletionFailedError, // Dataset deletion failed error
+    datasetCreationFailedError, // Dataset creation failed error
+    inferenceNotFoundError, // Inference not found error
+    inferenceCreationFailedError, // Inference creation failed error
+    inferenceUpdateFailedError, // Inference update failed error
+    userNotFoundError, // User not found error
+    userAlreadyExistsError, // User already exists error
+    userCreationFailedError, // User creation failed error
+    userUpdateFailedError, // User update failed error
+    userDeletionFailedError, // User deletion failed error
+    passwordHashingFailedError, // Password hashing failed error
+    insufficientTokensError, // Insufficient tokens error
+    tokenReservationFailedError, // Token reservation failed error
+    tokenConfirmationFailedError, // Token confirmation failed error
+    tokenRefundFailedError, // Token refund failed error
+    tokenRechargeFailedError, // Token recharge failed error
+    adminPrivilegesRequiredError, // Admin privileges required error
+    reservationNotFoundError, // Token reservation not found error
+    externalServiceError, // External service error
+    inferenceProcessingFailedError, // Inference processing failed error
+    queueInitializationFailedError, // Queue initialization failed error
+    jobAdditionFailedError, // Job addition to queue failed error
+    jobStatusRetrievalFailedError, // Job status retrieval failed error
+    jobNotFoundError, // Job not found error
+    invalidDatasetDataError, // Invalid dataset data error
+    invalidParametersError, // Invalid parameters error
+    emptyDatasetError, // Dataset contains no valid pairs error
     defaultError // Default error message
 }
 
