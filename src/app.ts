@@ -8,8 +8,8 @@ import fs from "fs";           // Node.js module for interacting with the file s
 import { DbConnection } from "./config/database"; // The database connection handler.
 import userRoutes from "./routes/userRoutes";         // Router for user-related endpoints.
 import appRoutes from "./routes/appRoutes";         // Router for application-level endpoints.
-import datasetRoutes from "./routes/datasetRoutes";
-import inferenceRoutes from "./routes/inferenceRoutes";
+import datasetRoutes from "./routes/datasetRoutes"; // Router for dataset-related endpoints.
+import inferenceRoutes from "./routes/inferenceRoutes";  // Router for inference-related endpoints.
 import adminRoutes from "./routes/adminRoutes";     // Router for admin endpoints
 import logger from "./utils/logger";                  // A custom logger utility for structured logging.
 import { routeNotFoundHandler, errorHandlingChain } from "./middleware/errorHandler";  // Error handling middleware
@@ -20,6 +20,7 @@ import "./models";
 
 import { AdminInitService } from "./services/adminInitService";
 
+// Load environment variables from .env file into process.env
 dotenv.config();
 
 // Initialize the Express application.

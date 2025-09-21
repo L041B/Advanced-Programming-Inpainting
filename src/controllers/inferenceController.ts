@@ -1,4 +1,5 @@
-import { Request, Response } from "express";
+// import necessary modules and types
+import { Request, Response, NextFunction } from "express";
 import { InferenceRepository } from "../repository/inferenceRepository";
 import { DatasetRepository } from "../repository/datasetRepository";
 import { InferenceBlackBoxProxy } from "../proxy/inferenceBlackBoxProxy";
@@ -9,6 +10,7 @@ import { ErrorStatus } from "../factory/status";
 import jwt from "jsonwebtoken";
 import { TokenService } from "../services/tokenService";
 
+// Extend Request interface to include user property and other custom properties
 interface AuthRequest extends Request {
     user?: {
         userId: string;
@@ -25,6 +27,7 @@ interface AuthRequest extends Request {
     };
 }
 
+// InferenceController class definition
 export class InferenceController {
     private static readonly inferenceRepository = InferenceRepository.getInstance();
     private static readonly datasetRepository = DatasetRepository.getInstance();
@@ -36,14 +39,16 @@ export class InferenceController {
     private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
 
     // Create a new inference with simplified parameters
-    static async createInference(req: AuthRequest, res: Response): Promise<void> {
+    static async createInference(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
+        // Validate input parameters
         try {
             const { datasetName, modelId = "default_inpainting", parameters = {} } = req.body;
             const userId = req.user!.userId;
 
+            // Basic validation
             InferenceController.inferenceLogger.logInferenceCreation("pending", userId, datasetName, modelId);
 
             // Use the service for business logic (simplified)
@@ -53,6 +58,7 @@ export class InferenceController {
                 parameters
             });
 
+            // Log the job queuing
             InferenceController.inferenceLogger.logJobQueued(result.inference.id, userId, result.jobId);
 
             res.status(201).json({
@@ -68,52 +74,37 @@ export class InferenceController {
                 jobId: result.jobId
             });
 
+            // Log response details
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            await InferenceController.handleServiceError(error, req, res, startTime);
+            next(error);
         }
-    }
-
-    private static async handleServiceError(error: unknown, req: AuthRequest, res: Response, startTime: number): Promise<void> {
-        const err = error as Error & { status?: number; errorType?: ErrorStatus; getResponse?: () => { message: string; status: number } };
-        
-        InferenceController.errorLogger.logDatabaseError("CREATE_INFERENCE_SERVICE", "inference", err.message);
-        InferenceController.apiLogger.logError(req, err);
-
-        // Handle standardized errors from ErrorManager
-        if (err.getResponse && typeof err.getResponse === "function") {
-            const errorResponse = err.getResponse();
-            res.status(errorResponse.status).json({
-                error: errorResponse.message,
-                type: err.errorType
-            });
-        } else {
-            res.status(err.status || 500).json({
-                error: err.message || "Internal server error"
-            });
-        }
-
-        InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
     }
 
     // Get job status by job ID
-    static async getJobStatus(req: AuthRequest, res: Response): Promise<void> {
+    static async getJobStatus(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
+        // Validate input parameters
         try {
             const { jobId } = req.params;
 
+            // Log the status check attempt
             InferenceController.inferenceLogger.logInferenceStatusCheck(jobId);
 
+            // Fetch job status from the black box proxy
             const jobStatus = await InferenceController.blackBoxProxy.getJobStatus(jobId);
 
             if (jobStatus.error) {
-                InferenceController.errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_jobs", jobStatus.error);
-                res.status(404).json({ error: jobStatus.error || "Job not found" });
-                return;
+                // Throw standardized error
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.jobNotFoundError,
+                    jobStatus.error
+                );
             }
 
+            // Log the successful retrieval
             InferenceController.inferenceLogger.logJobStatusRetrieved(jobId, jobStatus.status || "unknown");
             res.status(200).json({
                 success: true,
@@ -128,18 +119,16 @@ export class InferenceController {
             });
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("GET_JOB_STATUS", "inference_jobs", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            next(error);
         }
     }
 
     // Get all user inferences
-    static async getUserInferences(req: AuthRequest, res: Response): Promise<void> {
+    static async getUserInferences(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
+        // Validate input parameters
         try {
             const userId = req.user!.userId;
             const { page = 1, limit = 10 } = req.query;
@@ -153,6 +142,7 @@ export class InferenceController {
                 (pageNum - 1) * limitNum
             );
 
+            // Log the retrieval
             InferenceController.inferenceLogger.logUserInferencesRetrieval(userId, count);
             res.status(200).json({
                 success: true,
@@ -167,28 +157,28 @@ export class InferenceController {
             });
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("GET_USER_INFERENCES", "inferences", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            next(error);
         }
     }
 
     // Get specific inference
-    static async getInference(req: AuthRequest, res: Response): Promise<void> {
+    static async getInference(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
         try {
+            // Validate input parameters
             const userId = req.user!.userId;
             const { id } = req.params;
 
             const inference = await InferenceController.inferenceRepository.getInferenceByIdAndUserId(id, userId);
 
+            // Check if inference exists
             if (!inference) {
-                InferenceController.errorLogger.logDatabaseError("GET_INFERENCE", "inferences", "Inference not found");
-                res.status(404).json({ error: "Inference not found" });
-                return;
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.inferenceNotFoundError,
+                    "Inference not found"
+                );
             }
 
             InferenceController.inferenceLogger.logInferenceRetrieval(id, userId);
@@ -199,37 +189,36 @@ export class InferenceController {
             });
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("GET_INFERENCE", "inferences", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            next(error);
         }
     }
 
     // Get inference results with download links
-    static async getInferenceResults(req: AuthRequest, res: Response): Promise<void> {
+    static async getInferenceResults(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
         try {
+            // Validate input parameters
             const userId = req.user!.userId;
             const { id } = req.params;
 
             const inference = await InferenceController.inferenceRepository.getInferenceByIdAndUserId(id, userId);
 
+            // Check if inference exists
             if (!inference) {
-                InferenceController.errorLogger.logDatabaseError("GET_INFERENCE_RESULTS", "inferences", "Inference not found");
-                res.status(404).json({ error: "Inference not found" });
-                return;
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.inferenceNotFoundError,
+                    "Inference not found"
+                );
             }
 
+            // Check if inference is completed
             if (inference.status !== "COMPLETED") {
-                InferenceController.errorLogger.logValidationError("inference_status", inference.status, "Inference not completed");
-                res.status(400).json({ 
-                    error: "Inference not completed", 
-                    status: inference.status 
-                });
-                return;
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.inferenceProcessingFailedError,
+                    "Inference not completed"
+                );
             }
 
             // Generate temporary access tokens for output files
@@ -238,6 +227,7 @@ export class InferenceController {
                 videos?: Array<{ originalVideoId: string; outputPath: string }>;
             };
 
+            // Base URL for constructing download links
             const baseUrl = `${req.protocol}://${req.get("host")}`;
             
             // Generate tokens for images
@@ -260,6 +250,7 @@ export class InferenceController {
                 };
             }));
 
+            // Log the retrieval
             InferenceController.inferenceLogger.logInferenceResultsDownload(id, userId);
             res.status(200).json({
                 success: true,
@@ -271,12 +262,10 @@ export class InferenceController {
                     videos
                 }
             });
+            // Log response details
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            const err = error instanceof Error ? error : new Error("Unknown error");
-            InferenceController.errorLogger.logDatabaseError("GET_INFERENCE_RESULTS", "inferences", err.message);
-            InferenceController.apiLogger.logError(req, err);
-            res.status(500).json({ error: "Internal server error" });
+            next(error);
         }
     }
 
@@ -294,11 +283,13 @@ export class InferenceController {
         return encodeURIComponent(token);
     }
 
-    static async serveOutputFile(req: Request, res: Response): Promise<void> {
+    // Serve output file securely
+    static async serveOutputFile(req: Request, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
         try {
+            // Validate input parameters
             const token = decodeURIComponent(req.params.token);
             
             InferenceController.inferenceLogger.logOutputFileServed(`token_access_${token.substring(0, 10)}...`);
@@ -310,6 +301,7 @@ export class InferenceController {
 
             const { FileStorage } = await import("../utils/fileStorage");
             
+            // Read and stream the file
             try {
                 const fileBuffer = await FileStorage.readFile(filePath);
                 const ext = filePath.toLowerCase().split(".").pop();
@@ -325,22 +317,26 @@ export class InferenceController {
                     contentType = "video/x-msvideo";
                 }
 
+                // Set headers and send the file
                 res.set({
                     "Content-Type": contentType,
                     "Content-Length": fileBuffer.length.toString(),
                     "Content-Disposition": `attachment; filename="${filePath.split("/").pop()}"`
                 });
                 
+                // Log the successful serving
                 InferenceController.inferenceLogger.logOutputFileServed(filePath);
                 res.send(fileBuffer);
             } catch (fileError) {
                 const errMsg = fileError instanceof Error ? fileError.message : "Output file not found";
-                InferenceController.errorLogger.logDatabaseError("SERVE_OUTPUT_FILE", "file_system", errMsg);
-                res.status(404).json({ error: "File not found", details: errMsg });
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.resourceNotFoundError,
+                    errMsg
+                );
             }
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            await InferenceController.handleServiceError(error, req, res, startTime);
+            next(error);
         }
     }
 }

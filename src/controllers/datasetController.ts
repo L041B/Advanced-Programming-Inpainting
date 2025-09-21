@@ -23,6 +23,19 @@ interface AuthRequest extends Request {
     };
 }
 
+// Add this type definition and export it
+export type DatasetData = {
+    userId: string;
+    name: string;
+    tags?: string[];
+    type?: string;
+    data?: {
+        pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>,
+        type?: string
+    } | null;
+    nextUploadIndex?: number;
+};
+
 // Controller class for dataset-related operations
 export class DatasetController {
     private static readonly datasetRepository = DatasetRepository.getInstance();
