@@ -40,23 +40,6 @@ describe("User Middleware Suite", () => {
     });
   });
 
-  describe("checkUpdateFields", () => {
-    it("should call next() if fields for update are present", () => {
-        req.body = { name: "John", surname: "Doe", email: "john@doe.com" };
-        userMiddleware.checkUpdateFields(req as Request, res as Response, next);
-        expect(next).toHaveBeenCalledWith();
-    });
-
-    it("should call next(error) if a field for update is missing", () => {
-        req.body = { name: "John" }; // missing surname and email
-        userMiddleware.checkUpdateFields(req as Request, res as Response, next);
-
-        expect(next).toHaveBeenCalledWith(expect.any(Error));
-        const error = (next as jest.Mock).mock.calls[0][0];
-        expect(error.message).toBe("Name, surname, and email are required");
-    });
-  });
-
   describe("validateNameFormat", () => {
     it("should call next() for valid names and surnames", () => {
       req.body = { name: "John", surname: "Doe" };

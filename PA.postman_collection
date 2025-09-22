@@ -1,0 +1,870 @@
+{
+	"info": {
+		"_postman_id": "11b7de71-9178-45ae-a545-2f5e855a4058",
+		"name": "Inpainting API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46807056"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoicGlub3Rpbm9yZUBnbWFpbC5jb20iLCJpYXQiOjE3NTQ1NjM4NjksImV4cCI6MTc1NDY1MDI2OX0.Jz_9U7Otf0xdcm895D4NIkaMFlqVIqZaNcRI60KR0cc",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": "{\n    \"name\": \"Test User\"\n    \"surname\": \"Test User\"\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\", \n}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password123!\" \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/user",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"user"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Profile",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcwNzc1LCJleHAiOjE3NTg1NTcxNzV9.O6OdwMHYxIsp-wwnWTjDgSENHWhU2HHdpEiY0fmoCG4",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dataset",
+			"item": [
+				{
+					"name": "New Datasets",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Inpainting dataset\",\r\n    \"tags\": [\"Inpainting\", \"Damage\", \"Mask\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "datasetName",
+									"value": "Inpainting dataset",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "postman-cloud:///1f097097-82fb-4e20-8d8d-8390b77ff541"
+								},
+								{
+									"key": "mask",
+									"type": "file",
+									"src": "postman-cloud:///1f06ebd7-f8eb-4aa0-93ee-d1689eea0eb9"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/data",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"data"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Datasets",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data specific dataset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset/data",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset",
+								"data"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Dataset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset11",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset11"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Inference",
+			"item": [
+				{
+					"name": "Inference",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"datasetName\": \"Inpainting dataset\",\r\n    \"modelId\": \"default_inpainting\", \r\n    \"parameters\": {\r\n        \"quality\": \"high\",\r\n        \"blendMode\": \"lighten\",\r\n        \"outputFormat\": \"png\",\r\n        \"customParameter\": \"EigenCAM\"  //Grad-CAM\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Job Status",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"datasetName\": \"Inpainting dataset\",\r\n    \"modelId\": \"default_inpainting\", \r\n    \"parameters\": {\r\n        \"quality\": \"high\",\r\n        \"blendMode\": \"lighten\",\r\n        \"outputFormat\": \"png\",\r\n        \"customParameter\": \"EigenCAM\"  //Grad-CAM\r\n    }\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/job/1/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"job",
+								"1",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Specific Inference",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/2c657470-488b-4d33-89c1-11026b862115",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"2c657470-488b-4d33-89c1-11026b862115"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Results specific inference",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/2c657470-488b-4d33-89c1-11026b862115/results",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"2c657470-488b-4d33-89c1-11026b862115",
+								"results"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "View specific result",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/download/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJmaWxlUGF0aCI6ImluZmVyZW5jZXMvYzRlZGJkYTItMmZmMS00NWRlLWFmMjAtYzYxNWI2NzM1MDhkLzJkYzAxNTNkLTk4ZmEtNDFjYi05NzVkLWVlNjA0ZTljOTZjOV9wcm9jZXNzZWRfNDA1MTc2YWItNWU3ZS00ZDI1LWJiYzgtMTU0ZmIwMmY4NDY0LnBuZyIsInR5cGUiOiJmaWxlX2FjY2VzcyIsImlhdCI6MTc1ODQ3NDYyMSwiZXhwIjoxNzU4NTYxMDIxfQ.cmDb8vlaipBk07uy4fEfHBWMbY3v7No-B6T9E2G-Z4U",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"download",
+								"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJmaWxlUGF0aCI6ImluZmVyZW5jZXMvYzRlZGJkYTItMmZmMS00NWRlLWFmMjAtYzYxNWI2NzM1MDhkLzJkYzAxNTNkLTk4ZmEtNDFjYi05NzVkLWVlNjA0ZTljOTZjOV9wcm9jZXNzZWRfNDA1MTc2YWItNWU3ZS00ZDI1LWJiYzgtMTU0ZmIwMmY4NDY0LnBuZyIsInR5cGUiOiJmaWxlX2FjY2VzcyIsImlhdCI6MTc1ODQ3NDYyMSwiZXhwIjoxNzU4NTYxMDIxfQ.cmDb8vlaipBk07uy4fEfHBWMbY3v7No-B6T9E2G-Z4U"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"admin@system.com\",\r\n    \"password\": \"AdminPassword123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/session",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"session"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Token balance user",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4MGViZGU2Mi01ODY0LTRmZTctYTZjMC01MjQwZTU2YzkxZWUiLCJlbWFpbCI6ImFkbWluQHN5c3RlbS5jb20iLCJpYXQiOjE3NTg0NzUxMTYsImV4cCI6MTc1ODU2MTUxNn0.V8FAZ5BtGYe8y5Z7Q5Aq4BshooG3TwI-fDIY8iLGDBA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/mariorossi@gmail.com/tokens",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"mariorossi@gmail.com",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rechange token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4MGViZGU2Mi01ODY0LTRmZTctYTZjMC01MjQwZTU2YzkxZWUiLCJlbWFpbCI6ImFkbWluQHN5c3RlbS5jb20iLCJpYXQiOjE3NTg0NzUxMTYsImV4cCI6MTc1ODU2MTUxNn0.V8FAZ5BtGYe8y5Z7Q5Aq4BshooG3TwI-fDIY8iLGDBA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"mariorossi@gmail.com\",\r\n    \"amount\": 100\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/user-tokens",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"user-tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4MGViZGU2Mi01ODY0LTRmZTctYTZjMC01MjQwZTU2YzkxZWUiLCJlbWFpbCI6ImFkbWluQHN5c3RlbS5jb20iLCJpYXQiOjE3NTg0NzUxMTYsImV4cCI6MTc1ODU2MTUxNn0.V8FAZ5BtGYe8y5Z7Q5Aq4BshooG3TwI-fDIY8iLGDBA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/transactions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Datasets",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4MGViZGU2Mi01ODY0LTRmZTctYTZjMC01MjQwZTU2YzkxZWUiLCJlbWFpbCI6ImFkbWluQHN5c3RlbS5jb20iLCJpYXQiOjE3NTg0NzUxMTYsImV4cCI6MTc1ODU2MTUxNn0.V8FAZ5BtGYe8y5Z7Q5Aq4BshooG3TwI-fDIY8iLGDBA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/datasets",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"datasets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Register",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoicGlub3Rpbm9yZUBnbWFpbC5jb20iLCJpYXQiOjE3NTQ1NjM4NjksImV4cCI6MTc1NDY1MDI2OX0.Jz_9U7Otf0xdcm895D4NIkaMFlqVIqZaNcRI60KR0cc",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": "{\n    \"name\": \"Test User\"\n    \"surname\": \"Test User\"\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\", \n}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password123!\" \r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/users/user",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"user"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password1234!\" \r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/users/session",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"session"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Tokens",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcwNzc1LCJleHAiOjE3NTg1NTcxNzV9.O6OdwMHYxIsp-wwnWTjDgSENHWhU2HHdpEiY0fmoCG4",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/users/tokens",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"tokens"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcwNzc1LCJleHAiOjE3NTg1NTcxNzV9.O6OdwMHYxIsp-wwnWTjDgSENHWhU2HHdpEiY0fmoCG4",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password1234!\" \r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/users/c4edbda2-2ff1-45de-af20-c615b673508d",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"c4edbda2-2ff1-45de-af20-c615b673508d"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete User",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRiYWI0Ny1hMDBhLTQ5ZWMtOTFiZS1kMTkxNWMxNjBkYTQiLCJlbWFpbCI6Im1hcmlvcm9zc2lpQGdtYWlsLmNvbSIsImlhdCI6MTc1ODQ3MTg0NywiZXhwIjoxNzU4NTU4MjQ3fQ.7cPXRRIUe5VLMEx9IMY0wGaLuaE4x0mUOV4MUV1vcP4",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossii@gmail.com\",\r\n    \"password\": \"Password123!\" \r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/users/174bab47-a00a-49ec-91be-d1915c160da4",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"174bab47-a00a-49ec-91be-d1915c160da4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Datasets",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NDcyNDU1LCJleHAiOjE3NTg1NTg4NTV9.QRwqwx_K9Qu2ekZSlkXrASPS7pLDey5ZaSIuBS_-DyA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Inpainting dataset\",\r\n    \"tags\": [\"Inpainting\", \"Damage\", \"Mask\"]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/datasets/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"datasets",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "{{baseUrl}}",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "{{authToken}}",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

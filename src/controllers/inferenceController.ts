@@ -51,7 +51,7 @@ export class InferenceController {
             // Basic validation
             InferenceController.inferenceLogger.logInferenceCreation("pending", userId, datasetName, modelId);
 
-            // Use the service for business logic (simplified)
+            // Use the service for business logic 
             const result = await InferenceService.createInference(userId, {
                 datasetName,
                 modelId,

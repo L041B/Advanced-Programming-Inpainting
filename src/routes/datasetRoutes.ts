@@ -7,7 +7,7 @@ import { DatasetMiddleware, validateDatasetCreation, validateDatasetUpload, vali
 const router = Router();
 
 // Route for creating an empty dataset (protected)
-router.post("/empty-dataset", 
+router.post("/", 
     ...authenticateToken, 
     ...validateDatasetCreation,
     DatasetController.createEmptyDataset

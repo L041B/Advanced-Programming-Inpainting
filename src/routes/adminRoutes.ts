@@ -14,10 +14,10 @@ router.post("/user-tokens", ...adminAuth, AdminController.rechargeUserTokens);
 // Route for getting user token balance and transaction history
 router.get("/users/:email/tokens", ...adminAuth, AdminController.getUserTokenInfo);
 
-// Route for getting all transactions with user details (admin only)
+// Route for getting all transactions with user details 
 router.get("/transactions", ...adminAuth, AdminController.getAllTransactions);
 
-// Route for getting all datasets with user details (admin only)
+// Route for getting all datasets with user details 
 router.get("/datasets", ...adminAuth, AdminController.getAllDatasets);
 
 export default router;

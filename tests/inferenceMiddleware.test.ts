@@ -1,146 +1,77 @@
-import { InferenceMiddleware } from "../src/middleware/inferenceMiddleware";
-import { DatasetRepository } from "../src/repository/datasetRepository";
-import jwt from "jsonwebtoken";
-
-// Mock external dependencies
-jest.mock("../src/repository/datasetRepository");
-jest.mock("jsonwebtoken");
-
-const mockedDatasetRepository = DatasetRepository as jest.Mocked<typeof DatasetRepository>;
-const mockedJwt = jwt as jest.Mocked<typeof jwt>;
+import { Request, Response, NextFunction } from "express";
+import {
+  validateInferenceCreation,
+  validateInferenceAccess,
+  validateFileAccess
+} from "../src/middleware/inferenceMiddleware";
 
 describe("Inference Middleware Suite", () => {
-  let mockDatasetRepo: Partial<DatasetRepository>;
+  let req: Partial<Request>;
+  let res: Partial<Response>;
+  let next: NextFunction;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-
-    // Setup repository instance mock
-    mockDatasetRepo = {
-      createDataset: jest.fn(),
-      getDatasetByUserIdAndName: jest.fn(),
-      updateDataset: jest.fn(),
-      datasetExists: jest.fn(),
-      deleteDataset: jest.fn(),
-      getDatasetById: jest.fn()
-    };
-    mockedDatasetRepository.getInstance.mockReturnValue(mockDatasetRepo as unknown as DatasetRepository);
-
-    // Set test JWT secret
-    process.env.JWT_SECRET = "test-secret";
+    req = { body: {}, params: {}, ip: "127.0.0.1" };
+    res = {};
+    next = jest.fn();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe("validateCreateInference", () => {
-    const userId = "user-123";
-
-    it("should return error if dataset name is missing", async () => {
-      const inferenceData = {
-        datasetName: "",
-        modelId: "model-123"
-      };
-
-      const result = await InferenceMiddleware.validateCreateInference(userId, inferenceData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Dataset name is required");
-      expect(mockDatasetRepo.getDatasetByUserIdAndName).not.toHaveBeenCalled();
+  describe("validateInferenceCreation", () => {
+    it("should call next() if datasetName is valid", () => {
+      req.body = { datasetName: "myDataset" };
+      validateInferenceCreation[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith();
     });
 
-    it("should return error if dataset is not found", async () => {
-      const inferenceData = {
-        datasetName: "nonexistent-dataset",
-        modelId: "model-123"
-      };
+    it("should call next(error) if datasetName is missing", () => {
+      req.body = {};
+      validateInferenceCreation[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.message).toContain("datasetName");
+    });
 
-      (mockDatasetRepo.getDatasetByUserIdAndName as jest.Mock).mockResolvedValue(null);
-
-      const result = await InferenceMiddleware.validateCreateInference(userId, inferenceData);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Dataset not found");
+    it("should call next(error) if parameters is not an object", () => {
+      req.body = { datasetName: "myDataset", parameters: "not-an-object" };
+      validateInferenceCreation[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.message).toContain("parameters");
     });
   });
 
-  describe("validateFileToken", () => {
-    const userId = "user-123";
-    const filePath = `inferences/${userId}/result.png`;
-
-    it("should validate file token successfully", async () => {
-      const tokenPayload = {
-        userId,
-        filePath,
-        type: "file_access"
-      } as jwt.JwtPayload & { userId: string; filePath: string; type: string };
-
-      (mockedJwt.verify as jest.Mock).mockReturnValue(tokenPayload);
-
-      const result = await InferenceMiddleware.validateFileToken("valid-token");
-
-      expect(result.success).toBe(true);
-      expect(result.userId).toBe(userId);
-      expect(result.filePath).toBe(filePath);
-      expect(mockedJwt.verify).toHaveBeenCalledWith("valid-token", "test-secret");
+  describe("validateInferenceAccess", () => {
+    it("should call next() for valid UUID", () => {
+      req.params = { id: "f47ac10b-58cc-4372-a567-0e02b2c3d479" };
+      validateInferenceAccess[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith();
     });
 
-    it("should return error for invalid token", async () => {
-      (mockedJwt.verify as jest.Mock).mockImplementation(() => {
-        throw new jwt.JsonWebTokenError("Invalid token");
-      });
+    it("should call next(error) for invalid UUID", () => {
+      req.params = { id: "not-a-uuid" };
+      validateInferenceAccess[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.message).toContain("inference ID");
+    });
+  });
 
-      const result = await InferenceMiddleware.validateFileToken("invalid-token");
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Invalid or expired file token");
+  describe("validateFileAccess", () => {
+    it("should call next() for valid token", () => {
+      req.params = { token: "sometoken" };
+      validateFileAccess[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith();
     });
 
-    it("should return error for expired token", async () => {
-      (mockedJwt.verify as jest.Mock).mockImplementation(() => {
-        throw new jwt.TokenExpiredError("Token expired", new Date());
-      });
-
-      const result = await InferenceMiddleware.validateFileToken("expired-token");
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Invalid or expired file token");
-    });
-
-    it("should return error if file path doesn't belong to user", async () => {
-      const tokenPayload = {
-        userId: "user-123",
-        filePath: "inferences/user-456/result.png", // Different user
-        type: "file_access"
-      } as jwt.JwtPayload & { userId: string; filePath: string; type: string };
-
-      (mockedJwt.verify as jest.Mock).mockReturnValue(tokenPayload);
-
-      const result = await InferenceMiddleware.validateFileToken("malicious-token");
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Access denied");
-    });
-
-    it("should handle missing JWT_SECRET", async () => {
-      delete process.env.JWT_SECRET;
-      
-      const tokenPayload = {
-        userId,
-        filePath,
-        type: "file_access"
-      } as jwt.JwtPayload & { userId: string; filePath: string; type: string };
-
-      (mockedJwt.verify as jest.Mock).mockReturnValue(tokenPayload);
-
-      const result = await InferenceMiddleware.validateFileToken("token");
-
-      expect(result.success).toBe(true);
-      expect(mockedJwt.verify).toHaveBeenCalledWith("token", "fallback_secret");
+    it("should call next(error) for missing token", () => {
+      req.params = {};
+      validateFileAccess[0](req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.message).toContain("file access token");
     });
   });
 });
 
-      
+
 

@@ -1,173 +1,1007 @@
-# Advanced Programming Project - Inpainting API
+# P.A. Inpainting
 
-## Overview
-This is an advanced Node.js/TypeScript application that provides an **Image Inpainting API** using a **queue-based architecture** with **BullMQ**. The application implements several design patterns including **Proxy**, **Singleton**, **Factory**, and **Repository** patterns to create a scalable and maintainable image processing service.
+<div align="center">
+  <!-- Technology badges with logos and links -->
+  <a href="https://www.postman.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white&style=for-the-badge" alt="Postman" />
+  </a>
+  <a href="https://github.com/" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" />
+  </a>
+  <a href="https://jestjs.io/" target="_blank">
+    <img src="https://img.shields.io/badge/Jest-C21325?logo=jest&logoColor=white&style=for-the-badge" alt="Jest" />
+  </a>
+  <a href="https://jwt.io/" target="_blank">
+    <img src="https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white&style=for-the-badge" alt="JWT" />
+  </a>
+  <a href="https://sequelize.org/" target="_blank">
+    <img src="https://img.shields.io/badge/Sequelize-52B0E7?logo=sequelize&logoColor=white&style=for-the-badge" alt="Sequelize" />
+  </a>
+  <a href="https://www.python.org/" target="_blank">
+    <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white&style=for-the-badge" alt="Python" />
+  </a>
+  <a href="https://www.javascript.com/" target="_blank">
+    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=for-the-badge" alt="JavaScript" />
+  </a>
+  <a href="https://www.typescriptlang.org/" target="_blank">
+    <img src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" />
+  </a>
+  <a href="https://nodejs.org/" target="_blank">
+    <img src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=for-the-badge" alt="Node.js" />
+  </a>
+  <a href="https://expressjs.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Express-000000?logo=express&logoColor=white&style=for-the-badge" alt="Express" />
+  </a>
+  <a href="https://www.docker.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Docker-2496ed?logo=docker&logoColor=white&style=for-the-badge" alt="Docker" />
+  </a>
+  <a href="https://docs.docker.com/compose/" target="_blank">
+    <img src="https://img.shields.io/badge/Docker%20Compose-142f46?logo=docker&logoColor=white&style=for-the-badge" alt="Docker Compose" />
+  </a>
+  <a href="https://eslint.org/" target="_blank">
+    <img src="https://img.shields.io/badge/ESLint-4B32C3?logo=eslint&logoColor=white&style=for-the-badge" alt="ESLint" />
+  </a>
+  <a href="https://redis.io/" target="_blank">
+    <img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white&style=for-the-badge" alt="Redis" />
+  </a>
+  <a href="https://www.postgresql.org/" target="_blank">
+    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-the-badge" alt="PostgreSQL" />
+  </a>
+  <a href="https://bull.io/" target="_blank">
+    <img src="https://img.shields.io/badge/Bull-EA1B1B?logo=redis&logoColor=white&style=for-the-badge" alt="Bull" />
+  </a>
+  <a href="https://www.npmjs.com/" target="_blank">
+    <img src="https://img.shields.io/badge/NPM-CB3837?logo=npm&logoColor=white&style=for-the-badge" alt="NPM" />
+  </a>
+  <a href="https://axios-http.com/" target="_blank">
+    <img src="https://img.shields.io/badge/Axios-5A29E4?logo=axios&logoColor=white&style=for-the-badge" alt="Axios" />
+  </a>
+  <a href="https://www.npmjs.com/package/bcrypt" target="_blank">
+    <img src="https://img.shields.io/badge/Bcrypt-1A1A1A?logo=bcrypt&logoColor=white&style=for-the-badge" alt="Bcrypt" />
+  </a>
+  <a href="https://github.com/expressjs/multer" target="_blank">
+    <img src="https://img.shields.io/badge/Multer-4B4B4B?logo=multer&logoColor=white&style=for-the-badge" alt="Multer" />
+  </a>
+  <a href="https://helmetjs.github.io/" target="_blank">
+    <img src="https://img.shields.io/badge/Helmet-006400?logo=helmet&logoColor=white&style=for-the-badge" alt="Helmet" />
+  </a>
+  <a href="https://github.com/winstonjs/winston" target="_blank">
+    <img src="https://img.shields.io/badge/Winston-4F4F4F?logo=winston&logoColor=white&style=for-the-badge" alt="Winston" />
+  </a>
+</div>
 
-## Architecture Overview
+---
 
-The project follows a **layered architecture** with clear separation of concerns:
+## Introduction
+
+**P.A. Inpainting** is a Node.js backend service. It supports dataset and inference management for images, masks, and videos, using a queue-based architecture for scalable processing. The system enforces a token-based credit model for users, with costs per operation and admin recharge capabilities.
+
+---
+
+## 📑 Index
+
+- [Features](#features)
+- [Token & Credit System](#token--credit-system)
+- [Installation](#installation)
+- [Environment Setup](#environment-setup)
+- [API Documentation](#api-documentation)
+- [API Routes & Responses](#api-routes--responses)
+- [Database Structure](#database-structure)
+- [Architecture](#architecture)
+- [Design Patterns](#design-patterns)
+- [Sequence Diagrams](#sequence-diagrams)
+- [Testing](#testing)
+
+---
+## Main Features 
+
+- **User Management & Authentication**
+  - Secure JWT-based authentication
+  - User registration with bcrypt password hashing
+  - Role-based access (User, Admin)
+  - Protected API endpoints (JWT required, except register and login)
+
+- **Token & Credit System**
+  - Each authenticated user has a token balance .
+  - User token balance for operations
+  - Operation costs vary by type (image/video/zip upload, inference):
+      - Image upload: `0.65 token/image`
+      - ZIP upload: `0.7 token/valid file`
+      - Video upload: `0.4 token/frame`
+      - Inference: `2.75 token/image`, `1.5 token/frame`
+  - Operations are denied if credits are insufficient (`401 Unauthorized`).
+  - Credit balance is stored in the DB and can be checked via a protected route.
+
+- **Dataset Management**
+  - CRUD operations on datasets (logical delete supported)
+  - Multi-format upload:
+    - Image + mask pairs
+    - Videos (with mask or mask video)
+    - ZIP archives (structured dataset folders)
+  - Media processing:
+    - Frame extraction from videos (1 FPS with FFmpeg)
+    - Mask validation (binary check with Sharp)
+  - Secure data access via temporary signed URLs (JWT-based)
+
+- **Asynchronous Inference System**
+  - Job queueing with Redis + Bull 
+  - Background processing by separate worker
+  - Worker → Python microservice (Flask + OpenCV) for inference
+  - Job status tracking: PENDING, RUNNING, COMPLETED, FAILED, ABORTED
+  - Result retrieval via API + secure download links
+
+- **Administration Features**
+  - Admin token recharge for users
+  - Monitoring dashboard APIs:
+    - Full list of datasets (including orphaned ones)
+    - Full list of token transactions with aggregation
+
+
+---
+
+## ZIP Format
+
+
+- The ZIP archive must contain **subfolders**, each representing a dataset group.
+- Inside each subfolder, files must be organized as **image/video + mask pairs**:
+  - The **mask file** must contain the word `mask` in its filename.
+  - If multiple pairs exist, they must be indexed numerically (`image_1.png` + `mask_1.png`, `video_2.mp4` + `mask_2.png`, etc.).
+- **Supported file formats**:  
+  - Images: `.png`, `.jpg`, `.jpeg`  
+  - Videos: `.mp4`, `.avi`  
+  - All other formats are ignored.
+- On upload, files from the ZIP are stored under the `image` field.  
+  Since the upload method also expects a `mask` field, this will be populated with a placeholder file (ignored by the system).
+
+### Example Structure
+
+```plaintext
+dataset.zip
+│
+├── group1/
+│   ├── image_1.png
+│   ├── mask_1.png
+│   ├── video_2.mp4
+│   ├── mask_2.png
+│   └── notes.txt   (ignored)
+│
+├── group2/
+│   ├── sample_1.jpg
+│   ├── mask_1.jpg
+│   ├── sample_2.jpeg
+│   └── mask_2.jpeg
+│
+└── group3/
+    ├── clip_1.avi
+    └── mask_1.png
+```
+---
+
+## Installation
+
+### Requirements
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+- [Redis](https://redis.io/) (via Docker)
+- [PostgreSQL](https://www.postgresql.org/) (via Docker)
+- [Python 3.9+](https://www.python.org/) (for inference service, handled by Docker)
+
+### Quick Start (Docker Compose)
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Progetto Programmazione Avanzata
+
+# Copy and edit environment variables
+cp .env
+# Edit .env as needed
+
+# Build and start all services
+docker-compose up --build
+
+# (Optional) Run in detached mode
+docker-compose up -d
+
+# Stop services
+docker-compose down
+```
+
+---
+
+## Environment Setup
+
+Example `.env` configuration:
+
+```env
+NODE_ENV=development
+PORT=3000
+HOST=0.0.0.0
+
+DB_HOST=postgres
+DB_PORT=5432
+POSTGRES_DB=pa_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=1234
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+JWT_SECRET=your_secret_key
+JWT_EXPIRES_IN=24h
+
+BCRYPT_SALT_ROUNDS=12
+WORKER_CONCURRENCY=3
+LOG_LEVEL=debug
+
+ADMIN_NAME=Administrator
+ADMIN_SURNAME=System
+ADMIN_EMAIL=admin@system.com
+ADMIN_PASSWORD=AdminPassword123!
+
+UPLOAD_DIRECTORY=./uploads
+
+INFERENCE_BLACKBOX_HOST=0.0.0.0
+INFERENCE_BLACKBOX_PORT=5000
+INFERENCE_BLACKBOX_DEBUG=false
+INFERENCE_BLACKBOX_UPLOAD_DIR=/usr/src/app/uploads
+INFERENCE_BLACKBOX_LOG_LEVEL=INFO
+```
+
+---
+
+## API Documentation
+
+All endpoints are JWT-protected unless register and login for user.
+
+### User
+- `POST /api/users/user` - Register user
+- `POST /api/users/session` - Login and get JWT
+- `GET /api/users/profile` - Get current user profile
+- `GET /api/users/tokens` - Get user's remaining tokens
+- `PUT /api/users/:userId` - Update user data
+- `DELETE /api/users/:userId` - Delete user
+
+### Dataset
+- `POST /api/datasets/` - Create dataset (name, tags)
+- `POST /api/datasets/data` - Upload image/mask or video/mask to dataset
+- `GET /api/datasets/` - List datasets
+- `GET /api/datasets/:name` - Get dataset info
+- `GET /api/datasets/:name/data` - Get dataset items
+- `GET /api/datasets/image/:imagePath` - Get image from dataset
+- `PUT /api/datasets/:name` - Update dataset
+- `DELETE /api/datasets/:name` - Logical deletion of dataset
+
+### Inference
+- `POST /api/inferences/` - Start inference on dataset
+- `GET /api/inferences/job/:jobId/status` - Get job status
+- `GET /api/inferences/` - Get all inferences 
+- `GET /api/inferences/:id` - Get specific inference
+- `GET /api/inferences/:id/results` - Get inference result
+- `GET /api/inferences/download/:token` - Download specific result
+
+### Admin
+- `GET /api/admin/users/:email/tokens` - Get token balance for user
+- `POST /api/admin/user-tokens` - Recharge user tokens
+- `GET /api/admin/transactions` - List transactions
+- `GET /api/admin/datasets` - List all datasets (optionally include deleted)
+
+---
+
+## API Routes & Responses
+
+Below are all main API routes, grouped by feature, with example JSON outputs.
+All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
+
+### User
+
+#### Register
+`POST /api/users/user`
+```json
+// Success
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "id": "uuid",
+    "name": "Mario",
+    "surname": "Rossi",
+    "email": "mariorossi@gmail.com",
+    "tokens": 100
+  }
+}
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Controllers   │───►│      Proxy       │───►│      Queue      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Repository    │    │     Logger       │    │     Worker      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-┌─────────────────┐                              ┌─────────────────┐
-│    Database     │                              │   BlackBox      │
-└─────────────────┘                              └─────────────────┘
+
+#### Login
+`POST /api/users/session`
+```json
+// Success
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "jwt-token",
+    "user": {
+      "id": "uuid",
+      "name": "Mario",
+      "surname": "Rossi",
+      "email": "mariorossi@gmail.com",
+      "tokens": 100
+    }
+  }
+}
+
 ```
 
-## Project Structure
-```
-src/
-├── app.ts                          # Main application entry point
-├── controllers/
-│   ├── userController.ts           # User authentication & management
-│   └── executionController.ts      # Inpainting execution management
-├── services/
-│   └── blackBox.ts                 # Core inpainting service (Sharp implementation)
-├── proxy/
-│   └── blackBoxProxy.ts           # Proxy pattern for queue management
-├── queue/
-│   └── inpaintingQueue.ts         # BullMQ queue configuration
-├── workers/
-│   └── inpaintingWorker.ts        # Background job processor
-├── repository/
-│   ├── userRepository.ts          # User data access layer
-│   └── executionRepository.ts     # Execution data access layer
-├── middleware/
-│   ├── authMiddleware.ts          # JWT authentication
-│   ├── rateLimitMiddleware.ts     # Rate limiting
-│   └── uploadMiddleware.ts        # File upload handling
-├── factory/
-│   └── loggerFactory.ts           # Logger factory pattern
-├── utils/
-│   ├── loggerDecorator.ts         # Decorator pattern for logging
-│   ├── jwtUtils.ts                # JWT utilities
-│   └── validationUtils.ts         # Input validation
-├── routes/
-│   ├── userRoutes.ts              # User API routes
-│   └── executionRoutes.ts         # Execution API routes
-├── models/
-│   ├── User.ts                    # User entity model
-│   └── Execution.ts               # Execution entity model
-└── database/
-    └── connection.ts               # Database connection setup
+#### Profile
+`GET /api/users/profile`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "Mario",
+    "surname": "Rossi",
+    "email": "mariorossi@gmail.com",
+    "tokens": 100,
+    "createdAt": "2024-01-01T10:00:00Z"
+  }
+}
 ```
 
-## How It Works
-
-### 1. Request Flow
+#### Update User
+`PUT /api/users/:userId`
+```json
+{
+  "success": true,
+  "message": "User updated successfully",
+  "data": { /* updated user fields */ }
+}
 ```
-Client Request → Controller → Proxy → Queue → Worker → BlackBox → Database
+
+#### Delete User
+`DELETE /api/users/:userId`
+```json
+{
+  "success": true,
+  "message": "User deleted successfully"
+}
 ```
 
-### 2. Core Components
+#### Get Token Balance
+`GET /api/users/tokens`
+```json
+{
+  "success": true,
+  "tokens": 100
+}
+```
 
-#### **Controllers Layer**
-- **ExecutionController**: Handles HTTP requests for inpainting operations
-- **UserController**: Manages user authentication and registration
-- Implements proper error handling and logging
-- Returns appropriate HTTP status codes
+---
 
-#### **Proxy Pattern**
-- **BlackBoxProxy**: Acts as an intermediary between controllers and the queue system
-- Validates requests before queuing
-- Provides unified interface for different request types (processing/preview)
-- Handles error cases gracefully
+### Dataset
 
-#### **Queue System (BullMQ)**
-- **InpaintingQueue**: Manages job queuing with Redis backend
-- Supports job priorities (preview jobs have higher priority)
-- Implements retry mechanisms with exponential backoff
-- Provides job status tracking
+#### Create Dataset
+`POST /api/datasets/`
+```json
+// Success
+{
+  "success": true,
+  "message": "Dataset created",
+  "data": {
+    "id": "uuid",
+    "name": "Inpainting dataset",
+    "tags": ["Inpainting", "Damage", "Mask"],
+    "isDeleted": false,
+    "createdAt": "2024-01-01T10:00:00Z"
+  }
+}
+```
 
-#### **Worker Process**
-- **InpaintingWorker**: Background processor that handles queued jobs
-- Updates job progress in real-time
-- Communicates with BlackBox service
-- Updates database with results
-- Handles failures and retries
+#### Update Dataset
+`PUT /api/datasets/:id`
+```json
+{
+  "success": true,
+  "message": "Dataset updated",
+  "data": { /* updated dataset fields */ }
+}
+```
 
-#### **BlackBox Service**
-- **BlackBoxService**: Core image processing using Sharp library
-- Implements actual inpainting algorithms
-- Handles image format conversions
-- Provides both processing and preview modes
+#### Delete Dataset (logical)
+`DELETE /api/datasets/:id`
+```json
+{
+  "success": true,
+  "message": "Dataset deleted (logical)"
+}
+```
 
-#### **Repository Pattern**
-- **ExecutionRepository**: Data access layer for executions
-- **UserRepository**: Data access layer for users
-- Implements singleton pattern
-- Provides clean database abstraction
+#### List Datasets
+`GET /api/datasets/`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Inpainting dataset",
+      "tags": ["Inpainting", "Damage", "Mask"],
+      "isDeleted": false,
+      "createdAt": "2024-01-01T10:00:00Z"
+    }
+    // ...other datasets
+  ]
+}
+```
 
-#### **Factory Pattern**
-- **LoggerFactory**: Creates different types of loggers
-- **ApiLogger**: Logs API requests/responses
-- **ExecutionLogger**: Logs execution-specific events
-- **ErrorLogger**: Logs errors and exceptions
+#### Get Dataset Items
+`GET /api/datasets/:name/data`
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "index": 0,
+        "imagePath": "datasets/uuid/image1.jpg",
+        "maskPath": "datasets/uuid/mask1.png",
+        "type": "image"
+      },
+      {
+        "index": 1,
+        "imagePath": "datasets/uuid/video1.mp4",
+        "maskPath": "datasets/uuid/video1_mask.mp4",
+        "type": "video"
+      }
+      // ...
+    ]
+  }
+}
+```
 
-### 3. Design Patterns Used
+#### Upload Data (image/video/zip)
+`POST /api/datasets/upload-data`
+```json
+// Success
+{
+  "success": true,
+  "message": "Data uploaded and processed",
+  "processedItems": 5,
+  "tokensUsed": 3.25,
+  "tokensRemaining": 96.75
+}
+```
 
-#### **Singleton Pattern**
-- All services, repositories, and proxy classes use singleton pattern
-- Ensures single instance throughout application lifecycle
-- Memory efficient and provides consistent state
+---
 
-#### **Proxy Pattern**
-- BlackBoxProxy controls access to the BlackBox service
-- Adds queuing layer without changing client code
-- Provides additional validation and error handling
+### Inference
 
-#### **Factory Pattern**
-- LoggerFactory creates appropriate logger instances
-- Centralizes logger creation logic
-- Easy to extend with new logger types
+#### Start Inference
+`POST /api/inferences/`
+```json
+// Success
+{
+  "success": true,
+  "message": "Inference started",
+  "data": {
+    "inferenceId": "uuid",
+    "status": "PENDING",
+    "modelId": "default_inpainting",
+    "parameters": { /* ... */ }
+  }
+}
+```
 
-#### **Repository Pattern**
-- Abstracts database operations
-- Provides clean separation between business logic and data access
-- Easy to test and mock
+#### Get Inference Status
+`GET /api/inferences/:id/status`
+```json
+{
+  "success": true,
+  "data": {
+    "inferenceId": "uuid",
+    "status": "RUNNING", // or PENDING, FAILED, ABORTED, COMPLETED
+    "progress": 60,
+    "error": null
+  }
+}
+```
 
-#### **Decorator Pattern**
-- Logger decorators add functionality to base loggers
-- Route-specific logging without modifying core logic
+#### Get Inference Result
+`GET /api/inferences/:id/results`
+```json
+// Success (COMPLETED)
+{
+  "success": true,
+  "data": {
+    "inferenceId": "uuid",
+    "status": "COMPLETED",
+    "result": {
+      "images": [
+        {
+          "originalPath": "datasets/uuid/image1.jpg",
+          "outputPath": "inferences/uuid/processed_image1.png"
+        }
+      ],
+      "videos": [
+        {
+          "originalVideoId": "1",
+          "outputPath": "inferences/uuid/video_1.mp4"
+        }
+      ]
+    }
+  }
+}
+```
 
-### 4. API Endpoints
+---
 
-#### **User Management Endpoints**
-- `POST /api/users/register` - User registration
-- `POST /api/users/login` - User login
-- `GET /api/users/profile` - Get current user profile (protected)
-- `GET /api/users/:userId` - Get user by ID (protected, requires authorization)
-- `PUT /api/users/:userId` - Update user data (protected, requires authorization)
-- `DELETE /api/users/:userId` - Delete user (protected, requires authorization)
+### Admin
 
-#### **Execution Management Endpoints**
-- `POST /api/executions/` - Submit inpainting job (protected)
-- `POST /api/executions/preview` - Generate preview (no auth required)
-- `GET /api/executions/:id` - Get execution basic info with user details (protected)
-- `GET /api/executions/user` - Get current user's executions (protected) 
-- `PUT /api/executions/:id` - Update execution (protected)
-- `DELETE /api/executions/:id` - Delete execution (protected)
-- `GET /api/executions/:id/download` - Get download URL for result image (protected)
-- `GET /api/executions/:id/status` - Get execution status (protected)
-- `GET /api/executions/job/:jobId/status` - Get job status by jobId (protected)
+#### Recharge User Tokens
+`POST /api/admin/user-tokens`
+```json
+{
+  "success": true,
+  "message": "User tokens updated",
+  "data": {
+    "email": "mariorossi@gmail.com",
+    "tokens": 200
+  }
+}
+```
 
-#### **Dataset Management Endpoints**
-- `POST /api/datasets/create-empty` - Create an empty dataset (protected)
-- `POST /api/datasets/upload-data` - Upload and process data to dataset (protected)
-- `GET /api/datasets/` - Get all user datasets (protected)
-- `GET /api/datasets/:name` - Get specific dataset info (protected)
-- `GET /api/datasets/:name/data` - Get dataset contents with viewable image URLs (protected)
-- `GET /api/datasets/image/:token` - View dataset images directly (temporary token access)
-- `DELETE /api/datasets/:name` - Delete dataset (protected)
+#### Get User Token Balance
+`GET /api/admin/users/:email/tokens`
+```json
+{
+  "success": true,
+  "email": "mariorossi@gmail.com",
+  "tokens": 200
+}
+```
 
-### 5. Queue Processing Flow
+#### List Transactions
+`GET /api/admin/transactions`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "userEmail": "mariorossi@gmail.com",
+      "amount": 100,
+      "type": "recharge",
+      "createdAt": "2024-01-01T10:00:00Z"
+    }
+    // ...
+  ]
+}
+```
+
+#### List All Datasets (admin)
+`GET /api/admin/datasets`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "Inpainting dataset",
+      "tags": ["Inpainting", "Damage", "Mask"],
+      "isDeleted": false,
+      "createdAt": "2024-01-01T10:00:00Z"
+    }
+    // ...other datasets
+  ]
+}
+```
+
+---
+
+## Database Structure
+
+The application uses PostgreSQL with the following tables:
+
+- **Users**: Stores user account information, authentication credentials, token balance, and user roles.
+- **Datasets**: Contains metadata and data references for uploaded datasets, including images, videos, tags, and logical deletion status.
+- **Inferences**: Tracks inference jobs, their status, parameters, results, and associations to users and datasets.
+- **Token_transactions**: Records all token-related operations for audit purposes, including recharges, deductions, and transaction details.
+
+![Database Structure](public/database.png)
+
+---
+
+### Table Fields
+
+#### **Users**
+| Field         | Type                | Description                                      |
+|---------------|---------------------|--------------------------------------------------|
+| id            | UUID                | Unique user identifier                           |
+| name          | VARCHAR(100)        | User's first name                                |
+| surname       | VARCHAR(100)        | User's last name                                 |
+| email         | VARCHAR(255)        | User's email address (unique)                    |
+| password      | VARCHAR(255)        | Hashed password                                  |
+| tokens        | DECIMAL(10,2)       | Current token/credit balance                     |
+| role          | user_role (enum)    | User role: 'user' or 'admin'                     |
+| created_at    | TIMESTAMP           | Account creation timestamp                       |
+| updated_at    | TIMESTAMP           | Last update timestamp                            |
+
+#### **Datasets**
+| Field             | Type           | Description                                                    |
+|-------------------|----------------|----------------------------------------------------------------|
+| id                | UUID           | Unique dataset identifier                                      |
+| user_id           | UUID           | Reference to owner user (nullable)                             |
+| name              | VARCHAR(255)   | Dataset name                                                   |
+| data              | JSONB          | JSON containing image-mask pairs or video frame-mask lists     |
+| tags              | TEXT[]         | Array of tags for categorization                               |
+| is_deleted        | BOOLEAN        | Logical deletion flag                                          |
+| next_upload_index | INTEGER        | Tracks next upload index for incremental uploads               |
+| created_at        | TIMESTAMP      | Dataset creation timestamp                                     |
+| updated_at        | TIMESTAMP      | Last update timestamp                                          |
+
+#### **Inferences**
+| Field        | Type              | Description                                         |
+|--------------|-------------------|-----------------------------------------------------|
+| id           | UUID              | Unique inference identifier                         |
+| status       | inference_status  | Job status: 'PENDING', 'RUNNING', etc.              |
+| model_id     | VARCHAR(255)      | Model used for inference                            |
+| parameters   | JSONB             | Inference parameters (e.g., Grad-Cam settings)      |
+| result       | JSONB             | Output/result of the inference                      |
+| dataset_id   | UUID              | Reference to the associated dataset                 |
+| user_id      | UUID              | Reference to the user who started the inference     |
+| created_at   | TIMESTAMP         | Inference creation timestamp                        |
+| updated_at   | TIMESTAMP         | Last update timestamp                               |
+
+#### **Token_transactions**
+| Field           | Type            | Description                                         |
+|-----------------|-----------------|-----------------------------------------------------|
+| id              | UUID            | Unique transaction identifier                       |
+| user_id         | UUID            | Reference to the user involved                      |
+| operation_type  | VARCHAR(50)     | Type of operation (e.g., recharge, deduction)       |
+| operation_id    | VARCHAR(255)    | Related operation/job identifier (optional)         |
+| amount          | DECIMAL(10,2)   | Amount of tokens changed                            |
+| balance_before  | DECIMAL(10,2)   | User's token balance before the transaction         |
+| balance_after   | DECIMAL(10,2)   | User's token balance after the transaction          |
+| status          | VARCHAR(20)     | Transaction status (e.g., completed)                |
+| description     | TEXT            | Additional details or notes                         |
+| created_at      | TIMESTAMP       | Transaction creation timestamp                      |
+
+---
+
+
+## System Architecture
+The system architecture implements the following schema.
+
+```plaintext
+                   +---------------------------+
+                   |      Client (User)        |
+                   +-------------^-------------+
+                                 | (HTTP/S Request)
+                   +-------------v-------------+
+                   |    Router (Express.js)    |
+                   +-------------^-------------+
+                                 | (next())
+                   +-------------v-------------+
+                   |     Middleware Layer      |
+                   |---------------------------|
+                   | 1. Security (Helmet)      |
+                   | 2. CORS                   |
+                   | 3. Auth (JWT Middleware)  |
+                   | 4. Input Validation       |
+                   | 5. File Upload (Multer)   |
+                   +-------------^-------------+
+                                 | (next())
+                   +-------------v-------------+
+                   |      Controller Layer     |
+                   |---------------------------|
+                   | - Handles HTTP requests   |
+                   | - Formats response        |
+                   +-------------^-------------+
+                                 | (method call)
+                   +-------------v-------------+
+                   |       Service Layer       |
+                   |---------------------------|
+                   | - Business logic          |
+                   | - Orchestrates Repo/Proxy |
+                   | - Calls TokenService      |
+                   +-------------^-------------+
+                                 | (uses)
++--------------------------------+--------------------------------+
+|          Proxy Layer           |        Repository Layer        |
+|--------------------------------|--------------------------------|
+| - Interface for Job Queue      | - Abstracts DB operations      |
++-----------------^--------------+----------------^---------------+
+                  | (addJob)                       | (find, create)
++-----------------v--------------+----------------v---------------+
+|         Queue System           |         DAO Layer              |
+|--------------------------------|--------------------------------|
+| - Adds jobs to Redis           | - Executes Sequelize queries   |
++-----------------^--------------+----------------v---------------+
+                  | (Persist job)                | (Executes query)
++-----------------v--------------+----------------v---------------+
+|        Infrastructure          |       Models (Sequelize)       |
+|--------------------------------|--------------------------------|
+|       (Redis)                  | - Map tables to objects        |
++--------------------------------+----------------^---------------+
+                                                  | (uses connection)
+                                  +---------------v----------------+
+                                  |     Database (PostgreSQL)      |
+                                  +--------------------------------+
+
+
+- **Router**: Maps HTTP routes to controllers.
+- **Controller**: Handles request logic, validation, error handling.
+- **Middleware**: Auth, rate limiting, file upload, logging.
+- **Proxy**: Intercepts requests, validates, queues jobs.
+- **Queue**: BullMQ job management.
+- **Worker**: Background job processor.
+- **Service**: Core business logic (e.g., image processing).
+- **Repository**: Data access abstraction.
+- **DAO**: Direct database operations.
+- **Model**: Entity definitions.
+```
+
+
+## Inference Workflow (Worker + External Service)
+The Inference Workflow implements the following schema.
+
+```plaintext
++--------------------------------+
+|         Queue System           |
+|--------------------------------|
+|       (Redis / Bull)           |
++-----------------^--------------+
+                  | (Fetch Job)
++-----------------v--------------+
+|       Worker Process           |
+|--------------------------------|
+| - Executes job logic           |
++-----------------^--------------+
+                  | (Calls)
++-----------------v--------------+
+|        Adapter Layer           |
+|--------------------------------|
+| - Translates the request       |
+| - Handles HTTP call            |
++-----------------^--------------+
+                  | (HTTP Request)
++-----------------v--------------+
+|   External Service (Python)    |
+|--------------------------------|
+| - Flask, OpenCV                |
+| - Runs inference               |
++-----------------^--------------+
+                  | (HTTP Response)
++-----------------v--------------+
+|        Adapter Layer           |
+|--------------------------------|
+| - Receives & formats response  |
++-----------------^--------------+
+                  | (Returns result)
++-----------------v--------------+
+|       Worker Process           |
+|--------------------------------|
+| - Updates DB via Repository    |
+| - Confirms/Refunds Tokens      |
++--------------------------------+
+
+- **Queue**: Stores inference jobs asynchronously (Redis + Bull).  
+- **Worker**: Processes jobs in the background.  
+- **Adapter**: Translates requests and responses, handles HTTP calls to the external service.  
+- **External Service**: Python microservice (Flask + OpenCV) that executes inference.  
+- **Repository**: Persists job results and state updates to the database.  
+- **Token Service**: Confirms or refunds tokens depending on job success.  
+```
+
+---
+## Patterns
+
+This project extensively uses classic patterns to ensure a **robust, maintainable, and scalable architecture**. Below are the main patterns used, with their purpose and rationale.
+
+---
+
+### 1. Singleton
+**Purpose:** Ensures a class has only one instance and provides a global access point.  
+**Why used:** Ideal for shared resources or services that maintain global state, avoiding multiple expensive instances.  
+**Example usage:**  
+- `DbConnection`: single database connection pool  
+- `InferenceQueue`: single Redis connection  
+- All DAOs, Repositories, Services, Proxies, and Adapters  
+
+---
+
+### 2. Factory Method
+**Purpose:** Defines an interface for creating objects but lets subclasses decide which concrete class to instantiate.  
+**Why used:** Centralizes creation of complex objects (e.g., error messages, loggers) and decouples client code from specific creation logic.  
+**Example usage:**  
+- `ErrorManager`: Creates standardized error objects  
+- `LoggerFactory`: Creates specialized loggers for different domains  
+
+---
+
+### 3. DAO & Repository
+**Purpose:** Separates database access logic into two layers:  
+- DAO: Executes direct queries (technical layer)  
+- Repository: Provides a clean, domain-oriented interface, orchestrates DAO calls  
+**Why used:** Clear separation of business logic and persistence  
+**Example usage:**  
+- DAO: `UserDao`, `DatasetDao`, `InferenceDao`, `TransactionDao`  
+- Repository: `UserRepository`, `DatasetRepository`, `InferenceRepository`, `TransactionRepository`  
+
+---
+
+### 4. Chain of Responsibility
+**Purpose:** Passes a request along a chain of handlers; each decides whether to process or forward it.  
+**Why used:** Flexible and decoupled pipeline for request processing, validation, or error handling  
+**Example usage:**  
+- `errorHandler.ts`: logErrors → classifyError → formatErrorResponse → sendErrorResponse  
+- `auth.middleware.ts`: authenticateToken chain  
+
+---
+
+### 5. Proxy
+**Purpose:** Provides a surrogate to control access to another object.  
+**Why used:** Intercepts calls to the real object, adding functionality before or after delegating  
+**Example usage:**  
+- `InferenceBlackBoxProxy`: intermediates between Controllers/Services and InferenceQueue  
+
+---
+
+### 6. Adapter
+**Purpose:** Converts one interface into another expected by the client.  
+**Why used:** Integrates external or legacy components without changing existing code  
+**Example usage:**  
+- `InferenceBlackBoxAdapter`: Bridges Node.js/TypeScript and Python/Flask inference service  
+
+---
+
+### 7. MVC (Model-View-Controller) for APIs
+**Purpose:** Separates application logic into three components:  
+- Model: Data and business logic  
+- View: Representation of data (JSON in APIs)  
+- Controller: Handles input, orchestrates Model & View  
+**Why used:** Fundamental for organizing the backend and ensuring separation of concerns  
+**Example usage:**  
+- `UserController`, `DatasetController`, `InferenceController`  
+
+---
+
+### 8. Middleware
+**Purpose:** Chain of reusable functions that handle HTTP requests.  
+**Why used:** Decomposes request handling into isolated, reusable steps (authentication, validation, logging, etc.)  
+**Example usage:**  
+- `auth.middleware.ts`, `validation.middleware.ts`, `dataset.middleware.ts`, `errorHandler.ts`  
+
+---
+
+### 9. Decorator (Structural Variant)
+**Purpose:** Dynamically adds functionality to an object without altering its structure.  
+**Why used:** Provides structured, domain-specific logging instead of a generic logger  
+**Example usage:**  
+- `loggerDecorator.ts`: `UserRouteLogger`, `DatasetRouteLogger` extending a base logger with specialized logging methods  
+
+---
+
+
+---
+
+## Design Patterns
+
+This project uses several design patterns to ensure maintainability, scalability, and clean separation of concerns:
+
+- **Singleton**:  
+  Ensures that only one instance of critical classes (such as services and repositories) exists throughout the application lifecycle.  
+  This avoids redundant connections (e.g., to the database), ensures consistent state, and reduces memory usage.  
+  *Example in code:*  
+  ```typescript
+  // UserRepository.ts
+  export class UserRepository {
+    private static instance: UserRepository;
+    private constructor() { /* ... */ }
+    public static getInstance() {
+      if (!UserRepository.instance) {
+        UserRepository.instance = new UserRepository();
+      }
+      return UserRepository.instance;
+    }
+  }
+  ```
+
+- **Proxy**:  
+  Acts as an intermediary between controllers and the queue/worker system.  
+  *Why?*  
+  The proxy pattern allows validation, logging, and access control before requests are passed to the queue.  
+  *Example in code:*  
+  ```typescript
+  // blackBoxProxy.ts
+  export class BlackBoxProxy {
+    public async queueJob(request) {
+      this.validate(request);
+      this.log(request);
+      return this.queue.add(request);
+    }
+    // ...
+  }
+  ```
+
+- **Factory**:  
+  Centralizes the creation of objects such as loggers.  
+  *Why?*  
+  The factory pattern makes it easy to instantiate different types of loggers (API, execution, error) based on context.  
+  *Example in code:*  
+  ```typescript
+  // loggerFactory.ts
+  export class LoggerFactory {
+    public static createLogger(type: string) {
+      if (type === 'api') return new ApiLogger();
+      if (type === 'execution') return new ExecutionLogger();
+      return new ErrorLogger();
+    }
+  }
+  ```
+
+- **Repository**:  
+  Abstracts database operations from business logic.  
+  *Why?*  
+  The repository pattern provides a clean interface for data access, making it easier to swap out the underlying database or mock data for testing.  
+  *Example in code:*  
+  ```typescript
+  // executionRepository.ts
+  export class ExecutionRepository {
+    public async findByUserId(userId: string) {
+      return ExecutionModel.findAll({ where: { userId } });
+    }
+  }
+  ```
+
+- **Decorator**:  
+  Adds extra functionality (like logging) to existing objects without modifying their structure.  
+  *Why?*  
+  The decorator pattern is used to enhance loggers with additional features (e.g., timestamping, formatting).  
+  *Example in code:*  
+  ```typescript
+  // loggerDecorator.ts
+  export function withTimestamp(logger) {
+    return {
+      log: (msg: string) => logger.log(`[${new Date().toISOString()}] ${msg}`)
+    };
+  }
+  ```
+
+- **Chain of Responsibility**:  
+  Allows a request to pass through a chain of handlers, each able to process or pass it along.  
+  *Why?*  
+  Used for request validation, authentication, and error handling in middleware. Each middleware can handle or forward the request.  
+  *Example in code:*  
+  ```typescript
+  // Express middleware chain
+  app.use(authMiddleware);
+  app.use(validationMiddleware);
+  app.use(rateLimitMiddleware);
+  // Each middleware calls next() to pass to the next handler
+  ```
+
+These patterns together help keep the codebase modular, testable, and easy to extend as requirements evolve.
+
+---
+## Use Case
+
+![Actor](public/actor.png)
+![Use Case](public/useCase.png)
+
+---
+## Sequence Diagrams
+
+![Login](public/sdLogin.png)
+![Recharge token](public/sdRechargetokenadmin.png)
+![JWT Token validation](public/sdjwttokenvalidation.png)
+![Upload data](public/sdUploaddata.png)
+![Create inference](public/sdCreateinference.png)
+
+> Example: Inpainting Job Flow
 
 ```mermaid
 sequenceDiagram
@@ -195,1826 +1029,21 @@ sequenceDiagram
     Worker-->>Queue: Job completed
 ```
 
-### 6. Technology Stack
+---
 
-#### **Backend**
-- **Node.js** with **TypeScript** for type safety
-- **Express.js** for REST API
-- **BullMQ** for queue management
-- **Redis** for queue storage and caching
-- **Sharp** for image processing
-- **SQLite/PostgreSQL** for data persistence
+## Testing
 
-#### **Security & Middleware**
-- **JWT** for authentication
-- **bcrypt** for password hashing
-- **express-rate-limit** for rate limiting
-- **multer** for file uploads
-- **helmet** for security headers
+- **Linting**: `npm run lint`
+- **Unit/Integration Tests**: `npm test`
+- **API Testing**: Import Postman collection and run requests
+- **Debug Endpoints**: `/api/debug/*` for queue and pattern status
 
-#### **Development Tools**
-- **nodemon** for development
-- **ESLint** for code linting
-- **Prettier** for code formatting
-- **Docker** for containerization
+---
 
-### 7. Environment Variables
-```env
-# Server Configuration
-PORT=3000
-NODE_ENV=development
+## Seed Scripts
 
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=inpainting_db
-DB_USER=username
-DB_PASS=password
+- The system includes DB seed scripts to initialize users, credits, and models.
+- Run `npm run seed` after setup to populate initial data.
 
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
+---
 
-# JWT Configuration
-JWT_SECRET=your_secret_key
-JWT_EXPIRES_IN=24h
-
-# Worker Configuration
-WORKER_CONCURRENCY=5
-
-# File Upload
-MAX_FILE_SIZE=10485760
-UPLOAD_DIR=./uploads
-```
-
-### 8. Getting Started
-
-#### **Prerequisites**
-- Node.js (v18+ recommended)
-- Redis server
-- Database (SQLite/PostgreSQL)
-- npm or yarn
-
-#### **Installation**
-```bash
-# Clone repository
-git clone <repository-url>
-cd progetto-programmazione-avanzata
-
-# Install dependencies
-npm install
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Build TypeScript
-npm run build
-
-# Run database migrations (if applicable)
-npm run migrate
-
-# Start Redis server
-redis-server
-
-# Start the application
-npm run dev
-
-# Start worker process (in separate terminal)
-npm run worker
-```
-
-#### **Docker Setup**
-```bash
-# Build and start all services
-docker-compose up --build
-
-# Start in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-### 9. Come Usare l'API con Postman - Guida Dettagliata
-
-#### **Setup Iniziale Postman**
-1. Crea una nuova Collection chiamata "Inpainting API"
-2. Aggiungi una variabile d'ambiente `{{baseUrl}}` con valore `http://localhost:3000`
-3. Aggiungi una variabile `{{authToken}}` che verrà popolata automaticamente
-
-#### **Passo 1: Registrazione Utente**
-```http
-POST {{baseUrl}}/api/users/register
-Content-Type: application/json
-
-{
-    "email": "test@example.com",
-    "password": "password123",
-    "name": "Test User"
-}
-```
-{
-    "name": "gir",
-    "surname": "Test User",
-    "email": "1test@example.com",
-    "password": "password123"
-    
-}
-
-**Risposta Attesa:**
-```json
-{
-    "success": true,
-    "message": "User registered successfully",
-    "data": {
-        "id": 1,
-        "email": "test@example.com",
-        "name": "Test User"
-    }
-}
-```
-
-#### **Passo 2: Login e Ottenimento Token**
-```http
-POST {{baseUrl}}/api/users/login
-Content-Type: application/json
-
-{
-    "email": "test@example.com",
-    "password": "password123"
-}
-```
-
-**Risposta Attesa:**
-```json
-{
-    "success": true,
-    "message": "Login successful",
-    "data": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "user": {
-            "id": 1,
-            "email": "test@example.com",
-            "name": "Test User"
-        }
-    }
-}
-```
-
-**Script Post-Response in Postman:**
-```javascript
-if (pm.response.code === 200) {
-    const response = pm.response.json();
-    pm.environment.set("authToken", response.data.token);
-    pm.environment.set("userId", response.data.user.id);
-}
-```
-
-#### **Passo 3: Verificare Autenticazione**
-```http
-GET {{baseUrl}}/api/users/profile
-Authorization: Bearer {{authToken}}
-```
-
-**Risposta Attesa:**
-```json
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "Test User",
-        "surname": "Test User",
-        "email": "test@example.com",
-        "createdAt": "2024-01-15T10:30:00Z"
-    }
-}
-```
-
-**Note Importanti:**
-- L'endpoint `/api/users/profile` restituisce il profilo dell'utente autenticato (dal token JWT)
-- L'endpoint `/api/users/:userId` richiede un ID specifico nei parametri URL
-- Entrambi richiedono autenticazione Bearer token
-
-#### **Passo 4: Creare un Job di Inpainting**
-```http
-POST {{baseUrl}}/api/executions/
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: originalImage | Type: File | Value: [Seleziona immagine JPG/PNG]
-Key: maskImage     | Type: File | Value: [Seleziona immagine mask]
-Key: userId        | Type: Text | Value: {{userId}}
-Key: description   | Type: Text | Value: "Test inpainting"
-```
-
-**Risposta Attesa:**
-```json
-{
-    "success": true,
-    "message": "Inpainting job queued successfully",
-    "data": {
-        "jobId": "job_12345",
-        "executionId": 1,
-        "status": "queued",
-        "queuePosition": 1
-    }
-}
-```
-
-**Script Post-Response:**
-```javascript
-if (pm.response.code === 202) {
-    const response = pm.response.json();
-    pm.environment.set("jobId", response.data.jobId);
-    pm.environment.set("executionId", response.data.executionId);
-}
-```
-
-#### **Passo 5: Monitorare lo Stato del Job**
-```http
-GET {{baseUrl}}/api/executions/job/{{jobId}}/status
-Authorization: Bearer {{authToken}}
-```
-
-**Log Output Atteso:**
-Quando esegui questa richiesta, dovresti vedere nei log dell'applicazione:
-
-```
-[2024-01-15T10:35:00.123Z] [INFO]: API_REQUEST: GET /api/executions/job/12345/status | Data: {"userId":1,"ip":"127.0.0.1","userAgent":"PostmanRuntime/7.32.3"}
-[2024-01-15T10:35:00.125Z] [INFO]: EXECUTION_ACTION: JOB_STATUS_CHECK_REQUESTED | Data: {"jobId":"12345","userId":1,"timestamp":"2024-01-15T10:35:00.125Z"}
-🔍 Checking status for job: 12345 by user: 1
-[2024-01-15T10:35:00.128Z] [INFO]: EXECUTION_ACTION: JOB_STATUS_RETRIEVED | Data: {"jobId":"12345","userId":1,"status":"completed","progress":100,"timestamp":"2024-01-15T10:35:00.128Z"}
-✅ Job status retrieved for 12345: completed (100%)
-[2024-01-15T10:35:00.130Z] [INFO]: API_RESPONSE: GET /api/executions/job/12345/status - 200 | Data: {"userId":1,"statusCode":200,"executionTime":7}
-```
-
-### Video Processing
-1. Group frames by `uploadIndex` (video identifier)
-2. Sort frames by `frameIndex` within each group
-3. Process each frame individually
-4. Reconstruct video from processed frames **at 1 FPS** (matching original sampling)
-5. Output MP4 video file with same duration as original
-
-**Log Esempio:**
-```
-[INFO] Starting dataset processing for user: user-uuid
-[INFO] Processing single image: datasets/user/image1.jpg
-[INFO] Processing video frames for video ID: 1
-[INFO] Video processing completed: 30 frames → inferences/user/video_1.mp4 (30s @ 1 FPS)
-[INFO] Dataset processing completed. Images: 5, Videos: 2
-```
-
-**In caso di Job Non Trovato:**
-```
-[2024-01-15T10:35:00.123Z] [INFO]: API_REQUEST: GET /api/executions/job/invalid123/status
-[2024-01-15T10:35:00.125Z] [INFO]: EXECUTION_ACTION: JOB_STATUS_CHECK_REQUESTED | Data: {"jobId":"invalid123","userId":1,"timestamp":"2024-01-15T10:35:00.125Z"}
-🔍 Checking status for job: invalid123 by user: 1
-[2024-01-15T10:35:00.127Z] [ERROR]: JOB_NOT_FOUND | Data: {"jobId":"invalid123","userId":1,"timestamp":"2024-01-15T10:35:00.127Z"}
-❌ Job not found: invalid123
-```
-
-**In caso di Errore del Sistema:**
-```
-[2024-01-15T10:35:00.123Z] [INFO]: API_REQUEST: GET /api/executions/job/12345/status
-[2024-01-15T10:35:00.125Z] [ERROR]: DATABASE_ERROR | Data: {"operation":"GET_JOB_STATUS","table":"queue","error":"Redis connection failed"}
-[2024-01-15T10:35:00.126Z] [ERROR]: JOB_STATUS_ERROR | Data: {"jobId":"12345","userId":1,"error":"Redis connection failed","timestamp":"2024-01-15T10:35:00.126Z"}
-❌ Error checking job status for 12345: Redis connection failed
-```
-
-#### **Passo 6: Scaricare il Risultato**
-```http
-GET {{baseUrl}}/api/executions/{{executionId}}/download
-Authorization: Bearer {{authToken}}
-```
-
-**Possibili Risposte:**
-
-**✅ Successo (Execution Completata e Autorizzata):**
-- Status: `200 OK`
-- Content-Type: `application/json`
-- Body: JSON con URL di download
-```json
-{
-    "success": true,
-    "message": "Download URL generated successfully",
-    "data": {
-        "executionId": 1,
-        "imageUrl": "/static/images/execution_1_user_1_1642251600000.png",
-        "imageSize": 245680,
-        "status": "completed"
-    }
-}
-```
-
-**⏳ Execution in Pending:**
-- Status: `202 Accepted`
-```json
-{
-    "success": false,
-    "message": "Execution is still pending. Please wait for processing to complete.",
-    "data": {
-        "executionId": 1,
-        "status": "pending",
-        "createdAt": "2024-01-15T10:30:00Z",
-        "updatedAt": "2024-01-15T10:30:00Z"
-    }
-}
-```
-
-**⚙️ Execution in Processing:**
-- Status: `202 Accepted`
-```json
-{
-    "success": false,
-    "message": "Execution is currently being processed. Please try again in a few moments.",
-    "data": {
-        "executionId": 1,
-        "status": "processing",
-        "createdAt": "2024-01-15T10:30:00Z",
-        "updatedAt": "2024-01-15T10:32:00Z"
-    }
-}
-```
-
-**❌ Execution Fallita:**
-- Status: `422 Unprocessable Entity`
-```json
-{
-    "success": false,
-    "message": "Execution has failed. No result image is available.",
-    "data": {
-        "executionId": 1,
-        "status": "failed",
-        "createdAt": "2024-01-15T10:30:00Z",
-        "updatedAt": "2024-01-15T10:35:00Z",
-        "error": "Processing failed"
-    }
-}
-```
-
-**🚫 Execution Non Trovata:**
-- Status: `404 Not Found`
-```json
-{
-    "success": false,
-    "message": "Execution not found",
-    "data": {
-        "executionId": 999,
-        "status": "not_found"
-    }
-}
-```
-
-**🔒 Accesso Negato (Non Proprietario):**
-- Status: `403 Forbidden`
-```json
-{
-    "success": false,
-    "message": "Access denied: You can only download your own executions",
-    "data": {
-        "executionId": 1,
-        "status": "access_denied"
-    }
-}
-```
-
-**📸 Immagine Risultato Mancante:**
-- Status: `404 Not Found`
-```json
-{
-    "success": false,
-    "message": "Result image not found or corrupted. Please try regenerating the execution.",
-    "data": {
-        "executionId": 1,
-        "status": "completed",
-        "error": "Output image missing"
-    }
-}
-```
-
-**Log Output per Download Autorizzato:**
-```
-[2024-01-15T10:40:00.123Z] [INFO]: API_REQUEST: GET /api/executions/1/download | Data: {"userId":1,"ip":"127.0.0.1"}
-[2024-01-15T10:40:00.125Z] [INFO]: EXECUTION_ACTION: EXECUTION_DOWNLOADED | Data: {"executionId":1,"userId":1}
-[2024-01-15T10:40:00.127Z] [INFO]: EXECUTION_ACTION: DOWNLOAD_ATTEMPT | Data: {"executionId":1,"userId":1,"timestamp":"2024-01-15T10:40:00.127Z"}
-🔍 Download attempt for execution 1 by user 1
-📊 Execution 1 status: completed
-[2024-01-15T10:40:00.130Z] [INFO]: EXECUTION_ACTION: DOWNLOAD_SUCCESS | Data: {"executionId":1,"userId":1,"status":"completed","imageSize":245680,"timestamp":"2024-01-15T10:40:00.130Z"}
-✅ Successfully serving download for execution 1 (245680 bytes)
-```
-
-**Log Output per Accesso Negato:**
-```
-[2024-01-15T10:40:00.123Z] [INFO]: API_REQUEST: GET /api/executions/5/download
-🔍 Download attempt for execution 5 by user 1
-[2024-01-15T10:40:00.127Z] [ERROR]: AUTHORIZATION_ERROR | Data: {"userId":1,"resource":"execution_5"}
-[2024-01-15T10:40:00.128Z] [ERROR]: DOWNLOAD_ACCESS_DENIED | Data: {"executionId":5,"userId":1,"ownerId":2,"timestamp":"2024-01-15T10:40:00.128Z"}
-❌ User 1 not authorized to download execution 5 (owned by 2)
-```
-
-**Sicurezza e Autorizzazione:**
-
-1. **Token JWT Obbligatorio**: Tutti i download richiedono autenticazione
-2. **Controllo Proprietà**: L'utente può scaricare solo le proprie executions
-3. **Logging Completo**: Tutti i tentativi di accesso vengono registrati
-4. **Validation del Status**: Controllo dello stato prima del download
-5. **Error Handling Dettagliato**: Messaggi specifici per ogni scenario
-
-**Come Testare l'Autorizzazione in Postman:**
-
-1. **Test Download Autorizzato:**
-   - Usa il token dell'utente proprietario
-   - Usa `{{executionId}}` di una tua execution
-   - Aspettati download dell'immagine o messaggio di stato
-
-2. **Test Accesso Negato:**
-   - Crea due utenti diversi
-   - Con il primo utente crea un'execution (nota l'ID)
-   - Fai login con il secondo utente
-   - Prova a scaricare l'execution del primo utente
-   - Aspettati `403 Forbidden`
-
-3. **Test Senza Token:**
-   - Rimuovi l'header `Authorization`
-   - Aspettati `401 Unauthorized`
-
-### 10. Come Verificare che i Design Patterns Funzionano
-
-#### **A. Verificare il Pattern Singleton**
-
-**Test 1: Singleton dei Repository**
-```http
-GET {{baseUrl}}/api/debug/singleton-test
-Authorization: Bearer {{authToken}}
-```
-
-Questo endpoint (da implementare per il debug) dovrebbe mostrare:
-```json
-{
-    "userRepositoryInstances": 1,
-    "executionRepositoryInstances": 1,
-    "message": "Singleton pattern working correctly"
-}
-```
-
-**Test nei Log:**
-Cerca nei log dell'applicazione:
-```
-[DEBUG] UserRepository instance created: <memory_address>
-[DEBUG] UserRepository instance retrieved: <same_memory_address>
-```
-
-#### **B. Verificare il Pattern Proxy**
-
-**Test 2: Proxy Intercepting Requests**
-```http
-POST {{baseUrl}}/api/executions/inpainting
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: originalImage | Type: File | Value: [File corrotto]
-Key: maskImage     | Type: File | Value: [File valido]
-Key: userId        | Type: Text | Value: {{userId}}
-```
-
-**Comportamento Atteso:**
-Il Proxy dovrebbe intercettare e validare prima di passare alla coda:
-```json
-{
-    "success": false,
-    "message": "Invalid image format detected by proxy",
-    "error": "Proxy validation failed"
-}
-```
-
-**Test nei Log:**
-```
-[INFO] BlackBoxProxy: Validating request before queuing
-[WARN] BlackBoxProxy: Invalid image detected, request blocked
-```
-
-#### **C. Verificare il Pattern Factory**
-
-**Test 3: Factory Creating Different Loggers**
-Controlla i log dell'applicazione durante le varie operazioni:
-
-```
-[API-LOG] 2024-01-15T10:30:00Z POST /api/executions/inpainting
-[EXECUTION-LOG] 2024-01-15T10:30:05Z Execution 1 started processing
-[ERROR-LOG] 2024-01-15T10:30:10Z Queue connection failed
-```
-
-Ogni tipo di log dovrebbe avere un formato diverso, indicando che il Factory sta creando logger specifici.
-
-#### **D. Verificare il Pattern Repository**
-
-**Test 4: Repository Abstraction**
-```http
-GET {{baseUrl}}/api/executions/user/{{userId}}
-Authorization: Bearer {{authToken}}
-```
-
-**Verifica nei Log:**
-```
-[DEBUG] ExecutionRepository: findByUserId called
-[DEBUG] Database query executed: SELECT * FROM executions WHERE user_id = ?
-[DEBUG] Repository returned 3 executions
-```
-
-### 11. Test di Carico e Performance con Postman
-
-#### **Test di Carico Semplice**
-1. Crea una Collection con multiple richieste di inpainting
-2. Usa il Collection Runner di Postman
-3. Imposta 10 iterazioni con delay di 1 secondo
-4. Monitora come la coda gestisce i job multipli
-
-#### **Test del Rate Limiting**
-```http
-POST {{baseUrl}}/api/executions/inpainting
-Authorization: Bearer {{authToken}}
-```
-Esegui rapidamente 20 volte. Dopo il limite (es. 10 richieste/minuto) dovresti ricevere:
-```json
-{
-    "success": false,
-    "message": "Too many requests",
-    "retryAfter": 60
-}
-```
-
-### 12. Debugging e Monitoraggio in Tempo Reale
-
-#### **Endpoint di Debug (Solo per Development)**
-```http
-GET {{baseUrl}}/api/debug/queue-status
-Authorization: Bearer {{authToken}}
-```
-
-**Risposta:**
-```json
-{
-    "waiting": 3,
-    "active": 2,
-    "completed": 15,
-    "failed": 1,
-    "workers": {
-        "active": 2,
-        "total": 5
-    }
-}
-```
-
-#### **Monitoring dei Pattern**
-```http
-GET {{baseUrl}}/api/debug/patterns-status
-Authorization: Bearer {{authToken}}
-```
-
-**Risposta:**
-```json
-{
-    "patterns": {
-        "singleton": {
-            "userRepository": "active",
-            "executionRepository": "active",
-            "instances": 1
-        },
-        "proxy": {
-            "requestsIntercepted": 45,
-            "validationsPassed": 42,
-            "validationsFailed": 3
-        },
-        "factory": {
-            "apiLoggers": 1,
-            "executionLoggers": 1,
-            "errorLoggers": 1
-        },
-        "repository": {
-            "queries": 128,
-            "cacheHits": 45,
-            "cacheMisses": 83
-        }
-    }
-}
-```
-
-### 13. Workflow Completo di Test
-
-#### **Scenario 1: Utente Nuovo**
-1. **Registrazione** → Verifica risposta 201
-2. **Login** → Salva token
-3. **Profile** → Verifica autenticazione
-4. **Inpainting** → Invia job
-5. **Monitor** → Controlla stato ogni 5 secondi
-6. **Download** → Scarica risultato
-
-#### **Scenario 2: Test dei Pattern**
-1. **Multiple Login** → Verifica Singleton
-2. **Invalid Image** → Verifica Proxy
-3. **Check Logs** → Verifica Factory
-4. **Database Queries** → Verifica Repository
-
-#### **Scenario 3: Test di Stress**
-1. **Burst Requests** → Test rate limiting
-2. **Large Files** → Test upload limits
-3. **Queue Overflow** → Test queue management
-
-### 14. License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-### 15. Troubleshooting Comune
-
-#### **Errore: "Queue connection failed"**
-- Verifica che Redis sia in esecuzione
-- Controlla le variabili d'ambiente REDIS_HOST e REDIS_PORT
-
-#### **Errore: "Token expired"**
-- Rifare il login per ottenere un nuovo token
-- Controlla JWT_EXPIRES_IN nelle variabili d'ambiente
-
-#### **Errore: "File too large"**
-- Controlla MAX_FILE_SIZE nelle variabili d'ambiente
-- Riduci la dimensione dell'immagine
-
-#### **Job rimane in "waiting"**
-- Verifica che il worker sia in esecuzione (`npm run worker`)
-- Controlla i log del worker per errori
-
-#### **Pattern non funzionano**
-- Controlla che l'applicazione sia compilata (`npm run build`)
-- Verifica i log per errori di inizializzazione
-- Riavvia l'applicazione per ripristinare i Singleton
-
-### 16. Dataset Management System - Guida Completa
-
-Il sistema di gestione dataset supporta la creazione, caricamento e visualizzazione di dataset per training di modelli di inpainting.
-
-#### **Creazione e Gestione Dataset**
-
-##### **Passo 1: Creare un Dataset Vuoto**
-```http
-POST {{baseUrl}}/api/datasets/create-empty
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "name": "my-training-dataset",
-    "tags": ["segmentation", "medical", "training"]
-}
-```
-
-**Campi della Richiesta:**
-- `name` (string, obbligatorio): Nome del dataset (deve essere unico per utente)
-- `tags` (array, opzionale): Tag per categorizzare il dataset
-
-**Risposta Attesa:**
-```json
-{
-    "message": "Empty dataset created successfully",
-    "dataset": {
-        "userId": "user123",
-        "name": "my-training-dataset",
-        "data": null,
-        "tags": ["segmentation", "medical", "training"],
-        "isDeleted": false,
-        "createdAt": "2024-01-15T10:30:00Z",
-        "updatedAt": "2024-01-15T10:30:00Z"
-    }
-}
-```
-
-##### **Passo 2: Caricare Dati nel Dataset**
-
-Il sistema supporta diversi tipi di caricamento dati:
-
-###### **Opzione A: Caricamento Immagine + Maschera**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: my-training-dataset
-Key: image       | Type: File | Value: [Seleziona immagine JPG/PNG]
-Key: mask        | Type: File | Value: [Seleziona maschera PNG binaria]
-```
-
-**Requisiti per le Immagini:**
-- **Immagine**: JPG, JPEG, PNG (max 500MB)
-- **Maschera**: PNG binaria (solo pixel neri e bianchi)
-
-**Esempi di File Supportati:**
-- `image.jpg` + `mask.png`
-- `photo.jpeg` + `binary_mask.png`
-
-###### **Opzione B: Caricamento Video + Maschera**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: my-video-dataset
-Key: image       | Type: File | Value: [Video MP4/AVI/MOV]
-Key: mask        | Type: File | Value: [Immagine PNG maschera]
-```
-
-**Come Funziona:**
-- Il sistema estrae 1 frame per secondo dal video
-- Applica la stessa maschera a tutti i frame estratti
-- Salva ogni frame come coppia immagine-maschera
-- **Durante l'inferenza, ricostruisce il video a 1 FPS** (ogni frame dura 1 secondo)
-
-**Esempio Pratico:**
-- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset → Video output di 10 secondi a 1 FPS
-- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset → Video output di 30 secondi a 1 FPS
-
-###### **Opzione C: Caricamento Video + Video Maschera**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: my-complex-dataset
-Key: image       | Type: File | Value: [Video principale MP4]
-Key: mask        | Type: File | Value: [Video maschera MP4]
-```
-
-**Requisiti Speciali:**
-- Entrambi i video devono avere la **stessa durata**
-- Stesso numero di frame (stesso FPS)
-- Video maschera deve contenere solo frame binari
-
-**Errori Comuni:**
-```json
-// Video con durata diversa
-{
-    "success": false,
-    "error": "Video and mask video must have the same number of frames. Video: 10 frames, Mask: 9 frames"
-}
-```
-
-###### **Opzione D: Caricamento File ZIP**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: my-zip-dataset
-Key: image       | Type: File | Value: [File ZIP con struttura organizzata]
-Key: mask        | Type: File | Value: [Qualsiasi file - verrà ignorato per ZIP]
-```
-
-**Struttura ZIP Supportata:**
-```
-dataset.zip
-├── category1/
-│   ├── image1.jpg
-│   ├── image2.png
-│   ├── mask1.png        # File con "mask" nel nome
-│   └── mask2.png
-├── category2/
-│   ├── photo1.jpg
-│   ├── photo2.png
-│   └── masks/           # Cartella "masks"
-│       ├── mask1.png
-│       └── mask2.png
-└── category3/
-    ├── video1.mp4       # Supporta anche video in ZIP
-    ├── video2.mp4
-    ├── mask_video1.mp4  # Video maschera
-    └── single_mask.png  # Maschera singola per video
-```
-
-**Regole di Associazione ZIP:**
-1. **Per Nome**: File con "mask" nel nome vengono considerati maschere
-2. **Per Cartella**: File nella cartella "masks/" vengono considerati maschere
-3. **Associazione Automatica**: Ogni immagine viene abbinata con tutte le maschere della stessa categoria
-
-**Risposta per Tutti i Tipi:**
-```json
-{
-    "message": "Data uploaded and processed successfully",
-    "processedItems": 15
-}
-```
-
-#### **Visualizzazione e Navigazione Dataset**
-
-##### **1. Visualizzare tutti i tuoi dataset**
-```http
-GET {{baseUrl}}/api/datasets/
-Authorization: Bearer {{authToken}}
-```
-
-**Risposta:**
-```json
-{
-    "success": true,
-    "message": "Datasets retrieved successfully",
-    "data": [
-        {
-            "userId": "user123",
-            "name": "my-training-dataset",
-            "tags": ["segmentation", "medical"],
-            "createdAt": "2024-01-15T10:30:00Z",
-            "updatedAt": "2024-01-15T10:35:00Z",
-            "itemCount": 25,        // Numero totale di coppie immagine-maschera
-            "type": "video-frames"  // "image-mask" o "video-frames"
-        }
-    ]
-}
-```
-
-##### **2. Visualizzare contenuti dataset con paginazione**
-```http
-GET {{baseUrl}}/api/datasets/my-training-dataset/data?page=2&limit=5
-Authorization: Bearer {{authToken}}
-```
-
-**Parametri di Paginazione:**
-- `page` (numero): Pagina da visualizzare (default: 1)
-- `limit` (numero): Elementi per pagina (default: 10, max: 50)
-
-**Risposta con URL delle Immagini:**
-```json
-{
-    "success": true,
-    "message": "Dataset data retrieved successfully",
-    "data": {
-        "name": "my-training-dataset",
-        "type": "video-frames",
-        "totalItems": 25,
-        "currentPage": 2,
-        "totalPages": 5,        // 25 ÷ 5 = 5 pagine
-        "itemsPerPage": 5,
-        "items": [
-            {
-                "index": 5,         // Indice globale
-                "imagePath": "datasets/user123/my-dataset/frame_005.png",
-                "maskPath": "datasets/user123/my-dataset/mask.png",
-                "imageUrl": "http://localhost:3000/api/datasets/image/temp_token_123...",
-                "maskUrl": "http://localhost:3000/api/datasets/image/temp_token_456...",
-                "frameIndex": 5     // Solo per video-frames
-            }
-            // ... altri 4 elementi
-        ]
-    }
-}
-```
-
-##### **3. Navigazione tra Pagine**
-```http
-# Prima pagina (elementi 0-4)
-GET {{baseUrl}}/api/datasets/my-dataset/data?page=1&limit=5
-
-# Seconda pagina (elementi 5-9)
-GET {{baseUrl}}/api/datasets/my-dataset/data?page=2&limit=5
-
-# Ultima pagina
-GET {{baseUrl}}/api/datasets/my-dataset/data?page=5&limit=5
-```
-
-##### **4. Visualizzare Immagini Direttamente**
-Le URL generate (`imageUrl` e `maskUrl`) possono essere aperte direttamente nel browser:
-
-**Caratteristiche degli URL:**
-- ✅ **Nessun Bearer Token richiesto** nell'URL
-- ✅ **Token temporanei** (1 ora di validità)
-- ✅ **Sicurezza**: Solo il proprietario può generare i token
-- ✅ **Cache-friendly**: Le immagini vengono cachate
-
-**Esempio in HTML:**
-```html
-<img src="http://localhost:3000/api/datasets/image/temp_token_123..." />
-```
-
-#### **Workflow Completo: Creare e Popolare un Dataset**
-
-##### **Scenario 1: Dataset di Immagini Mediche**
-
-**Step 1: Creare Dataset**
-```http
-POST {{baseUrl}}/api/datasets/create-empty
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "name": "medical-segmentation",
-    "tags": ["medical", "segmentation", "lungs"]
-}
-```
-
-**Step 2: Caricare Prima Coppia**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: medical-segmentation
-Key: image       | Type: File | Value: lung_scan_001.jpg
-Key: mask        | Type: File | Value: lung_mask_001.png
-```
-
-**Step 3: Caricare Altre Coppie**
-Ripeti lo Step 2 con altre immagini. Ogni caricamento aggiunge elementi al dataset esistente.
-
-**Step 4: Verificare Contenuto**
-```http
-GET {{baseUrl}}/api/datasets/medical-segmentation/data
-Authorization: Bearer {{authToken}}
-```
-
-##### **Scenario 2: Dataset da Video Sorveglianza**
-
-**Step 1: Creare Dataset**
-```http
-POST {{baseUrl}}/api/datasets/create-empty
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "name": "surveillance-detection",
-    "tags": ["surveillance", "object-detection", "security"]
-}
-```
-
-**Step 2: Processare Video**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: surveillance-detection
-Key: image       | Type: File | Value: surveillance_video_30sec.mp4
-Key: mask        | Type: File | Value: person_mask.png
-```
-
-**Come Funziona:**
-- Il sistema estrae 1 frame per secondo dal video
-- Applica la stessa maschera a tutti i frame estratti
-- Salva ogni frame come coppia immagine-maschera
-- **Durante l'inferenza, ricostruisce il video a 1 FPS** (ogni frame dura 1 secondo)
-
-**Esempio Pratico:**
-- Video di 10 secondi → 10 frame estratti → 10 coppie nel dataset → Video output di 10 secondi a 1 FPS
-- Video di 30 secondi → 30 frame estratti → 30 coppie nel dataset → Video output di 30 secondi a 1 FPS
-
-**Step 3: Verificare Contenuto**
-```http
-GET {{baseUrl}}/api/datasets/surveillance-detection/data
-Authorization: Bearer {{authToken}}
-```
-
-##### **Scenario 3: Dataset Complesso da ZIP**
-
-**Step 1: Preparare ZIP**
-```
-training_data.zip
-├── indoor/
-│   ├── room1.jpg
-│   ├── room2.jpg
-│   ├── mask_room1.png
-│   └── mask_room2.png
-├── outdoor/
-│   ├── street1.jpg
-│   ├── street2.jpg
-│   └── masks/
-│       ├── street1_mask.png
-│       └── street2_mask.png
-└── mixed/
-    ├── video_sequence.mp4
-    └── universal_mask.png
-```
-
-**Step 2: Caricare ZIP**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: complex-training-set
-Key: image       | Type: File | Value: training_data.zip
-Key: mask        | Type: File | Value: [Qualsiasi file - ignorato]
-```
-
-**Risultato**: 
-- 4 coppie immagine-maschera dalle cartelle indoor/outdoor
-- N coppie dal video processato in mixed/
-
-#### **Gestione Errori e Best Practices**
-
-##### **Errori Comuni e Soluzioni**
-
-**1. Nome Dataset Duplicato**
-```json
-{
-    "success": false,
-    "error": "Dataset with this name already exists"
-}
-```
-**Soluzione**: Usa un nome diverso per il dataset.
-
-**2. Maschera Non Binaria**
-```json
-{
-    "success": false,
-    "error": "Mask must be a binary image"
-}
-```
-**Soluzione**: Converti la maschera in bianco e nero puro (0 e 255).
-
-**3. File Troppo Grande**
-```json
-{
-    "success": false,
-    "error": "File too large"
-}
-```
-**Soluzione**: Riduci dimensione file o comprimi il video.
-
-**4. FFmpeg Non Disponibile**
-```json
-{
-    "success": false,
-    "error": "FFmpeg is not available"
-}
-```
-**Soluzione**: Usa solo immagini o controlla installazione Docker.
-
-##### **Best Practices**
-
-**Nomi Dataset:**
-- Usa nomi descrittivi: `medical-ct-scans` invece di `dataset1`
-- Include versioni: `traffic-v2`, `faces-augmented-v3`
-
-**Tag Organizzazione:**
-- Domain: `medical`, `automotive`, `surveillance`
-- Type: `segmentation`, `detection`, `classification`  
-- Status: `training`, `validation`, `test`
-
-**File Preparation:**
-- **Immagini**: Usa PNG per qualità, JPG per dimensioni ridotte
-- **Maschere**: Sempre PNG, rigorosamente binarie
-- **Video**: Preferisci MP4 con codec H.264
-- **ZIP**: Organizza in sottocartelle logiche
-
-**Paginazione Strategica:**
-- Dataset piccoli (< 50): `limit=50` (una pagina)
-- Dataset medi (50-200): `limit=20`
-- Dataset grandi (> 200): `limit=10` per performance
-
-#### **Script Postman per Automazione**
-
-##### **Collection Variables Setup**
-```javascript
-// In Pre-request Script della Collection
-pm.globals.set("baseUrl", "http://localhost:3000");
-```
-
-##### **Script Post-Login**
-```javascript
-// In Post-response del login
-if (pm.response.code === 200) {
-    const response = pm.response.json();
-    pm.environment.set("authToken", response.data.token);
-    pm.environment.set("userId", response.data.user.userId);
-}
-```
-
-##### **Script Post-Dataset Creation**
-```javascript
-// In Post-response della creazione dataset
-if (pm.response.code === 201) {
-    const response = pm.response.json();
-    pm.environment.set("lastDatasetName", response.dataset.name);
-    console.log(`Dataset created: ${response.dataset.name}`);
-}
-```
-
-##### **Script Navigazione Automatica**
-```javascript
-// Per navigare automaticamente tra pagine
-const currentPage = parseInt(pm.environment.get("currentPage") || "1");
-const totalPages = parseInt(pm.environment.get("totalPages") || "1");
-
-if (currentPage < totalPages) {
-    pm.environment.set("nextPage", currentPage + 1);
-    console.log(`Next page available: ${currentPage + 1}`);
-} else {
-    console.log("You've reached the last page");
-}
-```
-
-##### **Script per Polling Automatico:**
-```javascript
-// Post-response script per status check
-const maxRetries = parseInt(pm.environment.get("maxRetries"));
-const currentRetry = parseInt(pm.environment.get("currentRetry"));
-const status = pm.response.json().data.status;
-
-if (status === "RUNNING" && currentRetry < maxRetries) {
-    // Incrementa retry counter
-    pm.environment.set("currentRetry", currentRetry + 1);
-    
-    // Aspetta e riprova
-    setTimeout(() => {
-        postman.setNextRequest("Get Inference Status");
-    }, 5000);
-    
-    console.log(`⏳ Retry ${currentRetry + 1}/${maxRetries} - Status: ${status}`);
-} else if (status === "COMPLETED") {
-    pm.environment.set("currentRetry", "0");
-    postman.setNextRequest("Get Inference Results");
-    console.log("✅ Processing completed, moving to results");
-} else if (status === "FAILED" || currentRetry >= maxRetries) {
-    pm.environment.set("currentRetry", "0");
-    console.log("❌ Processing failed or max retries reached");
-}
-```
-
-##### **Errori Comuni e Soluzioni**
-
-**1. Dataset Vuoto**
-```json
-{
-    "error": "Dataset is empty"
-}
-```
-**Soluzione:** Aggiungi almeno una coppia immagine-maschera al dataset.
-
-**2. Python Service Non Disponibile**
-```json
-{
-    "status": "FAILED",
-    "result": {
-        "error": "Python service error: connect ECONNREFUSED 127.0.0.1:5000"
-    }
-}
-```
-**Soluzione:** 
-- Verifica che il container `python-inference` sia running
-- Controlla `docker-compose ps`
-- Riavvia il servizio: `docker-compose restart python-inference`
-
-**3. File Non Trovato Durante Processing**
-```json
-{
-    "status": "FAILED",
-    "result": {
-        "error": "Could not load image: datasets/user/missing.jpg"
-    }
-}
-```
-**Soluzione:** 
-- Il file è stato eliminato dopo la creazione del dataset
-- Ricarica i dati nel dataset
-
-**4. Timeout del Processing**
-```json
-{
-    "status": "FAILED",  
-    "result": {
-        "error": "Python service error: timeout of 300000ms exceeded"
-    }
-}
-```
-**Soluzione:**
-- Dataset troppo grande per il timeout (5 minuti)
-- Dividi il dataset in parti più piccole
-- Aumenta il timeout in `inferenceBlackBoxAdapter.ts`
-
-##### **Postman Environment Setup per Inferenza**
-
-**Variabili Ambiente Consigliate:**
-```json
-{
-    "baseUrl": "http://localhost:3000",
-    "authToken": "[populated after login]",
-    "userId": "[populated after login]",
-    "datasetName": "test-inference-dataset",
-    "inferenceId": "[populated after creating inference]",
-    "maxRetries": "10",
-    "retryDelay": "5000",
-    "currentRetry": "0"
-}
-```
-
-**Postman Tests per Validazione:**
-```javascript
-// Test per verifica creazione inferenza
-pm.test("Inference created successfully", function () {
-    pm.response.to.have.status(201);
-    pm.response.to.have.jsonBody("success", true);
-    pm.response.to.have.jsonBody("inference.status", "PENDING");
-});
-
-// Test per verifica completamento
-pm.test("Inference completed", function () {
-    const status = pm.response.json().data.status;
-    if (status === "COMPLETED") {
-        pm.test("Has results", function () {
-            pm.response.to.have.jsonBody("data.result");
-        });
-    }
-});
-```
-
-Ora hai una guida completa per creare, popolare e navigare i dataset usando Postman! 📊🎯
-
-### 17. Inference System - Guida Completa Postman
-
-Il sistema di inferenza permette di processare interi dataset attraverso il servizio Python blackbox, generando risultati batch per immagini e video.
-
-#### **Workflow Completo di Inferenza**
-
-##### **Prerequisiti**
-Prima di iniziare, assicurati di avere:
-- Un dataset popolato con almeno una coppia immagine-maschera
-- Token di autenticazione valido
-- Python inference service attivo (porta 5000)
-
-##### **Passo 1: Creare una Nuova Inferenza**
-```http
-POST {{baseUrl}}/api/inferences/create
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "datasetName": "medical-segmentation",
-    "modelId": "default_inpainting",
-    "parameters": {
-        "quality": "high",
-        "blendMode": "lighten",
-        "outputFormat": "png",
-        "customParameter": "value"
-    }
-}
-```
-
-**Campi della Richiesta:**
-- `datasetName` (string, obbligatorio): Nome del dataset da processare
-- `modelId` (string, opzionale): ID del modello da usare (default: "default_inpainting")
-- `parameters` (object, opzionale): Parametri personalizzati per il processing
-
-**Risposta Attesa:**
-```json
-{
-    "success": true,
-    "message": "Inference created and processing started",
-    "inference": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "PENDING",
-        "modelId": "default_inpainting",
-        "datasetName": "medical-segmentation",
-        "createdAt": "2024-01-15T10:30:00.000Z"
-    }
-}
-```
-
-**Script Post-Response in Postman:**
-```javascript
-if (pm.response.code === 201) {
-    const response = pm.response.json();
-    pm.environment.set("inferenceId", response.inference.id);
-    pm.environment.set("datasetName", response.inference.datasetName);
-    console.log(`Inference created: ${response.inference.id}`);
-    console.log(`Status: ${response.inference.status}`);
-}
-```
-
-##### **Passo 2: Monitorare lo Stato dell'Inferenza**
-```http
-GET {{baseUrl}}/api/inferences/{{inferenceId}}
-Authorization: Bearer {{authToken}}
-```
-
-**Stati Possibili:**
-- `PENDING`: In attesa di iniziare il processing
-- `RUNNING`: Processing in corso
-- `COMPLETED`: Processing completato con successo
-- `FAILED`: Processing fallito
-- `ABORTED`: Processing interrotto
-
-**Risposta Durante Processing (RUNNING):**
-```json
-{
-    "success": true,
-    "message": "Inference retrieved successfully",
-    "data": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "RUNNING",
-        "modelId": "default_inpainting",
-        "parameters": {
-            "quality": "high",
-            "blendMode": "lighten"
-        },
-        "result": null,
-        "datasetName": "medical-segmentation",
-        "userId": "user-uuid-here",
-        "createdAt": "2024-01-15T10:30:00.000Z",
-        "updatedAt": "2024-01-15T10:32:15.000Z"
-    }
-}
-```
-
-**Risposta Processing Completato (COMPLETED):**
-```json
-{
-    "success": true,
-    "message": "Inference retrieved successfully",
-    "data": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "COMPLETED",
-        "modelId": "default_inpainting",
-        "parameters": {
-            "quality": "high",
-            "blendMode": "lighten"
-        },
-        "result": {
-            "success": true,
-            "images": [
-                {
-                    "originalPath": "datasets/user-id/image1.jpg",
-                    "outputPath": "inferences/user-id/processed_uuid_image1.png"
-                },
-                {
-                    "originalPath": "datasets/user-id/image2.jpg", 
-                    "outputPath": "inferences/user-id/processed_uuid_image2.png"
-                }
-            ],
-            "videos": [
-                {
-                    "originalVideoId": "1",
-                    "outputPath": "inferences/user-id/uuid_video_1.mp4"
-                }
-            ]
-        },
-        "datasetName": "medical-segmentation",
-        "userId": "user-uuid-here",
-        "createdAt": "2024-01-15T10:30:00.000Z",
-        "updatedAt": "2024-01-15T10:35:45.000Z"
-    }
-}
-```
-
-**Script per Monitoraggio Automatico:**
-```javascript
-// Test automatico per controllare completamento
-if (pm.response.code === 200) {
-    const response = pm.response.json();
-    const status = response.data.status;
-    
-    console.log(`Current status: ${status}`);
-    
-    if (status === "COMPLETED") {
-        console.log("✅ Inference completed successfully!");
-        const result = response.data.result;
-        console.log(`📊 Images processed: ${result.images ? result.images.length : 0}`);
-        console.log(`🎬 Videos processed: ${result.videos ? result.videos.length : 0}`);
-    } else if (status === "FAILED") {
-        console.log("❌ Inference failed!");
-        console.log(`Error: ${response.data.result?.error || 'Unknown error'}`);
-    } else if (status === "RUNNING") {
-        console.log("⚙️ Processing in progress...");
-        // Potresti impostare un timeout per ricontrollare
-        setTimeout(() => {
-            console.log("Check status again in a few seconds");
-        }, 5000);
-    }
-}
-```
-
-##### **Passo 3: Ottenere i Risultati con Link di Download**
-```http
-GET {{baseUrl}}/api/inferences/{{inferenceId}}/results
-Authorization: Bearer {{authToken}}
-```
-
-**Risposta Solo se Status = COMPLETED:**
-```json
-{
-    "success": true,
-    "message": "Inference results retrieved successfully",
-    "data": {
-        "inferenceId": "550e8400-e29b-41d4-a716-446655440000",
-        "status": "COMPLETED",
-        "images": [
-            {
-                "originalPath": "datasets/user-id/image1.jpg",
-                "outputPath": "inferences/user-id/processed_uuid_image1.png",
-                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            },
-            {
-                "originalPath": "datasets/user-id/image2.jpg",
-                "outputPath": "inferences/user-id/processed_uuid_image2.png", 
-                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            }
-        ],
-        "videos": [
-            {
-                "originalVideoId": "1",
-                "outputPath": "inferences/user-id/uuid_video_1.mp4",
-                "downloadUrl": "http://localhost:3000/api/inferences/output/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-            }
-        ]
-    }
-}
-```
-
-**Caratteristiche dei Download URL:**
-- ✅ **Token temporanei** (24 ore di validità)
-- ✅ **Nessun Bearer Token richiesto** negli URL
-- ✅ **Sicurezza**: Solo il proprietario può generare i token
-- ✅ **Download diretto**: Apribili nel browser
-
-**Script Post-Response per Salvare URL:**
-```javascript
-if (pm.response.code === 200) {
-    const response = pm.response.json();
-    const data = response.data;
-    
-    // Salva URL delle immagini
-    if (data.images && data.images.length > 0) {
-        data.images.forEach((img, index) => {
-            pm.environment.set(`imageDownloadUrl_${index}`, img.downloadUrl);
-            console.log(`🖼️ Image ${index + 1}: ${img.originalPath} → ${img.downloadUrl}`);
-        });
-    }
-    
-    // Salva URL dei video
-    if (data.videos && data.videos.length > 0) {
-        data.videos.forEach((vid, index) => {
-            pm.environment.set(`videoDownloadUrl_${index}`, vid.downloadUrl);
-            console.log(`🎬 Video ${index + 1}: ID ${vid.originalVideoId} → ${vid.downloadUrl}`);
-        });
-    }
-}
-```
-
-**Errori Possibili:**
-```json
-// Inference non completata
-{
-    "success": false,
-    "error": "Inference not completed",
-    "status": "RUNNING"
-}
-
-// Inference fallita
-{
-    "success": false,
-    "error": "Inference not completed", 
-    "status": "FAILED"
-}
-
-// Inference non trovata
-{
-    "error": "Inference not found"
-}
-```
-
-##### **Passo 4: Download dei File Processati**
-```http
-GET {{imageDownloadUrl_0}}
-# NESSUN Authorization header richiesto!
-```
-
-**Risposta:** File binario (immagine PNG/JPG o video MP4)
-
-**Headers di Risposta:**
-```
-Content-Type: image/png
-Content-Length: 245680
-Content-Disposition: attachment; filename="processed_uuid_image1.png"
-```
-
-##### **Passo 5: Visualizzare Tutte le Tue Inferenze**
-```http
-GET {{baseUrl}}/api/inferences?page=1&limit=10
-Authorization: Bearer {{authToken}}
-```
-
-**Parametri Query Opzionali:**
-- `page`: Numero pagina (default: 1)
-- `limit`: Elementi per pagina (default: 10)
-
-**Risposta:**
-```json
-{
-    "success": true,
-    "message": "Inferences retrieved successfully",
-    "data": {
-        "inferences": [
-            {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
-                "status": "COMPLETED",
-                "modelId": "default_inpainting",
-                "datasetName": "medical-segmentation",
-                "createdAt": "2024-01-15T10:30:00.000Z",
-                "updatedAt": "2024-01-15T10:35:45.000Z"
-            },
-            {
-                "id": "660e8400-e29b-41d4-a716-446655440001",
-                "status": "RUNNING",
-                "modelId": "custom_model_v2",
-                "datasetName": "surveillance-data",
-                "createdAt": "2024-01-15T11:00:00.000Z",
-                "updatedAt": "2024-01-15T11:02:30.000Z"
-            }
-        ],
-        "totalItems": 2,
-        "currentPage": 1,
-        "totalPages": 1,
-        "itemsPerPage": 10
-    }
-}
-```
-
-#### **Scenari di Utilizzo Completi**
-
-##### **Scenario 1: Inferenza su Dataset di Immagini Singole**
-
-**Step 1: Preparare Dataset**
-```http
-POST {{baseUrl}}/api/datasets/create-empty
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "name": "portrait-segmentation",
-    "tags": ["portraits", "segmentation"]
-}
-```
-
-**Step 2: Aggiungere Immagini**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: portrait-segmentation
-Key: image       | Type: File | Value: portrait1.jpg
-Key: mask        | Type: File | Value: face_mask1.png
-```
-
-**Step 3: Ripetere per più Immagini** (portrait2.jpg + face_mask2.png, ecc.)
-
-**Step 4: Avviare Inferenza**
-```http
-POST {{baseUrl}}/api/inferences/create
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "datasetName": "portrait-segmentation",
-    "parameters": {
-        "quality": "high",
-        "outputFormat": "png"
-    }
-}
-```
-
-**Risultato Atteso:** N immagini processate singolarmente
-
-##### **Scenario 2: Inferenza su Dataset Video**
-
-**Step 1: Dataset con Video**
-```http
-POST {{baseUrl}}/api/datasets/upload-data
-Authorization: Bearer {{authToken}}
-Content-Type: multipart/form-data
-
-Key: datasetName | Type: Text | Value: video-inpainting
-Key: image       | Type: File | Value: surveillance_30sec.mp4
-Key: mask        | Type: File | Value: person_mask.png
-```
-
-**Step 2: Avviare Inferenza**
-```http
-POST {{baseUrl}}/api/inferences/create
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "datasetName": "video-inpainting",
-    "parameters": {
-        "fps": 30,
-        "quality": "medium"
-    }
-}
-```
-
-**Risultato Atteso:** 
-- 30 frame estratti dal video originale (1 frame per secondo)
-- Ogni frame processato con inpainting
-- Video finale ricostruito da frame processati **a 1 FPS** (30 secondi di durata totale)
-
-##### **Scenario 3: Inferenza su Dataset Misto**
-
-**Dataset Contenente:**
-- 5 immagini singole + maschere
-- 2 video + maschere
-- File ZIP con struttura complessa
-
-**Step: Avviare Inferenza**
-```http
-POST {{baseUrl}}/api/inferences/create
-Authorization: Bearer {{authToken}}
-Content-Type: application/json
-
-{
-    "datasetName": "mixed-training-data",
-    "parameters": {
-        "processImages": true,
-        "processVideos": true,
-        "quality": "high"
-    }
-}
-```
-
-**Risultato Atteso:**
-```json
-{
-    "result": {
-        "success": true,
-        "images": [
-            // 5 immagini processate singolarmente
-            {"originalPath": "...", "outputPath": "..."},
-            // ... altre 4
-        ],
-        "videos": [
-            // 2 video ricostruiti
-            {"originalVideoId": "1", "outputPath": "..."},
-            {"originalVideoId": "2", "outputPath": "..."}
-        ]
-    }
-}
-```
-
-#### **Monitoraggio e Debugging**
-
-##### **Log del Processing Python**
-Durante l'inferenza, controlla i log del container `python-inference`:
-
-```bash
-# Visualizza log in tempo reale
-docker-compose logs -f python-inference
-```
-
-**Log Esempio:**
-```
-[INFO] Starting dataset processing for user: user-uuid
-[INFO] Processing single image: datasets/user/image1.jpg
-[INFO] Processing video frames for video ID: 1
-[INFO] Video processing completed: 30 frames → inferences/user/video_1.mp4 (30s @ 1 FPS)
-[INFO] Dataset processing completed. Images: 5, Videos: 2
-```
-
-##### **Test di Performance con Postman**
-
-**Collection Variables per Test Automatico:**
-```javascript
-// Pre-request Script della Collection
-pm.environment.set("maxRetries", "10");
-pm.environment.set("retryDelay", "5000");
-pm.environment.set("currentRetry", "0");
-```
-
-**Script per Polling Automatico:**
-```javascript
-// Post-response script per status check
-const maxRetries = parseInt(pm.environment.get("maxRetries"));
-const currentRetry = parseInt(pm.environment.get("currentRetry"));
-const status = pm.response.json().data.status;
-
-if (status === "RUNNING" && currentRetry < maxRetries) {
-    // Incrementa retry counter
-    pm.environment.set("currentRetry", currentRetry + 1);
-    
-    // Aspetta e riprova
-    setTimeout(() => {
-        postman.setNextRequest("Get Inference Status");
-    }, 5000);
-    
-    console.log(`⏳ Retry ${currentRetry + 1}/${maxRetries} - Status: ${status}`);
-} else if (status === "COMPLETED") {
-    pm.environment.set("currentRetry", "0");
-    postman.setNextRequest("Get Inference Results");
-    console.log("✅ Processing completed, moving to results");
-} else if (status === "FAILED" || currentRetry >= maxRetries) {
-    pm.environment.set("currentRetry", "0");
-    console.log("❌ Processing failed or max retries reached");
-}
-```
-
-##### **Errori Comuni e Soluzioni**
-
-**1. Dataset Vuoto**
-```json
-{
-    "error": "Dataset is empty"
-}
-```
-**Soluzione:** Aggiungi almeno una coppia immagine-maschera al dataset.
-
-**2. Python Service Non Disponibile**
-```json
-{
-    "status": "FAILED",
-    "result": {
-        "error": "Python service error: connect ECONNREFUSED 127.0.0.1:5000"
-    }
-}
-```
-**Soluzione:** 
-- Verifica che il container `python-inference` sia running
-- Controlla `docker-compose ps`
-- Riavvia il servizio: `docker-compose restart python-inference`
-
-**3. File Non Trovato Durante Processing**
-```json
-{
-    "status": "FAILED",
-    "result": {
-        "error": "Could not load image: datasets/user/missing.jpg"
-    }
-}
-```
-**Soluzione:** 
-- Il file è stato eliminato dopo la creazione del dataset
-- Ricarica i dati nel dataset
-
-**4. Timeout del Processing**
-```json
-{
-    "status": "FAILED",  
-    "result": {
-        "error": "Python service error: timeout of 300000ms exceeded"
-    }
-}
-```
-**Soluzione:**
-- Dataset troppo grande per il timeout (5 minuti)
-- Dividi il dataset in parti più piccole
-- Aumenta il timeout in `inferenceBlackBoxAdapter.ts`
-
-##### **Postman Environment Setup per Inferenza**
-
-**Variabili Ambiente Consigliate:**
-```json
-{
-    "baseUrl": "http://localhost:3000",
-    "authToken": "[populated after login]",
-    "userId": "[populated after login]",
-    "datasetName": "test-inference-dataset",
-    "inferenceId": "[populated after creating inference]",
-    "maxRetries": "10",
-    "retryDelay": "5000",
-    "currentRetry": "0"
-}
-```
-
-**Postman Tests per Validazione:**
-```javascript
-// Test per verifica creazione inferenza
-pm.test("Inference created successfully", function () {
-    pm.response.to.have.status(201);
-    pm.response.to.have.jsonBody("success", true);
-    pm.response.to.have.jsonBody("inference.status", "PENDING");
-});
-
-// Test per verifica completamento
-pm.test("Inference completed", function () {
-    const status = pm.response.json().data.status;
-    if (status === "COMPLETED") {
-        pm.test("Has results", function () {
-            pm.response.to.have.jsonBody("data.result");
-        });
-    }
-});
-```
-
-Ora hai una guida completa per utilizzare il sistema di inferenza con Postman! 🚀🎯
-
-
-
-
-# 1. Crea un dataset per l'utente
-POST {{baseUrl}}/api/datasets/create-empty
-Authorization: Bearer {{userToken}}
-{
-    "name": "test-dataset",
-    "tags": ["test"]
-}
-
-# 2. Elimina l'utente
-DELETE {{baseUrl}}/api/users/{{userId}}
-Authorization: Bearer {{adminToken}}
-
-# 3. Verifica che i dataset siano ancora nel DB ma marcati come eliminati
-GET {{baseUrl}}/api/admin/datasets?includeDeleted=true
-Authorization: Bearer {{adminToken}}

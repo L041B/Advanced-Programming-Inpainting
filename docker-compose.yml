@@ -57,6 +57,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: inpainting-app:latest
     ports:
       - '${PORT}:${PORT}'
     env_file:
@@ -65,7 +66,6 @@ services:
       - PYTHON_SERVICE_URL=http://python-inference:5000
     volumes:
       - uploads:/usr/src/app/uploads
-      - static_files:/var/www/html/images
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,15 +79,11 @@ services:
 
   # Service for the background worker
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: inpainting-app:latest
     env_file:
       - ./.env
     environment:
       - PYTHON_SERVICE_URL=http://python-inference:5000
-    volumes:
-      - static_files:/var/www/html/images
     command: npm run worker
     depends_on:
       postgres:
@@ -102,27 +98,11 @@ services:
     deploy:
       replicas: 2
 
-  # Service for the Apache web server
-  apache:
-    image: httpd:2.4-alpine
-    container_name: inpainting-apache
-    ports:
-      - "8080:80"
-    volumes:
-      - static_files:/usr/local/apache2/htdocs/images
-      - ./apache.conf:/usr/local/apache2/conf/httpd.conf
-    networks:
-      - inpainting-network
-    depends_on:
-      - app
-    restart: unless-stopped
-
 # Define named volumes
 volumes:
   uploads:
   postgres_data:
   redis_data:
-  static_files:
 
 # Define the networks
 networks:
