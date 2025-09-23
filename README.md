@@ -1,9 +1,9 @@
 # P.A. Inpainting
-
+ 
 <div align="center">
   <!-- Technology badges with logos and links -->
   <a href="https://www.postman.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white&style=for-the-badge" alt="Postman" />
+    <img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white&style=for-the-badg… alt="Postman" />
   </a>
   <a href="https://github.com/" target="_blank">
     <img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" />
@@ -12,31 +12,31 @@
     <img src="https://img.shields.io/badge/Jest-C21325?logo=jest&logoColor=white&style=for-the-badge" alt="Jest" />
   </a>
   <a href="https://jwt.io/" target="_blank">
-    <img src="https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white&style=for-the-badge" alt="JWT" />
+    <img src="https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white&style=for-the-ba… alt="JWT" />
   </a>
   <a href="https://sequelize.org/" target="_blank">
-    <img src="https://img.shields.io/badge/Sequelize-52B0E7?logo=sequelize&logoColor=white&style=for-the-badge" alt="Sequelize" />
+    <img src="https://img.shields.io/badge/Sequelize-52B0E7?logo=sequelize&logoColor=white&style=for-the-… alt="Sequelize" />
   </a>
   <a href="https://www.python.org/" target="_blank">
     <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white&style=for-the-badge" alt="Python" />
   </a>
   <a href="https://www.javascript.com/" target="_blank">
-    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=for-the-badge" alt="JavaScript" />
+    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=for-th… alt="JavaScript" />
   </a>
   <a href="https://www.typescriptlang.org/" target="_blank">
-    <img src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white&style=for-th… alt="TypeScript" />
   </a>
   <a href="https://nodejs.org/" target="_blank">
-    <img src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=for-the-badge" alt="Node.js" />
+    <img src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=for-the-badg… alt="Node.js" />
   </a>
   <a href="https://expressjs.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Express-000000?logo=express&logoColor=white&style=for-the-badge" alt="Express" />
+    <img src="https://img.shields.io/badge/Express-000000?logo=express&logoColor=white&style=for-the-badg… alt="Express" />
   </a>
   <a href="https://www.docker.com/" target="_blank">
     <img src="https://img.shields.io/badge/Docker-2496ed?logo=docker&logoColor=white&style=for-the-badge" alt="Docker" />
   </a>
   <a href="https://docs.docker.com/compose/" target="_blank">
-    <img src="https://img.shields.io/badge/Docker%20Compose-142f46?logo=docker&logoColor=white&style=for-the-badge" alt="Docker Compose" />
+    <img src="https://img.shields.io/badge/Docker%20Compose-142f46?logo=docker&logoColor=white&style=for-… alt="Docker Compose" />
   </a>
   <a href="https://eslint.org/" target="_blank">
     <img src="https://img.shields.io/badge/ESLint-4B32C3?logo=eslint&logoColor=white&style=for-the-badge" alt="ESLint" />
@@ -45,7 +45,7 @@
     <img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white&style=for-the-badge" alt="Redis" />
   </a>
   <a href="https://www.postgresql.org/" target="_blank">
-    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-the-badge" alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-th… alt="PostgreSQL" />
   </a>
   <a href="https://bull.io/" target="_blank">
     <img src="https://img.shields.io/badge/Bull-EA1B1B?logo=redis&logoColor=white&style=for-the-badge" alt="Bull" />
@@ -66,20 +66,20 @@
     <img src="https://img.shields.io/badge/Helmet-006400?logo=helmet&logoColor=white&style=for-the-badge" alt="Helmet" />
   </a>
   <a href="https://github.com/winstonjs/winston" target="_blank">
-    <img src="https://img.shields.io/badge/Winston-4F4F4F?logo=winston&logoColor=white&style=for-the-badge" alt="Winston" />
+    <img src="https://img.shields.io/badge/Winston-4F4F4F?logo=winston&logoColor=white&style=for-the-badg… alt="Winston" />
   </a>
 </div>
-
+ 
 ---
-
+ 
 ## Introduction
-
+ 
 **P.A. Inpainting** is a Node.js backend service. It supports dataset and inference management for images, masks, and videos, using a queue-based architecture for scalable processing. The system enforces a token-based credit model for users, with costs per operation and admin recharge capabilities.
-
+ 
 ---
-
+ 
 ## 📑 Index
-
+ 
 - [Main Features](#main-features)
 - [ZIP Format](#zip-format)
 - [Installation](#installation)
@@ -92,18 +92,18 @@
 - [Sequence Diagrams](#sequence-diagrams)
 - [Testing](#testing)
 - [Linting & Code Quality](#linting--code-quality)
-
+ 
 ---
-### Main Features 
-
+### Main Features
+ 
 - **User Management & Authentication**
   - Secure JWT-based authentication
   - User registration with bcrypt password hashing
   - Role-based access (User, Admin)
   - Protected API endpoints (JWT required, except register and login)
-
+ 
 - **Token & Credit System**
-  - Each authenticated user has a token balance 
+  - Each authenticated user has a token balance
   - Operation costs vary by type (image/video/zip upload, inference):
       - Image upload: `0.65 token/image`
       - ZIP upload: `0.7 token/valid file`
@@ -111,7 +111,7 @@
       - Inference: `2.75 token/image`, `1.5 token/frame`
   - Operations are denied if credits are insufficient (`401 Unauthorized`).
   - Credit balance is stored in the DB and can be checked via a protected route.
-
+ 
 - **Dataset Management**
   - CRUD operations on datasets (logical delete supported)
   - Multi-format upload:
@@ -122,26 +122,26 @@
     - Frame extraction from videos (1 FPS with FFmpeg)
     - Mask validation (binary check with Sharp)
   - Secure data access via temporary signed URLs (JWT-based)
-
+ 
 - **Asynchronous Inference System**
-  - Job queueing with Redis + Bull 
+  - Job queueing with Redis + Bull
   - Background processing by separate worker
   - Worker → Python microservice (Flask + OpenCV) for inference
   - Job status tracking: PENDING, RUNNING, COMPLETED, FAILED, ABORTED
   - Result retrieval via API + secure download links
-
+ 
 - **Administration Features**
   - Admin token recharge for users
   - Monitoring dashboard APIs:
     - Full list of datasets (including orphaned ones)
     - Full list of token transactions with aggregation
-
-
+ 
+ 
 ---
-
+ 
 ### ZIP Format
-
-
+ 
+ 
 - The ZIP archive must contain **subfolders**, each representing a dataset group.
 - Inside each subfolder, files must be organized as **image/video + mask pairs**:
   - The **mask file** must contain the word `mask` in its filename.
@@ -152,9 +152,9 @@
   - All other formats are ignored.
 - On upload, files from the ZIP are stored under the `image` field.  
   Since the upload method also expects a `mask` field, this will be populated with a placeholder file (ignored by the system).
-
+ 
 ### Example Structure
-
+ 
 ```plaintext
 dataset.zip
 │
@@ -176,85 +176,85 @@ dataset.zip
     └── mask_1.png
 ```
 ---
-
+ 
 ## Installation
-
+ 
 ### Requirements
-
+ 
 - [Node.js](https://nodejs.org/) (v18+)
 - [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
 - [Redis](https://redis.io/) (via Docker)
 - [PostgreSQL](https://www.postgresql.org/) (via Docker)
 - [Python 3.9+](https://www.python.org/) (for inference service, handled by Docker)
-
+ 
 ### Quick Start (Docker Compose)
-
+ 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd Progetto Programmazione Avanzata
-
+ 
 # Copy and edit environment variables
 cp .env
 # Edit .env as needed
-
+ 
 # Build and start all services
 docker-compose up --build
-
+ 
 # (Optional) Run in detached mode
 docker-compose up -d
-
+ 
 # Stop services
 docker-compose down
 ```
-
+ 
 ---
-
+ 
 ## Environment Setup
-
+ 
 Example `.env` configuration:
-
+ 
 ```env
 NODE_ENV=development
 PORT=3000
 HOST=0.0.0.0
-
+ 
 DB_HOST=postgres
 DB_PORT=5432
 POSTGRES_DB=pa_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=1234
-
+ 
 REDIS_HOST=redis
 REDIS_PORT=6379
-
+ 
 JWT_SECRET=your_secret_key
 JWT_EXPIRES_IN=24h
-
+ 
 BCRYPT_SALT_ROUNDS=12
 WORKER_CONCURRENCY=3
 LOG_LEVEL=debug
-
+ 
 ADMIN_NAME=Administrator
 ADMIN_SURNAME=System
 ADMIN_EMAIL=admin@system.com
 ADMIN_PASSWORD=AdminPassword123!
-
+ 
 UPLOAD_DIRECTORY=./uploads
-
+ 
 INFERENCE_BLACKBOX_HOST=0.0.0.0
 INFERENCE_BLACKBOX_PORT=5000
 INFERENCE_BLACKBOX_DEBUG=false
 INFERENCE_BLACKBOX_UPLOAD_DIR=/usr/src/app/uploads
 INFERENCE_BLACKBOX_LOG_LEVEL=INFO
 ```
-
+ 
 ---
-
+ 
 ## API Documentation
-
+ 
 All endpoints are JWT-protected unless register and login for user.
-
+ 
 ### User
 - `POST /api/users/user` - Register user
 - `POST /api/users/session` - Login and get JWT
@@ -262,7 +262,7 @@ All endpoints are JWT-protected unless register and login for user.
 - `GET /api/users/tokens` - Get user's remaining tokens
 - `PUT /api/users/:userId` - Update user data
 - `DELETE /api/users/:userId` - Delete user
-
+ 
 ### Dataset
 - `POST /api/datasets/` - Create dataset (name, tags)
 - `POST /api/datasets/data` - Upload image/mask or video/mask to dataset
@@ -272,30 +272,30 @@ All endpoints are JWT-protected unless register and login for user.
 - `GET /api/datasets/image/:imagePath` - Get image from dataset
 - `PUT /api/datasets/:name` - Update dataset
 - `DELETE /api/datasets/:name` - Logical deletion of dataset
-
+ 
 ### Inference
 - `POST /api/inferences/` - Start inference on dataset
 - `GET /api/inferences/job/:jobId/status` - Get job status
-- `GET /api/inferences/` - Get all inferences 
+- `GET /api/inferences/` - Get all inferences
 - `GET /api/inferences/:id` - Get specific inference
 - `GET /api/inferences/:id/results` - Get inference result
 - `GET /api/inferences/download/:token` - Download specific result
-
+ 
 ### Admin
 - `GET /api/admin/users/:email/tokens` - Get token balance for user
 - `POST /api/admin/user-tokens` - Recharge user tokens
 - `GET /api/admin/transactions` - List transactions
 - `GET /api/admin/datasets` - List all datasets (optionally include deleted)
-
+ 
 ---
-
+ 
 ## API Routes & Responses
-
+ 
 Below are all main API routes, grouped by feature, with example JSON outputs.
 All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
-
+ 
 ### User
-
+ 
 #### Register
 `POST /api/users/user`
 ```json
@@ -308,12 +308,13 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
-    "tokens": 100
+    "tokens": 100,
+    "role" : "user"
   }
 }
-
+ 
 ```
-
+ 
 #### Login
 `POST /api/users/session`
 ```json
@@ -326,15 +327,13 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "user": {
       "id": "uuid",
       "name": "Mario",
-      "surname": "Rossi",
-      "email": "mariorossi@gmail.com",
-      "tokens": 100
+      "email": "mariorossi@gmail.com"
     }
   }
 }
-
+ 
 ```
-
+ 
 #### Profile
 `GET /api/users/profile`
 ```json
@@ -345,12 +344,11 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
-    "tokens": 100,
-    "createdAt": "2024-01-01T10:00:00Z"
+ 
   }
 }
 ```
-
+ 
 #### Update User
 `PUT /api/users/:userId`
 ```json
@@ -360,7 +358,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "data": { /* updated user fields */ }
 }
 ```
-
+ 
 #### Delete User
 `DELETE /api/users/:userId`
 ```json
@@ -369,29 +367,45 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "message": "User deleted successfully"
 }
 ```
-
+ 
 #### Get Token Balance
 `GET /api/users/tokens`
 ```json
 {
   "success": true,
-  "tokens": 100
+  "message": "Token balance retrieved successfully",
+    "data": {
+        "balance": 100,
+        "recentTransactions": [],
+        "tokenPricing": {
+            "dataset_upload": {
+                "single_image": 0.65,
+                "video_frame": 0.4,
+                "zip_file": 0.7
+            },
+            "inference": {
+                "single_image": 2.75,
+                "video_frame": 1.5
+            }
+        }
+    }
 }
 ```
-
+ 
 ---
-
+ 
 ### Dataset
-
+ 
 #### Create Dataset
 `POST /api/datasets/`
 ```json
 // Success
 {
   "success": true,
-  "message": "Dataset created",
+  "message": "Empty dataset created successfully",
   "data": {
     "id": "uuid",
+    "userId": "uuid",
     "name": "Inpainting dataset",
     "tags": ["Inpainting", "Damage", "Mask"],
     "isDeleted": false,
@@ -399,26 +413,32 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   }
 }
 ```
-
+ 
 #### Update Dataset
-`PUT /api/datasets/:id`
+`PUT /api/datasets/:name`
 ```json
 {
   "success": true,
-  "message": "Dataset updated",
-  "data": { /* updated dataset fields */ }
+  "message": "Dataset updated succesfully",
+  "data": { "userId": "uuid",
+        "itemCount": 0,
+        "type": "empty",
+        "changes": {
+            "nameChanged": false,
+            "tagsChanged": true
+             }}
 }
 ```
-
+ 
 #### Delete Dataset (logical)
-`DELETE /api/datasets/:id`
+`DELETE /api/datasets/:name`
 ```json
 {
   "success": true,
-  "message": "Dataset deleted (logical)"
+  "message": "Dataset deleted succesfully"
 }
 ```
-
+ 
 #### List Datasets
 `GET /api/datasets/`
 ```json
@@ -436,7 +456,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   ]
 }
 ```
-
+ 
 #### Get Dataset Items
 `GET /api/datasets/:name/data`
 ```json
@@ -448,37 +468,36 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
         "index": 0,
         "imagePath": "datasets/uuid/image1.jpg",
         "maskPath": "datasets/uuid/mask1.png",
-        "type": "image"
+        "imageUrl": "http://...image/image1.jpg",
+        "maskUrl": "http://...image/mask1.png"
       },
-      {
-        "index": 1,
-        "imagePath": "datasets/uuid/video1.mp4",
-        "maskPath": "datasets/uuid/video1_mask.mp4",
-        "type": "video"
-      }
       // ...
     ]
   }
 }
 ```
-
+ 
 #### Upload Data (image/video/zip)
-`POST /api/datasets/upload-data`
+`POST /api/datasets/data`
 ```json
 // Success
 {
-  "success": true,
-  "message": "Data uploaded and processed",
-  "processedItems": 5,
-  "tokensUsed": 3.25,
-  "tokensRemaining": 96.75
+  "message": "Data uploaded and processed successfully",
+    "processedItems": 1,
+    "tokenSpent": 0.65,
+    "userTokens": 99.35,
+    "tokenUsage": {
+        "tokensSpent": 0.65,
+        "remainingBalance": 99.35,
+        "operationType": "dataset_upload"
+}
 }
 ```
-
+ 
 ---
-
+ 
 ### Inference
-
+ 
 #### Start Inference
 `POST /api/inferences/`
 ```json
@@ -494,21 +513,22 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   }
 }
 ```
-
+ 
 #### Get Inference Status
-`GET /api/inferences/:id/status`
+`GET /api/inferences/job/:jobid/status`
 ```json
 {
   "success": true,
+  "message": "Job status retrieved successfully",
   "data": {
-    "inferenceId": "uuid",
-    "status": "RUNNING", // or PENDING, FAILED, ABORTED, COMPLETED
-    "progress": 60,
-    "error": null
+    "jobId": "1",
+    "status": "COMPLETED", // or PENDING, FAILED, ABORTED, RUNNING
+    "progress": 100,
+    "result":{/*...*/}
   }
 }
 ```
-
+ 
 #### Get Inference Result
 `GET /api/inferences/:id/results`
 ```json
@@ -522,47 +542,57 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
       "images": [
         {
           "originalPath": "datasets/uuid/image1.jpg",
-          "outputPath": "inferences/uuid/processed_image1.png"
+          "outputPath": "inferences/uuid/processed_image1.png",
+          "downloadUrl": "http://..."
         }
       ],
       "videos": [
         {
-          "originalVideoId": "1",
-          "outputPath": "inferences/uuid/video_1.mp4"
+          "originalPath": "datasets/uuid/video.mp4",
+          "outputPath": "inferences/uuid/video_1.mp4",
+          "downloadUrl": "http://..."
         }
       ]
     }
   }
 }
 ```
-
+ 
 ---
-
+ 
 ### Admin
-
+ 
 #### Recharge User Tokens
 `POST /api/admin/user-tokens`
 ```json
 {
   "success": true,
-  "message": "User tokens updated",
+  "message": "Token recharged succesfully",
   "data": {
-    "email": "mariorossi@gmail.com",
-    "tokens": 200
+    "userEmail": "mariorossi@gmail.com",
+    "amountAdded": 200,
+    "newBalance": 300
   }
 }
 ```
-
+ 
 #### Get User Token Balance
 `GET /api/admin/users/:email/tokens`
 ```json
 {
   "success": true,
   "email": "mariorossi@gmail.com",
-  "tokens": 200
+  "data": {
+    "id": "uuid",
+    "name": "Mario",
+    "surname": "Rossi",
+    "email" : "mariorossi@fmail.com",
+    "currentBalance" : 300,
+    "role" :"user"
+  }
 }
 ```
-
+ 
 #### List Transactions
 `GET /api/admin/transactions`
 ```json
@@ -571,16 +601,19 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "data": [
     {
       "id": "uuid",
-      "userEmail": "mariorossi@gmail.com",
-      "amount": 100,
-      "type": "recharge",
-      "createdAt": "2024-01-01T10:00:00Z"
+      "operationType": "admin_recharge",
+      "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
+      "amount": 200,
+      "status": "completed",
+      "description": "Admin recharge by admin@system.com: +1000 tokens",
+      "createdAt": "2025-09-23T09:58:15.751Z",
+      "user": {/*....*/}
     }
     // ...
   ]
 }
 ```
-
+ 
 #### List All Datasets (admin)
 `GET /api/admin/datasets`
 ```json
@@ -593,29 +626,30 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
       "tags": ["Inpainting", "Damage", "Mask"],
       "isDeleted": false,
       "createdAt": "2024-01-01T10:00:00Z"
+      /*...*/
     }
     // ...other datasets
   ]
 }
 ```
-
+ 
 ---
-
+ 
 ## Database Structure
-
+ 
 The application uses PostgreSQL with the following tables:
-
+ 
 - **Users**: Stores user account information, authentication credentials, token balance, and user roles.
 - **Datasets**: Contains metadata and data references for uploaded datasets, including images, videos, tags, and logical deletion status.
 - **Inferences**: Tracks inference jobs, their status, parameters, results, and associations to users and datasets.
 - **Token_transactions**: Records all token-related operations for audit purposes, including recharges, deductions, and transaction details.
-
+ 
 ![Database Structure](public/database.png)
-
+ 
 ---
-
+ 
 ### Table Fields
-
+ 
 #### **Users**
 | Field         | Type                | Description                                      |
 |---------------|---------------------|--------------------------------------------------|
@@ -628,7 +662,7 @@ The application uses PostgreSQL with the following tables:
 | role          | user_role (enum)    | User role: 'user' or 'admin'                     |
 | created_at    | TIMESTAMP           | Account creation timestamp                       |
 | updated_at    | TIMESTAMP           | Last update timestamp                            |
-
+ 
 #### **Datasets**
 | Field             | Type           | Description                                                    |
 |-------------------|----------------|----------------------------------------------------------------|
@@ -641,7 +675,7 @@ The application uses PostgreSQL with the following tables:
 | next_upload_index | INTEGER        | Tracks next upload index for incremental uploads               |
 | created_at        | TIMESTAMP      | Dataset creation timestamp                                     |
 | updated_at        | TIMESTAMP      | Last update timestamp                                          |
-
+ 
 #### **Inferences**
 | Field        | Type              | Description                                         |
 |--------------|-------------------|-----------------------------------------------------|
@@ -654,7 +688,7 @@ The application uses PostgreSQL with the following tables:
 | user_id      | UUID              | Reference to the user who started the inference     |
 | created_at   | TIMESTAMP         | Inference creation timestamp                        |
 | updated_at   | TIMESTAMP         | Last update timestamp                               |
-
+ 
 #### **Token_transactions**
 | Field           | Type            | Description                                         |
 |-----------------|-----------------|-----------------------------------------------------|
@@ -668,13 +702,13 @@ The application uses PostgreSQL with the following tables:
 | status          | VARCHAR(20)     | Transaction status (e.g., completed)                |
 | description     | TEXT            | Additional details or notes                         |
 | created_at      | TIMESTAMP       | Transaction creation timestamp                      |
-
+ 
 ---
-
-
+ 
+ 
 ## System Architecture
 The system architecture implements the following schema.
-
+ 
 ```plaintext
                    +---------------------------+
                    |      Client (User)        |
@@ -730,8 +764,8 @@ The system architecture implements the following schema.
                                   +---------------v----------------+
                                   |     Database (PostgreSQL)      |
                                   +--------------------------------+
-
-
+ 
+ 
 - **Router**: Maps HTTP routes to controllers.
 - **Controller**: Handles request logic, validation, error handling.
 - **Middleware**: Auth, rate limiting, file upload, logging.
@@ -743,11 +777,11 @@ The system architecture implements the following schema.
 - **DAO**: Direct database operations.
 - **Model**: Entity definitions.
 ```
-
-
+ 
+ 
 ## Inference Workflow (Worker + External Service)
 The Inference Workflow implements the following schema.
-
+ 
 ```plaintext
 +--------------------------------+
 |         Queue System           |
@@ -787,7 +821,7 @@ The Inference Workflow implements the following schema.
 | - Updates DB via Repository    |
 | - Confirms/Refunds Tokens      |
 +--------------------------------+
-
+ 
 - **Queue**: Stores inference jobs asynchronously (Redis + Bull).  
 - **Worker**: Processes jobs in the background.  
 - **Adapter**: Translates requests and responses, handles HTTP calls to the external service.  
@@ -795,14 +829,14 @@ The Inference Workflow implements the following schema.
 - **Repository**: Persists job results and state updates to the database.  
 - **Token Service**: Confirms or refunds tokens depending on job success.  
 ```
-
+ 
 ---
 ## Patterns
-
+ 
 This project extensively uses classic patterns to ensure a **robust, maintainable, and scalable architecture**. Below are the main patterns used, with their purpose and rationale.
-
+ 
 ---
-
+ 
 ### 1. Singleton
 **Purpose:** Ensures a class has only one instance and provides a global access point.  
 **Why used:** Ideal for shared resources or services that maintain global state, avoiding multiple expensive instances.  
@@ -810,14 +844,14 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - `DbConnection`: single database connection pool  
 - `InferenceQueue`: single Redis connection  
 - All DAOs, Repositories, Services, Proxies, and Adapters  
-
+ 
 ```plaintext
-
+ 
 // src/services/TokenService.ts
 export class TokenService {
   private static instance: TokenService;
   private constructor() { /* ... initialization of repositories, etc. ... */ }
-
+ 
   public static getInstance(): TokenService {
     if (!TokenService.instance) {
       TokenService.instance = new TokenService();
@@ -826,21 +860,21 @@ export class TokenService {
   }
 }
 ```
-
+ 
 ---
-
+ 
 ### 2. Factory Method
 **Purpose:** Defines an interface for creating objects but lets subclasses decide which concrete class to instantiate.  
 **Why used:** Centralizes creation of complex objects (e.g., error messages, loggers) and decouples client code from specific creation logic.  
 **Example usage:**  
 - `ErrorManager`: Creates standardized error objects  
 - `LoggerFactory`: Creates specialized loggers for different domains  
-
+ 
 ```plaintext
 // src/factory/loggerFactory.ts
 export class LoggerFactory {
   // ... (Singleton implementation) ...
-
+ 
   // This method is a "factory method" that creates a specific type of logger.
   public createDatasetLogger(): DatasetRouteLogger {
       return new DatasetRouteLogger();
@@ -848,7 +882,7 @@ export class LoggerFactory {
 }
 ```
 ---
-
+ 
 ### 3. DAO & Repository
 **Purpose:** Separates database access logic into two layers:  
 - DAO: Executes direct queries (technical layer)  
@@ -857,7 +891,7 @@ export class LoggerFactory {
 **Example usage:**  
 - DAO: `UserDao`, `DatasetDao`, `InferenceDao`, `TransactionDao`  
 - Repository: `UserRepository`, `DatasetRepository`, `InferenceRepository`, `TransactionRepository`  
-
+ 
 ```plaintext
 // src/dao/DatasetDao.ts
 export class DatasetDao {
@@ -871,9 +905,9 @@ export class DatasetDao {
   }
 }
 ```
-
+ 
 ```plaintext
-
+ 
 // src/repository/DatasetRepository.ts
 export class DatasetRepository {
   private readonly datasetDao: DatasetDao;
@@ -885,14 +919,14 @@ export class DatasetRepository {
 }
 ```
 ---
-
+ 
 ### 4. Chain of Responsibility
 **Purpose:** Passes a request along a chain of handlers; each decides whether to process or forward it.  
 **Why used:** Flexible and decoupled pipeline for request processing, validation, or error handling  
 **Example usage:**  
 - `errorHandler.ts`: logErrors → classifyError → formatErrorResponse → sendErrorResponse  
 - `auth.middleware.ts`: authenticateToken chain  
-
+ 
 ```plaintext
 // src/middleware/errorHandler.ts
 function logErrors(err, req, res, next) {
@@ -900,23 +934,23 @@ function logErrors(err, req, res, next) {
   errorLogger.log(/* ... */);
   next(err); // Pass to the next handler in the chain.
 }
-
+ 
 function formatErrorResponse(err, req, res, next) {
   // Responsibility: Ensure the error has a standard format.
   // ...
   next(err); // Pass to the final handler.
 }
-
+ 
 export const errorHandlingChain = [logErrors, formatErrorResponse, /*...*/];
 ```
 ---
-
+ 
 ### 5. Proxy
 **Purpose:** Provides a surrogate to control access to another object.  
 **Why used:** Intercepts calls to the real object, adding functionality before or after delegating  
 **Example usage:**  
 - `InferenceBlackBoxProxy`: intermediates between Controllers/Services and InferenceQueue  
-
+ 
 ```plaintext
 // src/proxy/inferenceBlackBoxProxy.ts
 export class InferenceBlackBoxProxy {
@@ -932,13 +966,13 @@ export class InferenceBlackBoxProxy {
 }
 ```
 ---
-
+ 
 ### 6. Adapter
 **Purpose:** Converts one interface into another expected by the client.  
 **Why used:** Integrates external or legacy components without changing existing code  
 **Example usage:**  
 - `InferenceBlackBoxAdapter`: Bridges Node.js/TypeScript and Python/Flask inference service  
-
+ 
 ```plaintext
 // src/services/inferenceBlackBoxAdapter.ts
 export class InferenceBlackBoxAdapter {
@@ -955,19 +989,19 @@ export class InferenceBlackBoxAdapter {
 }
 ```
 ---
-### 7. Decorator (Structural Variant)
+### 7. Decorator
 **Purpose:** Dynamically adds functionality to an object without altering its structure.  
 **Why used:** Provides structured, domain-specific logging instead of a generic logger  
 **Example usage:**  
 - `loggerDecorator.ts`: `UserRouteLogger`, `DatasetRouteLogger` extending a base logger with specialized logging methods  
-
+ 
 ```plaintext
 // src/utils/loggerDecorator.ts
 export abstract class BaseLoggerDecorator {
   protected logger: winston.Logger = Logger.getInstance();
   // ...
 }
-
+ 
 export class DatasetRouteLogger extends BaseLoggerDecorator {
   // Adds new, specialized functionality
   public logDatasetCreation(userId: string, datasetName: string): void {
@@ -976,7 +1010,7 @@ export class DatasetRouteLogger extends BaseLoggerDecorator {
 }
 ```
 ---
-
+ 
 ### 8. MVC (Model-View-Controller) for APIs
 **Purpose:** Separates application logic into three components:  
 - Model: Data and business logic  
@@ -985,7 +1019,7 @@ export class DatasetRouteLogger extends BaseLoggerDecorator {
 **Why used:** Fundamental for organizing the backend and ensuring separation of concerns  
 **Example usage:**  
 - `UserController`, `DatasetController`, `InferenceController`  
-
+ 
 ```plaintext
 // src/controllers/DatasetController.ts
 export class DatasetController {
@@ -994,12 +1028,12 @@ export class DatasetController {
       // 1. CONTROLLER receives HTTP input (req.body, req.user)
       const { name, tags } = req.body;
       const userId = req.user!.userId;
-
+ 
       // 2. CONTROLLER interacts with the MODEL (via the Service)
       const dataset = await DatasetService.createEmptyDataset(userId, name, tags);
-      
+     
       // 3. CONTROLLER prepares the VIEW (the JSON response)
-      res.status(201).json({ 
+      res.status(201).json({
         message: "Empty dataset created successfully",
         dataset: dataset.toJSON()
       });
@@ -1010,13 +1044,13 @@ export class DatasetController {
 }
 ```
 ---
-
+ 
 ### 9. Middleware
 **Purpose:** Chain of reusable functions that handle HTTP requests.  
 **Why used:** Decomposes request handling into isolated, reusable steps (authentication, validation, logging, etc.)  
 **Example usage:**  
 - `auth.middleware.ts`, `validation.middleware.ts`, `dataset.middleware.ts`, `errorHandler.ts`  
-
+ 
 ```plaintext
 // src/routes/userRoutes.ts (example)
 // To update a user, the request must pass through three middleware functions
@@ -1030,28 +1064,28 @@ router.patch(
 );
 ```
 ---
-
-
+ 
+ 
 ## Diagram
-
+ 
 ### Actor Diagram
 ![Actor](public/actor.png)
-
+ 
 ### Use Cases
 ![Use Case](public/useCase.png)
-
+ 
 ---
 ## Sequence Diagrams
-
+ 
 ### Login for a user
 This diagram illustrate how a user authenticates with email and password.
 ![Login](public/sdLogin.png)
 ### Recharge user token by admin
-This diagram model a privileged, administrator-only operation, highlighting the authorization checks involved. 
+This diagram model a privileged, administrator-only operation, highlighting the authorization checks involved.
 ![Recharge token](public/sdRechargetokenadmin.png)
 ### JWT token validation
 This diagram details the process of verifying a JSON Web Token (JWT) for a protected API route. It covers the entire authenticateToken middleware chain.
-
+ 
 ![JWT Token validation](public/sdjwttokenvalidation.png)
 ### Upload data in a dataset
 This diagram details the workflow of uploading a video file to a dataset.
@@ -1059,45 +1093,46 @@ This diagram details the workflow of uploading a video file to a dataset.
 ### Inference creation
 This diagram illustrate the workflow for the creation of an inference operation.
 ![Create inference](public/sdCreateinference.png)
-
+ 
 ---
-
+ 
 ## Testing
-
+ 
 The project includes a comprehensive suite of unit tests written with Jest, focusing on middleware and core business logic. External dependencies (database, libraries) are extensively mocked for fast and reliable tests. The main areas covered are:
-
+ 
 - **Authentication Middleware**
   - Token presence and format
   - JWT signature and expiration
   - User existence in DB
   - Authorization logic
-
+ 
 - **User Input Validation Middleware**
   - Required fields
   - Data formatting (email, name)
   - Password strength
   - Data sanitization
   - UUID format
-
+ 
 - **Inference Request Validation Middleware**
   - Inference creation payload
   - Resource access (ID format)
   - Secure file access (token validation)
-
+ 
 Run tests with:
 - **Unit/Integration Tests**: `npm test`
 - **API Testing**: Import Postman collection and run requests
-
+ 
 ---
-
+ 
 ## Linting & Code Quality
-
+ 
 The project uses **ESLint** to enforce consistent code style and catch common programming errors. Run lint checks with:
-
+ 
 ```bash
 npm run lint
 ```
-
+ 
 In addition, **SonarQube** is used to detect code smells and maintain high code quality.
-
+ 
 ---
+ 
