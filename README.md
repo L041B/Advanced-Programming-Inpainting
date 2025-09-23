@@ -308,7 +308,8 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
-    "tokens": 100
+    "tokens": 100,
+    "role" : "user"
   }
 }
 
@@ -326,9 +327,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "user": {
       "id": "uuid",
       "name": "Mario",
-      "surname": "Rossi",
-      "email": "mariorossi@gmail.com",
-      "tokens": 100
+      "email": "mariorossi@gmail.com"
     }
   }
 }
@@ -345,8 +344,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
-    "tokens": 100,
-    "createdAt": "2024-01-01T10:00:00Z"
+
   }
 }
 ```
@@ -375,7 +373,22 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```json
 {
   "success": true,
-  "tokens": 100
+  "message": "Token balance retrieved successfully",
+    "data": {
+        "balance": 100,
+        "recentTransactions": [],
+        "tokenPricing": {
+            "dataset_upload": {
+                "single_image": 0.65,
+                "video_frame": 0.4,
+                "zip_file": 0.7
+            },
+            "inference": {
+                "single_image": 2.75,
+                "video_frame": 1.5
+            }
+        }
+    }
 }
 ```
 
@@ -389,9 +402,10 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 // Success
 {
   "success": true,
-  "message": "Dataset created",
+  "message": "Empty dataset created successfully",
   "data": {
     "id": "uuid",
+    "userId": "uuid",
     "name": "Inpainting dataset",
     "tags": ["Inpainting", "Damage", "Mask"],
     "isDeleted": false,
@@ -401,21 +415,27 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```
 
 #### Update Dataset
-`PUT /api/datasets/:id`
+`PUT /api/datasets/:name`
 ```json
 {
   "success": true,
-  "message": "Dataset updated",
-  "data": { /* updated dataset fields */ }
+  "message": "Dataset updated succesfully",
+  "data": { "userId": "uuid",
+        "itemCount": 0,
+        "type": "empty",
+        "changes": {
+            "nameChanged": false,
+            "tagsChanged": true
+             }}
 }
 ```
 
 #### Delete Dataset (logical)
-`DELETE /api/datasets/:id`
+`DELETE /api/datasets/:name`
 ```json
 {
   "success": true,
-  "message": "Dataset deleted (logical)"
+  "message": "Dataset deleted succesfully"
 }
 ```
 
@@ -448,14 +468,9 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
         "index": 0,
         "imagePath": "datasets/uuid/image1.jpg",
         "maskPath": "datasets/uuid/mask1.png",
-        "type": "image"
+        "imageUrl": "http://...image/image1.jpg",
+        "maskUrl": "http://...image/mask1.png"
       },
-      {
-        "index": 1,
-        "imagePath": "datasets/uuid/video1.mp4",
-        "maskPath": "datasets/uuid/video1_mask.mp4",
-        "type": "video"
-      }
       // ...
     ]
   }
@@ -463,15 +478,19 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```
 
 #### Upload Data (image/video/zip)
-`POST /api/datasets/upload-data`
+`POST /api/datasets/data`
 ```json
 // Success
 {
-  "success": true,
-  "message": "Data uploaded and processed",
-  "processedItems": 5,
-  "tokensUsed": 3.25,
-  "tokensRemaining": 96.75
+  "message": "Data uploaded and processed successfully",
+    "processedItems": 1,
+    "tokenSpent": 0.65,
+    "userTokens": 99.35,
+    "tokenUsage": {
+        "tokensSpent": 0.65,
+        "remainingBalance": 99.35,
+        "operationType": "dataset_upload"
+}
 }
 ```
 
@@ -496,15 +515,16 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```
 
 #### Get Inference Status
-`GET /api/inferences/:id/status`
+`GET /api/inferences/job/:jobid/status`
 ```json
 {
   "success": true,
+  "message": "Job status retrieved successfully",
   "data": {
-    "inferenceId": "uuid",
-    "status": "RUNNING", // or PENDING, FAILED, ABORTED, COMPLETED
-    "progress": 60,
-    "error": null
+    "jobId": "1",
+    "status": "COMPLETED", // or PENDING, FAILED, ABORTED, RUNNING
+    "progress": 100,
+    "result":{/*...*/}
   }
 }
 ```
@@ -522,13 +542,15 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
       "images": [
         {
           "originalPath": "datasets/uuid/image1.jpg",
-          "outputPath": "inferences/uuid/processed_image1.png"
+          "outputPath": "inferences/uuid/processed_image1.png",
+          "downloadUrl": "http://..."
         }
       ],
       "videos": [
         {
-          "originalVideoId": "1",
-          "outputPath": "inferences/uuid/video_1.mp4"
+          "originalPath": "datasets/uuid/video.mp4",
+          "outputPath": "inferences/uuid/video_1.mp4",
+          "downloadUrl": "http://..."
         }
       ]
     }
@@ -545,10 +567,11 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```json
 {
   "success": true,
-  "message": "User tokens updated",
+  "message": "Token recharged succesfully",
   "data": {
-    "email": "mariorossi@gmail.com",
-    "tokens": 200
+    "userEmail": "mariorossi@gmail.com",
+    "amountAdded": 200,
+    "newBalance": 300
   }
 }
 ```
@@ -559,7 +582,14 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "email": "mariorossi@gmail.com",
-  "tokens": 200
+  "data": {
+    "id": "uuid",
+    "name": "Mario",
+    "surname": "Rossi",
+    "email" : "mariorossi@fmail.com",
+    "currentBalance" : 300,
+    "role" :"user"
+  }
 }
 ```
 
@@ -571,10 +601,13 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "data": [
     {
       "id": "uuid",
-      "userEmail": "mariorossi@gmail.com",
-      "amount": 100,
-      "type": "recharge",
-      "createdAt": "2024-01-01T10:00:00Z"
+      "operationType": "admin_recharge",
+      "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
+      "amount": 200,
+      "status": "completed",
+      "description": "Admin recharge by admin@system.com: +1000 tokens",
+      "createdAt": "2025-09-23T09:58:15.751Z",
+      "user": {/*....*/}
     }
     // ...
   ]
@@ -593,6 +626,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
       "tags": ["Inpainting", "Damage", "Mask"],
       "isDeleted": false,
       "createdAt": "2024-01-01T10:00:00Z"
+      /*...*/
     }
     // ...other datasets
   ]
@@ -955,7 +989,7 @@ export class InferenceBlackBoxAdapter {
 }
 ```
 ---
-### 7. Decorator (Structural Variant)
+### 7. Decorator 
 **Purpose:** Dynamically adds functionality to an object without altering its structure.  
 **Why used:** Provides structured, domain-specific logging instead of a generic logger  
 **Example usage:**  
