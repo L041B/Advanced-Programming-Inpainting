@@ -80,8 +80,8 @@
 
 ## 📑 Index
 
-- [Features](#features)
-- [Token & Credit System](#token--credit-system)
+- [Main Features](#main-features)
+- [ZIP Format](#zip-format)
 - [Installation](#installation)
 - [Environment Setup](#environment-setup)
 - [API Documentation](#api-documentation)
@@ -91,9 +91,10 @@
 - [Design Patterns](#design-patterns)
 - [Sequence Diagrams](#sequence-diagrams)
 - [Testing](#testing)
+- [Linting & Code Quality](#linting--code-quality)
 
 ---
-## Main Features 
+### Main Features 
 
 - **User Management & Authentication**
   - Secure JWT-based authentication
@@ -102,8 +103,7 @@
   - Protected API endpoints (JWT required, except register and login)
 
 - **Token & Credit System**
-  - Each authenticated user has a token balance .
-  - User token balance for operations
+  - Each authenticated user has a token balance 
   - Operation costs vary by type (image/video/zip upload, inference):
       - Image upload: `0.65 token/image`
       - ZIP upload: `0.7 token/valid file`
@@ -139,7 +139,7 @@
 
 ---
 
-## ZIP Format
+### ZIP Format
 
 
 - The ZIP archive must contain **subfolders**, each representing a dataset group.
@@ -811,6 +811,22 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - `InferenceQueue`: single Redis connection  
 - All DAOs, Repositories, Services, Proxies, and Adapters  
 
+```plaintext
+
+// src/services/TokenService.ts
+export class TokenService {
+  private static instance: TokenService;
+  private constructor() { /* ... initialization of repositories, etc. ... */ }
+
+  public static getInstance(): TokenService {
+    if (!TokenService.instance) {
+      TokenService.instance = new TokenService();
+    }
+    return TokenService.instance;
+  }
+}
+```
+
 ---
 
 ### 2. Factory Method
@@ -820,6 +836,17 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - `ErrorManager`: Creates standardized error objects  
 - `LoggerFactory`: Creates specialized loggers for different domains  
 
+```plaintext
+// src/factory/loggerFactory.ts
+export class LoggerFactory {
+  // ... (Singleton implementation) ...
+
+  // This method is a "factory method" that creates a specific type of logger.
+  public createDatasetLogger(): DatasetRouteLogger {
+      return new DatasetRouteLogger();
+  }
+}
+```
 ---
 
 ### 3. DAO & Repository
@@ -831,6 +858,32 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - DAO: `UserDao`, `DatasetDao`, `InferenceDao`, `TransactionDao`  
 - Repository: `UserRepository`, `DatasetRepository`, `InferenceRepository`, `TransactionRepository`  
 
+```plaintext
+// src/dao/DatasetDao.ts
+export class DatasetDao {
+  public async findWithUsers(filters: DatasetFilters, pagination: PaginationOptions) {
+    // The DAO is the only layer that builds and executes a complex Sequelize query.
+    return await Dataset.findAndCountAll({
+      where: { ...filters },
+      include: [{ model: User, as: "user" }],
+      // ... other query options
+    });
+  }
+}
+```
+
+```plaintext
+
+// src/repository/DatasetRepository.ts
+export class DatasetRepository {
+  private readonly datasetDao: DatasetDao;
+  // ...
+  public async findDatasetsWithUsers(filters: DatasetFilters, pagination: PaginationOptions) {
+    // The repository provides a clean API and simply delegates the data access call to the DAO.
+    return await this.datasetDao.findWithUsers(filters, pagination);
+  }
+}
+```
 ---
 
 ### 4. Chain of Responsibility
@@ -840,6 +893,22 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - `errorHandler.ts`: logErrors → classifyError → formatErrorResponse → sendErrorResponse  
 - `auth.middleware.ts`: authenticateToken chain  
 
+```plaintext
+// src/middleware/errorHandler.ts
+function logErrors(err, req, res, next) {
+  // Responsibility: Log the error.
+  errorLogger.log(/* ... */);
+  next(err); // Pass to the next handler in the chain.
+}
+
+function formatErrorResponse(err, req, res, next) {
+  // Responsibility: Ensure the error has a standard format.
+  // ...
+  next(err); // Pass to the final handler.
+}
+
+export const errorHandlingChain = [logErrors, formatErrorResponse, /*...*/];
+```
 ---
 
 ### 5. Proxy
@@ -848,6 +917,20 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 **Example usage:**  
 - `InferenceBlackBoxProxy`: intermediates between Controllers/Services and InferenceQueue  
 
+```plaintext
+// src/proxy/inferenceBlackBoxProxy.ts
+export class InferenceBlackBoxProxy {
+  private readonly inferenceQueue: InferenceQueue;
+  // ...
+  public async processDataset(...) {
+    // 1. Adds functionality (validation)
+    this.validateJobData(...);
+    // 2. Delegates the call to the real object (the queue)
+    const job = await this.inferenceQueue.addInferenceJob(...);
+    return job.id?.toString();
+  }
+}
+```
 ---
 
 ### 6. Adapter
@@ -856,9 +939,45 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 **Example usage:**  
 - `InferenceBlackBoxAdapter`: Bridges Node.js/TypeScript and Python/Flask inference service  
 
+```plaintext
+// src/services/inferenceBlackBoxAdapter.ts
+export class InferenceBlackBoxAdapter {
+  private readonly pythonServiceUrl: string;
+  // ...
+  async processDataset(userId: string, datasetData: object, parameters: object) {
+    // 1. Adapts the method call into an HTTP request payload.
+    const requestPayload = { userId, data: datasetData, parameters };
+    // 2. Uses Axios to communicate via a different protocol (HTTP).
+    const response = await axios.post(`${this.pythonServiceUrl}/process-dataset`, requestPayload);
+    // 3. Adapts the HTTP response back into an object the application expects.
+    return response.data;
+  }
+}
+```
+---
+### 7. Decorator (Structural Variant)
+**Purpose:** Dynamically adds functionality to an object without altering its structure.  
+**Why used:** Provides structured, domain-specific logging instead of a generic logger  
+**Example usage:**  
+- `loggerDecorator.ts`: `UserRouteLogger`, `DatasetRouteLogger` extending a base logger with specialized logging methods  
+
+```plaintext
+// src/utils/loggerDecorator.ts
+export abstract class BaseLoggerDecorator {
+  protected logger: winston.Logger = Logger.getInstance();
+  // ...
+}
+
+export class DatasetRouteLogger extends BaseLoggerDecorator {
+  // Adds new, specialized functionality
+  public logDatasetCreation(userId: string, datasetName: string): void {
+    this.logger.info("DATASET_CREATED", { type: "DATASET_ACTION", userId, datasetName });
+  }
+}
+```
 ---
 
-### 7. MVC (Model-View-Controller) for APIs
+### 8. MVC (Model-View-Controller) for APIs
 **Purpose:** Separates application logic into three components:  
 - Model: Data and business logic  
 - View: Representation of data (JSON in APIs)  
@@ -867,183 +986,118 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 **Example usage:**  
 - `UserController`, `DatasetController`, `InferenceController`  
 
+```plaintext
+// src/controllers/DatasetController.ts
+export class DatasetController {
+  static async createEmptyDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // 1. CONTROLLER receives HTTP input (req.body, req.user)
+      const { name, tags } = req.body;
+      const userId = req.user!.userId;
+
+      // 2. CONTROLLER interacts with the MODEL (via the Service)
+      const dataset = await DatasetService.createEmptyDataset(userId, name, tags);
+      
+      // 3. CONTROLLER prepares the VIEW (the JSON response)
+      res.status(201).json({ 
+        message: "Empty dataset created successfully",
+        dataset: dataset.toJSON()
+      });
+    } catch (error) {
+      next(error); // Delegates errors
+    }
+  }
+}
+```
 ---
 
-### 8. Middleware
+### 9. Middleware
 **Purpose:** Chain of reusable functions that handle HTTP requests.  
 **Why used:** Decomposes request handling into isolated, reusable steps (authentication, validation, logging, etc.)  
 **Example usage:**  
 - `auth.middleware.ts`, `validation.middleware.ts`, `dataset.middleware.ts`, `errorHandler.ts`  
 
+```plaintext
+// src/routes/userRoutes.ts (example)
+// To update a user, the request must pass through three middleware functions
+// BEFORE reaching the final controller logic.
+router.patch(
+    '/:userId',
+    authenticateToken,  // 1. Is the user logged in?
+    authorizeUser,      // 2. Is the user authorized to modify this specific resource?
+    validateUserUpdate, // 3. Is the data in the request body valid?
+    userController.updateUser // 4. If all checks pass, execute controller logic.
+);
+```
 ---
 
-### 9. Decorator (Structural Variant)
-**Purpose:** Dynamically adds functionality to an object without altering its structure.  
-**Why used:** Provides structured, domain-specific logging instead of a generic logger  
-**Example usage:**  
-- `loggerDecorator.ts`: `UserRouteLogger`, `DatasetRouteLogger` extending a base logger with specialized logging methods  
 
----
+## Diagram
 
-
----
-
-## Design Patterns
-
-This project uses several design patterns to ensure maintainability, scalability, and clean separation of concerns:
-
-- **Singleton**:  
-  Ensures that only one instance of critical classes (such as services and repositories) exists throughout the application lifecycle.  
-  This avoids redundant connections (e.g., to the database), ensures consistent state, and reduces memory usage.  
-  *Example in code:*  
-  ```typescript
-  // UserRepository.ts
-  export class UserRepository {
-    private static instance: UserRepository;
-    private constructor() { /* ... */ }
-    public static getInstance() {
-      if (!UserRepository.instance) {
-        UserRepository.instance = new UserRepository();
-      }
-      return UserRepository.instance;
-    }
-  }
-  ```
-
-- **Proxy**:  
-  Acts as an intermediary between controllers and the queue/worker system.  
-  *Why?*  
-  The proxy pattern allows validation, logging, and access control before requests are passed to the queue.  
-  *Example in code:*  
-  ```typescript
-  // blackBoxProxy.ts
-  export class BlackBoxProxy {
-    public async queueJob(request) {
-      this.validate(request);
-      this.log(request);
-      return this.queue.add(request);
-    }
-    // ...
-  }
-  ```
-
-- **Factory**:  
-  Centralizes the creation of objects such as loggers.  
-  *Why?*  
-  The factory pattern makes it easy to instantiate different types of loggers (API, execution, error) based on context.  
-  *Example in code:*  
-  ```typescript
-  // loggerFactory.ts
-  export class LoggerFactory {
-    public static createLogger(type: string) {
-      if (type === 'api') return new ApiLogger();
-      if (type === 'execution') return new ExecutionLogger();
-      return new ErrorLogger();
-    }
-  }
-  ```
-
-- **Repository**:  
-  Abstracts database operations from business logic.  
-  *Why?*  
-  The repository pattern provides a clean interface for data access, making it easier to swap out the underlying database or mock data for testing.  
-  *Example in code:*  
-  ```typescript
-  // executionRepository.ts
-  export class ExecutionRepository {
-    public async findByUserId(userId: string) {
-      return ExecutionModel.findAll({ where: { userId } });
-    }
-  }
-  ```
-
-- **Decorator**:  
-  Adds extra functionality (like logging) to existing objects without modifying their structure.  
-  *Why?*  
-  The decorator pattern is used to enhance loggers with additional features (e.g., timestamping, formatting).  
-  *Example in code:*  
-  ```typescript
-  // loggerDecorator.ts
-  export function withTimestamp(logger) {
-    return {
-      log: (msg: string) => logger.log(`[${new Date().toISOString()}] ${msg}`)
-    };
-  }
-  ```
-
-- **Chain of Responsibility**:  
-  Allows a request to pass through a chain of handlers, each able to process or pass it along.  
-  *Why?*  
-  Used for request validation, authentication, and error handling in middleware. Each middleware can handle or forward the request.  
-  *Example in code:*  
-  ```typescript
-  // Express middleware chain
-  app.use(authMiddleware);
-  app.use(validationMiddleware);
-  app.use(rateLimitMiddleware);
-  // Each middleware calls next() to pass to the next handler
-  ```
-
-These patterns together help keep the codebase modular, testable, and easy to extend as requirements evolve.
-
----
-## Use Case
-
+### Actor Diagram
 ![Actor](public/actor.png)
+
+### Use Cases
 ![Use Case](public/useCase.png)
 
 ---
 ## Sequence Diagrams
 
+### Login for a user
+This diagram illustrate how a user authenticates with email and password.
 ![Login](public/sdLogin.png)
+### Recharge user token by admin
+This diagram model a privileged, administrator-only operation, highlighting the authorization checks involved. 
 ![Recharge token](public/sdRechargetokenadmin.png)
+### JWT token validation
+This diagram details the process of verifying a JSON Web Token (JWT) for a protected API route. It covers the entire authenticateToken middleware chain.
+
 ![JWT Token validation](public/sdjwttokenvalidation.png)
+### Upload data in a dataset
+This diagram details the workflow of uploading a video file to a dataset.
 ![Upload data](public/sdUploaddata.png)
+### Inference creation
+This diagram illustrate the workflow for the creation of an inference operation.
 ![Create inference](public/sdCreateinference.png)
-
-> Example: Inpainting Job Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant Controller
-    participant Proxy
-    participant Queue
-    participant Worker
-    participant BlackBox
-    participant Database
-
-    Client->>Controller: POST /inpainting
-    Controller->>Database: Create execution record
-    Controller->>Proxy: executeInpainting()
-    Proxy->>Queue: addJob()
-    Queue-->>Proxy: jobId
-    Proxy-->>Controller: {jobId, success: true}
-    Controller-->>Client: 202 Accepted {jobId}
-
-    Queue->>Worker: processJob()
-    Worker->>Database: Update status to 'processing'
-    Worker->>BlackBox: processInpainting()
-    BlackBox-->>Worker: {outputImage, success}
-    Worker->>Database: Save result, status to 'completed'
-    Worker-->>Queue: Job completed
-```
 
 ---
 
 ## Testing
 
-- **Linting**: `npm run lint`
+The project includes a comprehensive suite of unit tests written with Jest, focusing on middleware and core business logic. External dependencies (database, libraries) are extensively mocked for fast and reliable tests. The main areas covered are:
+
+- **Authentication Middleware**
+  - Token presence and format
+  - JWT signature and expiration
+  - User existence in DB
+  - Authorization logic
+
+- **User Input Validation Middleware**
+  - Required fields
+  - Data formatting (email, name)
+  - Password strength
+  - Data sanitization
+  - UUID format
+
+- **Inference Request Validation Middleware**
+  - Inference creation payload
+  - Resource access (ID format)
+  - Secure file access (token validation)
+
+Run tests with:
 - **Unit/Integration Tests**: `npm test`
 - **API Testing**: Import Postman collection and run requests
-- **Debug Endpoints**: `/api/debug/*` for queue and pattern status
 
 ---
 
-## Seed Scripts
+## Linting & Code Quality
 
-- The system includes DB seed scripts to initialize users, credits, and models.
-- Run `npm run seed` after setup to populate initial data.
+The project uses **ESLint** to enforce consistent code style and catch common programming errors. Run lint checks with:
+
+```bash
+npm run lint
+```
+
+In addition, **SonarQube** is used to detect code smells and maintain high code quality.
 
 ---
-
