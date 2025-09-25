@@ -7,7 +7,6 @@ import { InferenceService } from "../services/inferenceService";
 import { loggerFactory, InferenceRouteLogger, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
-import jwt from "jsonwebtoken";
 import { TokenService } from "../services/tokenService";
 
 // Extend Request interface to include user property and other custom properties
@@ -240,14 +239,14 @@ export class InferenceController {
             const images = (result.images || []).map((img) => ({
                 originalPath: img.originalPath,
                 outputPath: img.outputPath,
-                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(img.outputPath.split('/').pop() || '')}`
+                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(img.outputPath.split("/").pop() || "")}`
             }));
 
             // Generate clean URLs for videos
             const videos = (result.videos || []).map((vid) => ({
                 originalVideoId: vid.originalVideoId,
                 outputPath: vid.outputPath,
-                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(vid.outputPath.split('/').pop() || '')}`
+                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(vid.outputPath.split("/").pop() || "")}`
             }));
 
             // Log the retrieval

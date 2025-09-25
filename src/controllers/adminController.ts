@@ -44,7 +44,7 @@ export class AdminController {
                 return;
             }
 
-            // Limite massimo accettato (es. 1 milione)
+            // Check for maximum allowable amount
             const MAX_AMOUNT = 1_000_000;
             if (numericAmount > MAX_AMOUNT) {
                 const error = AdminController.errorManager.createError(

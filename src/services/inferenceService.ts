@@ -6,7 +6,6 @@ import { TokenService } from "./tokenService";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
-import jwt from "jsonwebtoken";
 
 interface CreateInferenceData {
     datasetName: string;
