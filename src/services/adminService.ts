@@ -78,6 +78,7 @@ export interface AnalyzedDataset {
     createdAt: Date;
     updatedAt: Date;
     isDeleted: boolean;
+    deletedAt: Date | null; // Add deletedAt field
     status: string;
     isOrphaned: boolean;
     user: {
@@ -408,6 +409,7 @@ export class AdminService {
                 createdAt: Date;
                 updatedAt: Date;
                 isDeleted: boolean;
+                deletedAt?: Date | null; // Add deletedAt field to input type
                 user?: {
                     id: string;
                     name: string;
@@ -435,6 +437,7 @@ export class AdminService {
             createdAt: Date;
             updatedAt: Date;
             isDeleted: boolean;
+            deletedAt?: Date | null; // Add deletedAt field to input type
             user?: {
                 id: string;
                 name: string;
@@ -476,6 +479,7 @@ export class AdminService {
             createdAt: dataset.createdAt,
             updatedAt: dataset.updatedAt,
             isDeleted: dataset.isDeleted,
+            deletedAt: dataset.deletedAt || null, // Include deletedAt in response
             status: dataset.isDeleted ? "deleted" : "active",
             isOrphaned: !user,
             user: user ? {
@@ -588,4 +592,3 @@ export class AdminService {
         };
     }
 }
-           

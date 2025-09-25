@@ -10,6 +10,7 @@ export class Dataset extends Model {
   public data!: object | null;
   public tags!: string[];
   public isDeleted!: boolean;
+  public deletedAt!: Date | null; // Timestamp when dataset was deleted
   public nextUploadIndex!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -49,6 +50,12 @@ export class Dataset extends Model {
           allowNull: false,
           defaultValue: false,
           field: "is_deleted"
+        },
+        deletedAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+          defaultValue: null,
+          field: "deleted_at"
         },
         nextUploadIndex: {
           type: DataTypes.INTEGER,

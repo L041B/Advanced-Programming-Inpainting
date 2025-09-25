@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
+import { validateUserIdFormat } from "./validationMiddleware";
 
 // Initialize error manager and logger
 const errorManager: ErrorManager = ErrorManager.getInstance();
@@ -187,24 +188,6 @@ export const sanitizeLoginData = (req: Request, res: Response, next: NextFunctio
     next();
 };
 
-// validateUUIDFormat is a middleware function that validates the format of a UUID.
-export const validateUUIDFormat = (req: Request, res: Response, next: NextFunction): void => {
-    const { userId } = req.params;
-    if (userId) {
-        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-        if (!uuidRegex.test(userId)) {
-            errorLogger.logValidationError("uuidFormat", userId, "Invalid UUID format");
-            const error = errorManager.createError(
-                ErrorStatus.invalidFormat,
-                "Invalid user ID format"
-            );
-            next(error);
-            return;
-        }
-    }
-    next();
-};
-
 // Middleware for validating user creation requests - all fields required
 export const validateUserCreation = [
     checkRequiredFields,
@@ -216,7 +199,7 @@ export const validateUserCreation = [
 
 // Middleware for validating user update requests - fields are optional, but validated if present
 export const validateUserUpdate = [
-    validateUUIDFormat,
+    validateUserIdFormat,
     sanitizeUserData,
     validateNameFormat,
     validateEmailFormat,

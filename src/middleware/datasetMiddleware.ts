@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
+import { validateDatasetIdFormat } from "./validationMiddleware";
 
 // Initialize loggers and error manager
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -96,10 +97,11 @@ export class DatasetMiddleware {
     });
 
     // New middleware to handle multer errors properly
-    public static readonly handleMulterErrors = (err: any, req: Request, res: Response, next: NextFunction): void => {
+    public static readonly handleMulterErrors = (err: Error | null, req: Request, res: Response, next: NextFunction): void => {
         if (err) {
             // Check if it's a multer error
-            if (err.code === "LIMIT_FILE_SIZE") {
+            const multerError = err as Error & { code?: string; errorType?: string; getResponse?: () => unknown };
+            if (multerError.code === 'LIMIT_FILE_SIZE') {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "File size exceeds the maximum limit of 10MB"
@@ -108,7 +110,7 @@ export class DatasetMiddleware {
                 return;
             }
             
-            if (err.code === "LIMIT_UNEXPECTED_FILE") {
+            if (multerError.code === 'LIMIT_UNEXPECTED_FILE') {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "Unexpected file field or too many files"
@@ -118,7 +120,7 @@ export class DatasetMiddleware {
             }
 
             // Check if it's already a standardized error from file filter
-            if (err.errorType && err.getResponse) {
+            if (multerError.errorType && multerError.getResponse) {
                 next(err);
                 return;
             }
@@ -422,4 +424,9 @@ export const validateDatasetUpdate = [
 // Middleware chain for dataset access validation
 export const validateDatasetAccess = [
     DatasetMiddleware.validateDatasetNameParam
+];
+
+// New middleware chain for dataset access by ID
+export const validateDatasetById = [
+    validateDatasetIdFormat
 ];

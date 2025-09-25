@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     data JSONB, -- Contains image-mask pairs or frame-mask lists for videos, can be empty
     tags TEXT[] DEFAULT '{}', -- Array of strings for tags
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMP DEFAULT NULL, -- Timestamp when dataset was deleted
     next_upload_index INTEGER DEFAULT 1, -- Tracks the next upload index for this dataset
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -78,11 +79,22 @@ CREATE TABLE IF NOT EXISTS inferences (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
--- Create function to automatically update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- Create function to automatically update updated_at timestamp and handle deleted_at
+CREATE OR REPLACE FUNCTION update_dataset_timestamps()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
+    
+    -- Set deleted_at when is_deleted changes from false to true
+    IF OLD.is_deleted = false AND NEW.is_deleted = true THEN
+        NEW.deleted_at = CURRENT_TIMESTAMP;
+    END IF;
+    
+    -- Clear deleted_at when is_deleted changes from true to false (restoration)
+    IF OLD.is_deleted = true AND NEW.is_deleted = false THEN
+        NEW.deleted_at = NULL;
+    END IF;
+    
     RETURN NEW;
 END;
 $$ language 'plpgsql';
@@ -94,12 +106,12 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Create trigger for datasets table
+-- Create trigger for datasets table (replace the existing one)
 DROP TRIGGER IF EXISTS update_datasets_updated_at ON datasets;
 CREATE TRIGGER update_datasets_updated_at
     BEFORE UPDATE ON datasets
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_dataset_timestamps();
 
 -- Create trigger for inferences table
 DROP TRIGGER IF EXISTS update_inferences_updated_at ON inferences;
@@ -124,4 +136,5 @@ CREATE INDEX IF NOT EXISTS idx_inferences_status ON inferences(status);
 CREATE INDEX IF NOT EXISTS idx_inferences_model_id ON inferences(model_id);
 CREATE INDEX IF NOT EXISTS idx_inferences_dataset_id ON inferences(dataset_id); -- Torna a dataset_id
 CREATE INDEX IF NOT EXISTS idx_token_transactions_status ON token_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_datasets_deleted_at ON datasets(deleted_at);
 

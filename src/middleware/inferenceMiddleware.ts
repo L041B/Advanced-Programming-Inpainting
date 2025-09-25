@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
+import { validateInferenceIdFormat } from "./validationMiddleware";
 
 // Initialize singletons
 const errorManager = ErrorManager.getInstance();
@@ -52,20 +53,6 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
     next();
 };
 
-// checkInferenceIdParam validates that the 'id' from the URL parameters is a valid UUID
-const checkInferenceIdParam = (req: AuthRequest, res: Response, next: NextFunction): void => {
-    const { id } = req.params;
-    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    
-    // Validate presence and format of id
-    if (!id || !uuidRegex.test(id)) {
-        errorLogger.logValidationError("inferenceId", id, "A valid inference ID (UUID) is required in the URL path.");
-        return next(errorManager.createError(ErrorStatus.invalidFormat, "A valid inference ID is required."));
-    }
-
-    next();
-};
-
 // checkFileTokenParam validates that the 'token' from the URL for file access is present.
 const checkFileTokenParam = (req: AuthRequest, res: Response, next: NextFunction): void => {
     let { token } = req.params;
@@ -84,15 +71,14 @@ const checkFileTokenParam = (req: AuthRequest, res: Response, next: NextFunction
     next();
 };
 
-
 // validateInferenceCreation is a chain of middlewares for validating inference creation requests
 export const validateInferenceCreation = [
     checkCreateInferenceFields
 ];
 
-// @const validateInferenceAccess is a chain for accessing a specific inference by its ID.
+// validateInferenceAccess is a chain for accessing a specific inference by its ID.
 export const validateInferenceAccess = [
-    checkInferenceIdParam
+    validateInferenceIdFormat
 ];
 
 // validateFileAccess is a chain for accessing a protected file via a token.
