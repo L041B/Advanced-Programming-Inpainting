@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
+import { validateDatasetIdFormat } from "./validationMiddleware";
 
 // Initialize loggers and error manager
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -423,4 +424,9 @@ export const validateDatasetUpdate = [
 // Middleware chain for dataset access validation
 export const validateDatasetAccess = [
     DatasetMiddleware.validateDatasetNameParam
+];
+
+// New middleware chain for dataset access by ID
+export const validateDatasetById = [
+    validateDatasetIdFormat
 ];

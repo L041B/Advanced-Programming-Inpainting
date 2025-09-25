@@ -6,9 +6,9 @@ import { UserController } from "../controllers/userController";
 import { 
     validateUserCreation, 
     validateLogin, 
-    validateUserUpdate, 
-    validateUUIDFormat 
+    validateUserUpdate
 } from "../middleware/userMiddleware";
+import { validateUserIdFormat } from "../middleware/validationMiddleware";
 import { authenticateToken, authorizeUser } from "../middleware/authMiddleware";
 
 // Create a new router instance.
@@ -41,11 +41,11 @@ router.get("/profile", ...authenticateToken, asyncHandler(userController.getUser
 router.get("/tokens", ...authenticateToken, asyncHandler(userController.getUserTokens));
 
 // UPDATE - Update a specific user's data.
-router.put("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, 
+router.put("/:userId", validateUserIdFormat, ...authenticateToken, ...authorizeUser, 
     ...validateUserUpdate, asyncHandler(userController.updateUser));
 
 // DELETE - Delete a specific user.
-router.delete("/:userId", validateUUIDFormat, ...authenticateToken, ...authorizeUser, asyncHandler(userController.deleteUser));
+router.delete("/:userId", validateUserIdFormat, ...authenticateToken, ...authorizeUser, asyncHandler(userController.deleteUser));
 
 // Export the router to be mounted in the main application file.
 export default router;
