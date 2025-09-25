@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git
+.git
+.gitignore
+
+# Local development and IDE settings
+.vscode/
+.idea/
+.editorconfig
+*.swp
+*.swo
+*~
+
+# Local environment files (NEVER commit these to Git or include in an image)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build artifacts and coverage reports
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+
+# Temporary files and user uploads
+uploads/
+temp/
+tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# PM2 files (if used, typically for local dev or specific deployment strategies)
+.pm2/
+ecosystem.config.js
+
+# Redis dump files (if generated locally)
+dump.rdb
+
+# Local database files
+*.sqlite
+*.sqlite3
+*.db
+
+# Sharp library cache
+.sharp/

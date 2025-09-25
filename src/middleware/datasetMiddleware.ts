@@ -57,9 +57,9 @@ export class DatasetMiddleware {
                 );
                 
                 const supportedMimeTypes = [
-                    'image/jpeg', 'image/jpg', 'image/png',
-                    'video/mp4', 'video/avi',
-                    'application/zip'
+                    "image/jpeg", "image/jpg", "image/png",
+                    "video/mp4", "video/avi",
+                    "application/zip"
                 ];
                 const mimeTypeCheck = supportedMimeTypes.includes(uploadedFile.mimetype);
                 
@@ -70,7 +70,7 @@ export class DatasetMiddleware {
                     // Create a standardized error instead of generic Error
                     const error = errorManager.createError(
                         ErrorStatus.invalidFormat,
-                        `File type not supported. Supported formats: JPEG, PNG, MP4, AVI, ZIP.`
+                        "File type not supported. Supported formats: JPEG, PNG, MP4, AVI, ZIP."
                     );
                     
                     errorLogger.logFileUploadError(
@@ -99,16 +99,16 @@ export class DatasetMiddleware {
     public static readonly handleMulterErrors = (err: any, req: Request, res: Response, next: NextFunction): void => {
         if (err) {
             // Check if it's a multer error
-            if (err.code === 'LIMIT_FILE_SIZE') {
+            if (err.code === "LIMIT_FILE_SIZE") {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
-                    "File size exceeds the maximum limit of 100MB"
+                    "File size exceeds the maximum limit of 10MB"
                 );
                 next(error);
                 return;
             }
             
-            if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+            if (err.code === "LIMIT_UNEXPECTED_FILE") {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "Unexpected file field or too many files"

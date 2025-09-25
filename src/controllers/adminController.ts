@@ -23,19 +23,19 @@ export class AdminController {
     static async rechargeUserTokens(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         AdminController.apiLogger.logRequest(req);
- 
+
         // Validate admin authentication
         try {
             const adminUserId = req.user!.userId;
             const { email, amount } = req.body;
- 
+
             // Validate input parameters
             if (!email || typeof email !== "string") {
                 const error = AdminController.errorManager.createError(ErrorStatus.invalidParametersError, "Valid email is required");
                 next(error);
                 return;
             }
- 
+
             // Validate amount is a positive number
             const numericAmount = parseFloat(amount);
             if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
@@ -43,10 +43,21 @@ export class AdminController {
                 next(error);
                 return;
             }
- 
+
+            // Limite massimo accettato (es. 1 milione)
+            const MAX_AMOUNT = 1_000_000;
+            if (numericAmount > MAX_AMOUNT) {
+                const error = AdminController.errorManager.createError(
+                    ErrorStatus.invalidParametersError,
+                    `Amount too large. Maximum allowed is ${MAX_AMOUNT}.`
+                );
+                next(error);
+                return;
+            }
+
             // Recharge tokens using the service
             const newBalance = await AdminController.adminService.rechargeUserTokens(adminUserId, email, numericAmount);
- 
+
             // Send success response
             res.status(200).json({
                 success: true,
@@ -175,4 +186,3 @@ export class AdminController {
         }
     }
 }
-           

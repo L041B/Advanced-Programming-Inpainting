@@ -70,10 +70,10 @@ export class UserController {
             
             // Check for email duplication error (common database constraint violation patterns)
             if (err.message && (
-                err.message.includes('unique constraint') ||
-                err.message.includes('duplicate key') ||
-                err.message.includes('already exists') ||
-                err.message.toLowerCase().includes('email') && err.message.toLowerCase().includes('unique')
+                err.message.includes("unique constraint") ||
+                err.message.includes("duplicate key") ||
+                err.message.includes("already exists") ||
+                err.message.toLowerCase().includes("email") && err.message.toLowerCase().includes("unique")
             )) {
                 // Log the email duplication attempt for security monitoring
                 this.errorLogger.logValidationError("email", (req.body as { email?: string }).email || "unknown", "Email already exists in system");

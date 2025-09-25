@@ -30,7 +30,7 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
 router.post("/user", ...validateUserCreation, asyncHandler(userController.createUser));
 
 // LOGIN - Authenticate a user and return a token.
-router.post("/session", ...validateLogin, asyncHandler(userController.login));
+router.post("/login", ...validateLogin, asyncHandler(userController.login));
 
 // This routes require the requester to be authenticated (`authenticateToken`).
 

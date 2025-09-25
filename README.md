@@ -257,7 +257,7 @@ All endpoints are JWT-protected unless register and login for user.
  
 ### User
 - `POST /api/users/user` - Register user
-- `POST /api/users/session` - Login and get JWT
+- `POST /api/users/login` - Login and get JWT
 - `GET /api/users/profile` - Get current user profile
 - `GET /api/users/tokens` - Get user's remaining tokens
 - `PUT /api/users/:userId` - Update user data
@@ -304,12 +304,10 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "success": true,
   "message": "User registered successfully",
   "data": {
-    "id": "uuid",
+    "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
-    "tokens": 100,
-    "role" : "user"
     "tokens": 100,
     "role" : "user"
   }
@@ -318,7 +316,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```
  
 #### Login
-`POST /api/users/session`
+`POST /api/users/login`
 ```json
 // Success
 {
@@ -327,7 +325,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "data": {
     "token": "jwt-token",
     "user": {
-      "id": "uuid",
+      "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
       "name": "Mario",
       "email": "mariorossi@gmail.com"
     }
@@ -342,7 +340,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "data": {
-    "id": "uuid",
+    "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
     "surname": "Rossi",
     "email": "mariorossi@gmail.com",
@@ -391,22 +389,6 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
             }
         }
     }
-  "message": "Token balance retrieved successfully",
-    "data": {
-        "balance": 100,
-        "recentTransactions": [],
-        "tokenPricing": {
-            "dataset_upload": {
-                "single_image": 0.65,
-                "video_frame": 0.4,
-                "zip_file": 0.7
-            },
-            "inference": {
-                "single_image": 2.75,
-                "video_frame": 1.5
-            }
-        }
-    }
 }
 ```
  
@@ -421,11 +403,9 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "message": "Empty dataset created successfully",
-  "message": "Empty dataset created successfully",
   "data": {
-    "id": "uuid",
-    "userId": "uuid",
-    "userId": "uuid",
+    "id": "c4edbdq2-2ff1-45de-af20-c615b673551a",
+    "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Inpainting dataset",
     "tags": ["Inpainting", "Damage", "Mask"],
     "isDeleted": false,
@@ -440,31 +420,21 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "message": "Dataset updated succesfully",
-  "data": { "userId": "uuid",
+  "data": { "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
         "itemCount": 0,
         "type": "empty",
         "changes": {
             "nameChanged": false,
             "tagsChanged": true
              }}
-  "message": "Dataset updated succesfully",
-  "data": { "userId": "uuid",
-        "itemCount": 0,
-        "type": "empty",
-        "changes": {
-            "nameChanged": false,
-            "tagsChanged": true
-             }}
-}
+ 
 ```
  
 #### Delete Dataset (logical)
 `DELETE /api/datasets/:name`
-`DELETE /api/datasets/:name`
 ```json
 {
   "success": true,
-  "message": "Dataset deleted succesfully"
   "message": "Dataset deleted succesfully"
 }
 ```
@@ -501,9 +471,6 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
         "imageUrl": "http://...image/image1.jpg",
         "maskUrl": "http://...image/mask1.png"
       },
-        "imageUrl": "http://...image/image1.jpg",
-        "maskUrl": "http://...image/mask1.png"
-      },
       // ...
     ]
   }
@@ -511,7 +478,6 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 ```
  
 #### Upload Data (image/video/zip)
-`POST /api/datasets/data`
 `POST /api/datasets/data`
 ```json
 // Success
@@ -524,16 +490,6 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
         "tokensSpent": 0.65,
         "remainingBalance": 99.35,
         "operationType": "dataset_upload"
-}
-  "message": "Data uploaded and processed successfully",
-    "processedItems": 1,
-    "tokenSpent": 0.65,
-    "userTokens": 99.35,
-    "tokenUsage": {
-        "tokensSpent": 0.65,
-        "remainingBalance": 99.35,
-        "operationType": "dataset_upload"
-}
 }
 ```
  
@@ -549,7 +505,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "success": true,
   "message": "Inference started",
   "data": {
-    "inferenceId": "uuid",
+    "inferenceId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "status": "PENDING",
     "modelId": "default_inpainting",
     "parameters": { /* ... */ }
@@ -563,12 +519,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "message": "Job status retrieved successfully",
-  "message": "Job status retrieved successfully",
   "data": {
-    "jobId": "1",
-    "status": "COMPLETED", // or PENDING, FAILED, ABORTED, RUNNING
-    "progress": 100,
-    "result":{/*...*/}
     "jobId": "1",
     "status": "COMPLETED", // or PENDING, FAILED, ABORTED, RUNNING
     "progress": 100,
@@ -584,7 +535,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "data": {
-    "inferenceId": "uuid",
+    "inferenceId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "status": "COMPLETED",
     "result": {
       "images": [
@@ -592,15 +543,10 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
           "originalPath": "datasets/uuid/image1.jpg",
           "outputPath": "inferences/uuid/processed_image1.png",
           "downloadUrl": "http://..."
-          "outputPath": "inferences/uuid/processed_image1.png",
-          "downloadUrl": "http://..."
         }
       ],
       "videos": [
         {
-          "originalPath": "datasets/uuid/video.mp4",
-          "outputPath": "inferences/uuid/video_1.mp4",
-          "downloadUrl": "http://..."
           "originalPath": "datasets/uuid/video.mp4",
           "outputPath": "inferences/uuid/video_1.mp4",
           "downloadUrl": "http://..."
@@ -621,11 +567,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
 {
   "success": true,
   "message": "Token recharged succesfully",
-  "message": "Token recharged succesfully",
   "data": {
-    "userEmail": "mariorossi@gmail.com",
-    "amountAdded": 200,
-    "newBalance": 300
     "userEmail": "mariorossi@gmail.com",
     "amountAdded": 200,
     "newBalance": 300
@@ -640,15 +582,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "success": true,
   "email": "mariorossi@gmail.com",
   "data": {
-    "id": "uuid",
-    "name": "Mario",
-    "surname": "Rossi",
-    "email" : "mariorossi@fmail.com",
-    "currentBalance" : 300,
-    "role" :"user"
-  }
-  "data": {
-    "id": "uuid",
+    "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
     "surname": "Rossi",
     "email" : "mariorossi@fmail.com",
@@ -665,14 +599,7 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
   "success": true,
   "data": [
     {
-      "id": "uuid",
-      "operationType": "admin_recharge",
-      "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
-      "amount": 200,
-      "status": "completed",
-      "description": "Admin recharge by admin@system.com: +1000 tokens",
-      "createdAt": "2025-09-23T09:58:15.751Z",
-      "user": {/*....*/}
+      "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
       "operationType": "admin_recharge",
       "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
       "amount": 200,
@@ -698,7 +625,6 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
       "tags": ["Inpainting", "Damage", "Mask"],
       "isDeleted": false,
       "createdAt": "2024-01-01T10:00:00Z"
-      /*...*/
       /*...*/
     }
     // ...other datasets
@@ -748,6 +674,7 @@ The application uses PostgreSQL with the following tables:
 | next_upload_index | INTEGER        | Tracks next upload index for incremental uploads               |
 | created_at        | TIMESTAMP      | Dataset creation timestamp                                     |
 | updated_at        | TIMESTAMP      | Last update timestamp                                          |
+| deleted_at        | TIMESTAMP      | Dataset elimination timestamp                                  |
  
 #### **Inferences**
 | Field        | Type              | Description                                         |
@@ -826,8 +753,8 @@ The system architecture implements the following schema.
 |         Queue System           |         DAO Layer              |
 |--------------------------------|--------------------------------|
 | - Adds jobs to Redis           | - Executes Sequelize queries   |
-+-----------------^--------------+----------------v---------------+
-                  | (Persist job)                | (Executes query)
++-----------------^--------------+----------------^---------------+
+                  | (Persist job)                 | (Executes query)
 +-----------------v--------------+----------------v---------------+
 |        Infrastructure          |       Models (Sequelize)       |
 |--------------------------------|--------------------------------|
@@ -1142,7 +1069,7 @@ router.patch(
 ## Diagram
  
 ### Actor Diagram
-![Actor](public/actor.png)
+![Actor](public/actorUML.png)
  
 ### Use Cases
 ![Use Case](public/useCase.png)
@@ -1200,12 +1127,17 @@ Run tests with:
 ## Linting & Code Quality
  
 The project uses **ESLint** to enforce consistent code style and catch common programming errors. Run lint checks with:
- 
+
 ```bash
 npm run lint
 ```
- 
+
+For the Python-based BlackBox inference service, **pylint** is used to ensure code quality and style consistency:
+
+```bash
+pylint src/services/inferenceBlackBox.py
+```
+
 In addition, **SonarQube** is used to detect code smells and maintain high code quality.
- 
+
 ---
- 

@@ -221,9 +221,10 @@ export class InferenceController {
 
             // Check if inference is completed
             if (inference.status !== "COMPLETED") {
+                // Restituisci errore 400 con messaggio specifico per stato RUNNING/PENDING/FAILED/ABORTED
                 throw InferenceController.errorManager.createError(
-                    ErrorStatus.inferenceProcessingFailedError,
-                    "Inference not completed"
+                    ErrorStatus.invalidFormat,
+                    `Inference is not completed. Current status: ${inference.status}`
                 );
             }
 
