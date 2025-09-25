@@ -53,24 +53,6 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
     next();
 };
 
-// checkFileTokenParam validates that the 'token' from the URL for file access is present.
-const checkFileTokenParam = (req: AuthRequest, res: Response, next: NextFunction): void => {
-    let { token } = req.params;
-    
-    // Trim token if it's a string
-    if (typeof token === "string") token = token.trim();
-
-    // Validate presence and format of token
-    if (!token || typeof token !== "string" || token.length === 0) {
-        errorLogger.logValidationError("token", token, "A file access token is required in the URL path.");
-        return next(errorManager.createError(ErrorStatus.invalidFormat, "A file access token is required and cannot be empty or contain only spaces."));
-    }
-
-    // Update params with trimmed token
-    req.params = { ...req.params, token };
-    next();
-};
-
 // validateInferenceCreation is a chain of middlewares for validating inference creation requests
 export const validateInferenceCreation = [
     checkCreateInferenceFields
@@ -79,9 +61,4 @@ export const validateInferenceCreation = [
 // validateInferenceAccess is a chain for accessing a specific inference by its ID.
 export const validateInferenceAccess = [
     validateInferenceIdFormat
-];
-
-// validateFileAccess is a chain for accessing a protected file via a token.
-export const validateFileAccess = [
-    checkFileTokenParam
 ];

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { InferenceController } from "../controllers/inferenceController";
 import { authenticateToken } from "../middleware/authMiddleware";
-import { validateInferenceCreation, validateInferenceAccess, validateFileAccess } from "../middleware/inferenceMiddleware";
+import { validateInferenceCreation, validateInferenceAccess } from "../middleware/inferenceMiddleware";
 
 const router = Router();
 
@@ -25,8 +25,8 @@ router.get("/:id", ...authenticateToken, ...validateInferenceAccess, InferenceCo
 // Route for getting inference results with download links (protected)
 router.get("/:id/results", ...authenticateToken, ...validateInferenceAccess, InferenceController.getInferenceResults);
 
-// Route for serving inference output files (uses temporary token)
-router.get("/download/:token", ...validateFileAccess, InferenceController.serveOutputFile);
+// Route for serving inference output files (protected by JWT, no token needed)
+router.get("/:id/download/:filename", ...authenticateToken, InferenceController.serveOutputFile);
 
 export default router;
 

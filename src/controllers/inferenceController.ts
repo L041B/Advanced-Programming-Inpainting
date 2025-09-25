@@ -221,40 +221,33 @@ export class InferenceController {
 
             // Check if inference is completed
             if (inference.status !== "COMPLETED") {
-                // Restituisci errore 400 con messaggio specifico per stato RUNNING/PENDING/FAILED/ABORTED
                 throw InferenceController.errorManager.createError(
                     ErrorStatus.invalidFormat,
                     `Inference is not completed. Current status: ${inference.status}`
                 );
             }
 
-            // Generate temporary access tokens for output files
+            // Get result data
             const result = inference.result as { 
                 images?: Array<{ originalPath: string; outputPath: string }>;
                 videos?: Array<{ originalVideoId: string; outputPath: string }>;
             };
 
-            // Base URL for constructing download links
+            // Base URL for constructing download links (without tokens)
             const baseUrl = `${req.protocol}://${req.get("host")}`;
             
-            // Generate tokens for images
-            const images = await Promise.all((result.images || []).map(async (img) => {
-                const token = await InferenceController.generateFileToken(userId, img.outputPath);
-                return {
-                    originalPath: img.originalPath,
-                    outputPath: img.outputPath,
-                    downloadUrl: `${baseUrl}/api/inferences/download/${token}`
-                };
+            // Generate clean URLs for images
+            const images = (result.images || []).map((img) => ({
+                originalPath: img.originalPath,
+                outputPath: img.outputPath,
+                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(img.outputPath.split('/').pop() || '')}`
             }));
 
-            // Generate tokens for videos
-            const videos = await Promise.all((result.videos || []).map(async (vid) => {
-                const token = await InferenceController.generateFileToken(userId, vid.outputPath);
-                return {
-                    originalVideoId: vid.originalVideoId,
-                    outputPath: vid.outputPath,
-                    downloadUrl: `${baseUrl}/api/inferences/download/${token}`
-                };
+            // Generate clean URLs for videos
+            const videos = (result.videos || []).map((vid) => ({
+                originalVideoId: vid.originalVideoId,
+                outputPath: vid.outputPath,
+                downloadUrl: `${baseUrl}/api/inferences/${id}/download/${encodeURIComponent(vid.outputPath.split('/').pop() || '')}`
             }));
 
             // Log the retrieval
@@ -269,42 +262,70 @@ export class InferenceController {
                     videos
                 }
             });
-            // Log response details
             InferenceController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             next(error);
         }
     }
 
-    // Generate temporary token for file access
-    private static async generateFileToken(userId: string, filePath: string): Promise<string> {
-        const token = jwt.sign(
-            { 
-                userId, 
-                filePath, 
-                type: "file_access" 
-            },
-            process.env.JWT_SECRET || "fallback_secret",
-            { expiresIn: "24h" }
-        );
-        return encodeURIComponent(token);
-    }
-
-    // Serve output file securely
-    static async serveOutputFile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    // Serve output file securely using JWT authentication
+    static async serveOutputFile(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
         try {
-            // Validate input parameters
-            const token = decodeURIComponent(req.params.token);
-            
-            InferenceController.inferenceLogger.logOutputFileServed(`token_access_${token.substring(0, 10)}...`);
-            
-            // Use the new service for file token validation
-            const validation = await InferenceService.validateFileToken(token);
+            const userId = req.user!.userId;
+            const { id: inferenceId, filename } = req.params;
 
-            const { filePath } = validation;
+            // Verify the user owns this inference
+            const inference = await InferenceController.inferenceRepository.getInferenceByIdAndUserId(inferenceId, userId);
+            
+            if (!inference) {
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.inferenceNotFoundError,
+                    "Inference not found or access denied"
+                );
+            }
+
+            // Check if inference is completed
+            if (inference.status !== "COMPLETED") {
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    `Inference results not available. Status: ${inference.status}`
+                );
+            }
+
+            // Get the result data and find the requested file
+            const result = inference.result as {
+                images?: Array<{ originalPath: string; outputPath: string }>;
+                videos?: Array<{ originalVideoId: string; outputPath: string }>;
+            };
+
+            const decodedFilename = decodeURIComponent(filename);
+            let filePath: string | undefined;
+
+            // Search for the file in images
+            const imageFile = result.images?.find(img => img.outputPath.endsWith(decodedFilename));
+            if (imageFile) {
+                filePath = imageFile.outputPath;
+            }
+
+            // Search for the file in videos if not found in images
+            if (!filePath) {
+                const videoFile = result.videos?.find(vid => vid.outputPath.endsWith(decodedFilename));
+                if (videoFile) {
+                    filePath = videoFile.outputPath;
+                }
+            }
+
+            if (!filePath) {
+                throw InferenceController.errorManager.createError(
+                    ErrorStatus.resourceNotFoundError,
+                    "File not found in inference results"
+                );
+            }
+
+            InferenceController.inferenceLogger.logOutputFileServed(filePath);
 
             const { FileStorage } = await import("../utils/fileStorage");
             
@@ -328,10 +349,9 @@ export class InferenceController {
                 res.set({
                     "Content-Type": contentType,
                     "Content-Length": fileBuffer.length.toString(),
-                    "Content-Disposition": `attachment; filename="${filePath.split("/").pop()}"`
+                    "Content-Disposition": `attachment; filename="${decodedFilename}"`
                 });
                 
-                // Log the successful serving
                 InferenceController.inferenceLogger.logOutputFileServed(filePath);
                 res.send(fileBuffer);
             } catch (fileError) {

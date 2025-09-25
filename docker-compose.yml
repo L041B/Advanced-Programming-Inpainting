@@ -15,7 +15,7 @@ services:
 
   # Service for PostgreSQL database - FIXED VERSION
   postgres:
-    image: postgres:15-alpine  # Changed from postgres:alpine to specific version
+    image: postgres:15-alpine 
     hostname: postgres
     env_file:
       - ./.env
