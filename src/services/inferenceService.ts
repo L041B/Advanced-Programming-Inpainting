@@ -274,6 +274,7 @@ export class InferenceService {
                 InferenceService.errorLogger.logDatabaseError("QUEUE_JOB", "inference_proxy", jobResult);
                 throw InferenceService.errorManager.createError(ErrorStatus.jobAdditionFailedError, jobResult);
             }
+            // Return the string job ID (will be converted to number in controller)
             return jobResult;
         } else if (
             // Object with success flag
@@ -283,6 +284,7 @@ export class InferenceService {
             (jobResult as { success: boolean }).success &&
             "jobId" in jobResult
         ) {
+            // Return the job ID as string (will be converted to number in controller)
             return (jobResult as { jobId: string }).jobId;
         } else {
             InferenceService.errorLogger.logDatabaseError(

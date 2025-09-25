@@ -47,7 +47,7 @@ export class DatasetMiddleware {
     // Multer instance for handling file uploads with size limits and file type filtering
     static readonly fileUploadHandler = multer({
         storage: DatasetMiddleware.fileStorageConfig,
-        limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+        limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
         fileFilter: (request, uploadedFile, callback) => {
             try {
                 // Validate file type based on extension and MIME type
@@ -55,35 +55,93 @@ export class DatasetMiddleware {
                 const extensionCheck = supportedExtensions.test(
                     path.extname(uploadedFile.originalname).toLowerCase()
                 );
-                // Check MIME type
-                //MIME is a standard way to indicate the nature and format of a document, file, or assortment of bytes. It
-                const mimeTypeCheck = supportedExtensions.test(uploadedFile.mimetype);
+                
+                const supportedMimeTypes = [
+                    'image/jpeg', 'image/jpg', 'image/png',
+                    'video/mp4', 'video/avi',
+                    'application/zip'
+                ];
+                const mimeTypeCheck = supportedMimeTypes.includes(uploadedFile.mimetype);
                 
                 // Allow file if both checks pass
                 if (mimeTypeCheck && extensionCheck) {
                     callback(null, true);
                 } else {
-                    // Reject file and log error
-                    const error = new Error("File type not supported");
+                    // Create a standardized error instead of generic Error
+                    const error = errorManager.createError(
+                        ErrorStatus.invalidFormat,
+                        `File type not supported. Supported formats: JPEG, PNG, MP4, AVI, ZIP.`
+                    );
+                    
                     errorLogger.logFileUploadError(
                         uploadedFile.originalname, 
                         uploadedFile.size, 
-                        "Unsupported file type"
+                        `Unsupported file type: ${uploadedFile.mimetype}`
                     );
+                    
                     callback(error);
                 }
             } catch (error) {
-                // Log error and reject file
+                // Log error and create standardized error
                 const err = error instanceof Error ? error : new Error("Unknown error");
                 errorLogger.logFileUploadError(uploadedFile.originalname, uploadedFile.size, err.message);
-                callback(err);
+                
+                const standardError = errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "File validation failed"
+                );
+                callback(standardError);
             }
         }
     });
 
+    // New middleware to handle multer errors properly
+    public static readonly handleMulterErrors = (err: any, req: Request, res: Response, next: NextFunction): void => {
+        if (err) {
+            // Check if it's a multer error
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                const error = errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "File size exceeds the maximum limit of 100MB"
+                );
+                next(error);
+                return;
+            }
+            
+            if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+                const error = errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "Unexpected file field or too many files"
+                );
+                next(error);
+                return;
+            }
+
+            // Check if it's already a standardized error from file filter
+            if (err.errorType && err.getResponse) {
+                next(err);
+                return;
+            }
+
+            // For other multer errors, create a standardized error
+            errorLogger.logFileUploadError("unknown", 0, err.message || "Multer error occurred");
+            const error = errorManager.createError(
+                ErrorStatus.invalidFormat,
+                err.message || "File upload failed"
+            );
+            next(error);
+            return;
+        }
+        
+        next();
+    };
+
     // Middleware function to validate dataset name
     public static readonly validateDatasetName = (req: Request, res: Response, next: NextFunction): void => {
-        const { datasetName } = req.body;
+        let { datasetName } = req.body;
+
+        // Trim input if it's a string
+        if (typeof datasetName === "string") datasetName = datasetName.trim();
 
         // Validate presence and type
         if (!datasetName || typeof datasetName !== "string") {
@@ -97,18 +155,18 @@ export class DatasetMiddleware {
         }
 
         // Validate non-empty after trimming
-        if (datasetName.trim().length === 0) {
-            errorLogger.logValidationError("datasetName", datasetName, "Dataset name cannot be empty");
+        if (datasetName.length === 0) {
+            errorLogger.logValidationError("datasetName", datasetName, "Dataset name cannot be empty or contain only spaces");
             const error = errorManager.createError(
                 ErrorStatus.invalidFormat,
-                "Dataset name cannot be empty"
+                "Dataset name cannot be empty or contain only spaces"
             );
             next(error);
             return;
         }
 
-        // Sanitize dataset name
-        req.body.datasetName = datasetName.trim();
+        // Update body with trimmed dataset name
+        req.body = { ...req.body, datasetName };
         next();
     };
 
@@ -173,7 +231,10 @@ export class DatasetMiddleware {
 
     // Middleware function to check required fields for dataset creation
     public static readonly checkDatasetCreationFields = (req: Request, res: Response, next: NextFunction): void => {
-        const { name } = req.body;
+        let { name } = req.body;
+
+        // Trim input if it's a string
+        if (typeof name === "string") name = name.trim();
 
         // Validate presence and type
         if (!name || typeof name !== "string") {
@@ -182,26 +243,38 @@ export class DatasetMiddleware {
                 ErrorStatus.invalidFormat,
                 "Dataset name is required"
             );
-            // Pass error to next middleware
             next(error);
             return;
         }
 
-        // Sanitize dataset name
+        // Validate non-empty after trimming
+        if (name.length === 0) {
+            errorLogger.logValidationError("name", name, "Dataset name cannot be empty or contain only spaces");
+            const error = errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "Dataset name cannot be empty or contain only spaces"
+            );
+            next(error);
+            return;
+        }
+
+        // Update body with trimmed name
+        req.body = { ...req.body, name };
         next();
     };
 
     // Middleware function to sanitize dataset data
     public static readonly sanitizeDatasetData = (req: Request, res: Response, next: NextFunction): void => {
-        // Extract relevant fields from request body
         const body = req.body as { name?: string; datasetName?: string; tags?: string[] };
 
         // Sanitize dataset name
         if (typeof body.name === "string") {
             body.name = body.name.trim();
+            if (body.name.length === 0) body.name = undefined;
         }
         if (typeof body.datasetName === "string") {
             body.datasetName = body.datasetName.trim();
+            if (body.datasetName.length === 0) body.datasetName = undefined;
         }
 
         // Sanitize tags if present
@@ -211,7 +284,6 @@ export class DatasetMiddleware {
                 .filter((tag: string) => tag.length > 0);
         }
 
-        // Update request body with sanitized data
         req.body = body;
         next();
     };
@@ -232,46 +304,67 @@ export class DatasetMiddleware {
                 return;
             }
 
-            // Validate each tag
-            for (const tag of tags as unknown[]) {
-                if (typeof tag !== "string" || tag.trim().length === 0) {
-                    errorLogger.logValidationError("tags", String(tag), "Each tag must be a non-empty string");
+            // Validate each tag after trimming
+            for (let i = 0; i < tags.length; i++) {
+                const tag = tags[i];
+                if (typeof tag !== "string") {
+                    errorLogger.logValidationError("tags", String(tag), "Each tag must be a string");
                     const error = errorManager.createError(
                         ErrorStatus.invalidFormat,
-                        "Each tag must be a non-empty string"
+                        "Each tag must be a string"
                     );
                     next(error);
                     return;
                 }
+                
+                const trimmedTag = tag.trim();
+                if (trimmedTag.length === 0) {
+                    errorLogger.logValidationError("tags", tag, "Tags cannot be empty or contain only spaces");
+                    const error = errorManager.createError(
+                        ErrorStatus.invalidFormat,
+                        "Tags cannot be empty or contain only spaces"
+                    );
+                    next(error);
+                    return;
+                }
+                
+                // Update the tag with trimmed value
+                tags[i] = trimmedTag;
             }
         }
 
-        // If all validations pass, proceed to next middleware
         next();
     };
 
     // Middleware function to validate dataset name parameter
     public static readonly validateDatasetNameParam = (req: Request, res: Response, next: NextFunction): void => {
-        const { name } = req.params;
+        let { name } = req.params;
+
+        // Trim input if it's a string
+        if (typeof name === "string") name = name.trim();
 
         // Validate presence and type
-        if (!name || typeof name !== "string" || name.trim().length === 0) {
-            errorLogger.logValidationError("datasetNameParam", name, "Valid dataset name is required");
+        if (!name || typeof name !== "string" || name.length === 0) {
+            errorLogger.logValidationError("datasetNameParam", name, "Valid dataset name is required and cannot be empty");
             const error = errorManager.createError(
                 ErrorStatus.invalidFormat,
-                "Valid dataset name is required"
+                "Valid dataset name is required and cannot be empty or contain only spaces"
             );
             next(error);
             return;
         }
 
-        // Sanitize dataset name
+        // Update params with trimmed name
+        req.params = { ...req.params, name };
         next();
     };
 
     // Middleware function to validate dataset update fields
     public static readonly validateDatasetUpdateFields = (req: Request, res: Response, next: NextFunction): void => {
-        const { name, tags } = req.body;
+        let { name, tags } = req.body;
+
+        // Trim name if provided
+        if (typeof name === "string") name = name.trim();
 
         // Ensure at least one field is provided
         if (!name && !tags) {
@@ -285,17 +378,18 @@ export class DatasetMiddleware {
         }
 
         // If name is provided, validate it
-        if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
+        if (name !== undefined && (typeof name !== "string" || name.length === 0)) {
             errorLogger.logValidationError("name", name, "Dataset name must be a non-empty string");
             const error = errorManager.createError(
                 ErrorStatus.invalidFormat,
-                "Dataset name must be a non-empty string"
+                "Dataset name must be a non-empty string and cannot contain only spaces"
             );
             next(error);
             return;
         }
 
-        // If tags are provided, validate them
+        // Update body with trimmed name
+        req.body = { ...req.body, name };
         next();
     };
 }
@@ -311,6 +405,7 @@ export const validateDatasetCreation = [
 
 // Middleware chain for dataset upload validation
 export const validateDatasetUpload = [
+    DatasetMiddleware.handleMulterErrors,
     DatasetMiddleware.validateDatasetName,
     DatasetMiddleware.sanitizeDatasetData,
     DatasetMiddleware.validateUploadedFiles
@@ -328,4 +423,3 @@ export const validateDatasetUpdate = [
 export const validateDatasetAccess = [
     DatasetMiddleware.validateDatasetNameParam
 ];
-           

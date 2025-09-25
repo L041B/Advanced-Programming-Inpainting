@@ -22,6 +22,7 @@ router.post("/data",
         { name: "image", maxCount: 1 },
         { name: "mask", maxCount: 1 }
     ]),
+    DatasetMiddleware.handleMulterErrors,  // Handle multer errors before validation
     ...validateDatasetUpload,
     DatasetController.uploadDataToDataset,
     TokenMiddleware.finalizeTokenUsage  // Simple cleanup attempt

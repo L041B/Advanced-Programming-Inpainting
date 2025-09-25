@@ -58,6 +58,9 @@ export class InferenceController {
                 parameters
             });
 
+            // Parse jobId as number to ensure it's returned as numeric in JSON
+            const jobIdNumber = parseInt(result.jobId, 10);
+
             // Log the job queuing
             InferenceController.inferenceLogger.logJobQueued(result.inference.id, userId, result.jobId);
 
@@ -71,7 +74,7 @@ export class InferenceController {
                     datasetName,
                     createdAt: result.inference.createdAt
                 },
-                jobId: result.jobId
+                jobId: isNaN(jobIdNumber) ? result.jobId : jobIdNumber
             });
 
             // Log response details
@@ -104,13 +107,16 @@ export class InferenceController {
                 );
             }
 
+            // Parse jobId as number for response
+            const jobIdNumber = parseInt(jobId, 10);
+
             // Log the successful retrieval
             InferenceController.inferenceLogger.logJobStatusRetrieved(jobId, jobStatus.status || "unknown");
             res.status(200).json({
                 success: true,
                 message: "Job status retrieved successfully",
                 data: {
-                    jobId,
+                    jobId: isNaN(jobIdNumber) ? jobId : jobIdNumber,
                     status: jobStatus.status,
                     progress: jobStatus.progress,
                     result: jobStatus.result,
@@ -340,4 +346,3 @@ export class InferenceController {
         }
     }
 }
-               

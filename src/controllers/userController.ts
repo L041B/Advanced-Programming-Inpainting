@@ -64,6 +64,30 @@ export class UserController {
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             this.apiLogger.logError(req, error as Error);
+            
+            // Handle specific database errors
+            const err = error as Error;
+            
+            // Check for email duplication error (common database constraint violation patterns)
+            if (err.message && (
+                err.message.includes('unique constraint') ||
+                err.message.includes('duplicate key') ||
+                err.message.includes('already exists') ||
+                err.message.toLowerCase().includes('email') && err.message.toLowerCase().includes('unique')
+            )) {
+                // Log the email duplication attempt for security monitoring
+                this.errorLogger.logValidationError("email", (req.body as { email?: string }).email || "unknown", "Email already exists in system");
+                
+                // Create appropriate error for email duplication
+                const managedError = this.errorManager.createError(
+                    ErrorStatus.userAlreadyExistsError,
+                    "An account with this email address already exists. Please use a different email or try logging in."
+                );
+                next(managedError);
+                return;
+            }
+            
+            // For other errors, use the generic user creation error
             const managedError = this.errorManager.createError(ErrorStatus.userCreationFailedError);
             next(managedError);
         }

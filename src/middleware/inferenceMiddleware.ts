@@ -18,26 +18,37 @@ interface AuthRequest extends Request {
 
 // checkCreateInferenceFields middleware validates request body for creating an inference
 const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextFunction): void => {
-    const { datasetName, modelId, parameters } = req.body;
+    const body = req.body as { datasetName?: string; modelId?: string; parameters?: unknown };
+    let { datasetName, modelId, parameters } = body;
+
+    // Trim string inputs
+    if (typeof datasetName === "string") datasetName = datasetName.trim();
+    if (typeof modelId === "string") modelId = modelId.trim();
 
     // Validate datasetName
-    if (!datasetName || typeof datasetName !== "string" || datasetName.trim().length === 0) {
+    if (!datasetName || typeof datasetName !== "string" || datasetName.length === 0) {
         errorLogger.logValidationError("datasetName", datasetName, "A non-empty \"datasetName\" string is required.");
-        return next(errorManager.createError(ErrorStatus.invalidFormat, "A non-empty \"datasetName\" string is required."));
+        return next(errorManager.createError(ErrorStatus.invalidFormat, "Dataset name is required and cannot be empty or contain only spaces."));
     }
 
     // Validate optional fields
-    if (modelId !== undefined && typeof modelId !== "string") {
-        errorLogger.logValidationError("modelId", modelId, "\"modelId\" must be a string if provided.");
-        return next(errorManager.createError(ErrorStatus.invalidFormat, "\"modelId\" must be a string if provided."));
+    if (modelId !== undefined && (typeof modelId !== "string" || modelId.length === 0)) {
+        errorLogger.logValidationError("modelId", modelId, "\"modelId\" must be a non-empty string if provided.");
+        return next(errorManager.createError(ErrorStatus.invalidFormat, "Model ID must be a non-empty string if provided and cannot contain only spaces."));
     }
 
     // parameters is optional but if provided must be a JSON object
     if (parameters !== undefined && (typeof parameters !== "object" || Array.isArray(parameters) || parameters === null)) {
-        errorLogger.logValidationError("parameters", parameters, "\"parameters\" must be a JSON object if provided.");
+        errorLogger.logValidationError(
+            "parameters",
+            parameters === null ? "null" : Array.isArray(parameters) ? "array" : typeof parameters === "object" ? "object" : String(parameters),
+            "\"parameters\" must be a JSON object if provided."
+        );
         return next(errorManager.createError(ErrorStatus.invalidFormat, "\"parameters\" must be a JSON object if provided."));
     }
 
+    // Update body with trimmed values
+    req.body = { ...body, datasetName, modelId, parameters };
     next();
 };
 
@@ -57,14 +68,19 @@ const checkInferenceIdParam = (req: AuthRequest, res: Response, next: NextFuncti
 
 // checkFileTokenParam validates that the 'token' from the URL for file access is present.
 const checkFileTokenParam = (req: AuthRequest, res: Response, next: NextFunction): void => {
+    let { token } = req.params;
+    
+    // Trim token if it's a string
+    if (typeof token === "string") token = token.trim();
 
     // Validate presence and format of token
-    const { token } = req.params;
-    if (!token || typeof token !== "string" || token.trim().length === 0) {
+    if (!token || typeof token !== "string" || token.length === 0) {
         errorLogger.logValidationError("token", token, "A file access token is required in the URL path.");
-        return next(errorManager.createError(ErrorStatus.invalidFormat, "A file access token is required."));
+        return next(errorManager.createError(ErrorStatus.invalidFormat, "A file access token is required and cannot be empty or contain only spaces."));
     }
 
+    // Update params with trimmed token
+    req.params = { ...req.params, token };
     next();
 };
 
