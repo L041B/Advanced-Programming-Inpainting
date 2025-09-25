@@ -131,6 +131,7 @@ export class DatasetController {
                     tags: dataset.tags,
                     createdAt: dataset.createdAt,
                     updatedAt: dataset.updatedAt,
+                    deletedAt: dataset.deletedAt, // Include deletedAt in user datasets response
                     itemCount,
                     type: data.type || "empty",
                     isDeleted: dataset.isDeleted,

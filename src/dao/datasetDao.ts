@@ -163,7 +163,10 @@ export class DatasetDao {
             try {
                 // Find the dataset by userId and name to ensure correct ownership
                 const [affectedCount] = await Dataset.update(
-                    { isDeleted: true },
+                    { 
+                        isDeleted: true,
+                        deletedAt: new Date() // Explicitly set deletedAt timestamp
+                    },
                     {
                         where: {
                             userId,
@@ -195,7 +198,10 @@ export class DatasetDao {
             try {
                 // Mark as deleted only those datasets that are NOT already deleted
                 const [affectedCount] = await Dataset.update(
-                    { isDeleted: true },
+                    { 
+                        isDeleted: true,
+                        deletedAt: new Date() // Explicitly set deletedAt timestamp
+                    },
                     {
                         where: {
                             userId,
@@ -368,5 +374,4 @@ export class DatasetDao {
         }
     }
 }
- 
- 
+

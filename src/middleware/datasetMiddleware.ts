@@ -96,19 +96,20 @@ export class DatasetMiddleware {
     });
 
     // New middleware to handle multer errors properly
-    public static readonly handleMulterErrors = (err: any, req: Request, res: Response, next: NextFunction): void => {
+    public static readonly handleMulterErrors = (err: Error | null, req: Request, res: Response, next: NextFunction): void => {
         if (err) {
             // Check if it's a multer error
-            if (err.code === 'LIMIT_FILE_SIZE') {
+            const multerError = err as Error & { code?: string; errorType?: string; getResponse?: () => unknown };
+            if (multerError.code === 'LIMIT_FILE_SIZE') {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
-                    "File size exceeds the maximum limit of 100MB"
+                    "File size exceeds the maximum limit of 10MB"
                 );
                 next(error);
                 return;
             }
             
-            if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+            if (multerError.code === 'LIMIT_UNEXPECTED_FILE') {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "Unexpected file field or too many files"
@@ -118,7 +119,7 @@ export class DatasetMiddleware {
             }
 
             // Check if it's already a standardized error from file filter
-            if (err.errorType && err.getResponse) {
+            if (multerError.errorType && multerError.getResponse) {
                 next(err);
                 return;
             }
