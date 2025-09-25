@@ -6,7 +6,6 @@ import { Request, Response, NextFunction } from "express";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
-import { validateDatasetIdFormat } from "./validationMiddleware";
 
 // Initialize loggers and error manager
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -101,7 +100,7 @@ export class DatasetMiddleware {
         if (err) {
             // Check if it's a multer error
             const multerError = err as Error & { code?: string; errorType?: string; getResponse?: () => unknown };
-            if (multerError.code === 'LIMIT_FILE_SIZE') {
+            if (multerError.code === "LIMIT_FILE_SIZE") {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "File size exceeds the maximum limit of 10MB"
@@ -110,7 +109,7 @@ export class DatasetMiddleware {
                 return;
             }
             
-            if (multerError.code === 'LIMIT_UNEXPECTED_FILE') {
+            if (multerError.code === "LIMIT_UNEXPECTED_FILE") {
                 const error = errorManager.createError(
                     ErrorStatus.invalidFormat,
                     "Unexpected file field or too many files"
@@ -424,9 +423,4 @@ export const validateDatasetUpdate = [
 // Middleware chain for dataset access validation
 export const validateDatasetAccess = [
     DatasetMiddleware.validateDatasetNameParam
-];
-
-// New middleware chain for dataset access by ID
-export const validateDatasetById = [
-    validateDatasetIdFormat
 ];
