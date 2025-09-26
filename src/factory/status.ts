@@ -73,6 +73,7 @@ export enum ErrorStatus {
     invalidDatasetDataError, // Invalid dataset data error
     invalidParametersError, // Invalid parameters error
     emptyDatasetError, // Dataset contains no valid pairs error
+    noChangesToUpdateError, // No changes detected in update request
     defaultError // Default error message
 }
 

@@ -6,6 +6,7 @@ import { Request, Response, NextFunction } from "express";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
+import { validateDatasetFieldLengths, validateTagsLength, validateParamLength, FIELD_LIMITS } from "./fieldLengthMiddleware";
 
 // Initialize loggers and error manager
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
@@ -401,7 +402,9 @@ export class DatasetMiddleware {
 export const validateDatasetCreation = [
     DatasetMiddleware.checkDatasetCreationFields,
     DatasetMiddleware.sanitizeDatasetData,
-    DatasetMiddleware.validateTagsFormat
+    validateDatasetFieldLengths,
+    DatasetMiddleware.validateTagsFormat,
+    validateTagsLength
 ];
 
 // Middleware chain for dataset upload validation
@@ -409,18 +412,23 @@ export const validateDatasetUpload = [
     DatasetMiddleware.handleMulterErrors,
     DatasetMiddleware.validateDatasetName,
     DatasetMiddleware.sanitizeDatasetData,
+    validateDatasetFieldLengths,
     DatasetMiddleware.validateUploadedFiles
 ];
 
 // Middleware chain for dataset update validation
 export const validateDatasetUpdate = [
     DatasetMiddleware.validateDatasetNameParam,
+    validateParamLength("name", FIELD_LIMITS.DATASET_NAME),
     DatasetMiddleware.validateDatasetUpdateFields,
     DatasetMiddleware.sanitizeDatasetData,
-    DatasetMiddleware.validateTagsFormat
+    validateDatasetFieldLengths,
+    DatasetMiddleware.validateTagsFormat,
+    validateTagsLength
 ];
 
 // Middleware chain for dataset access validation
 export const validateDatasetAccess = [
-    DatasetMiddleware.validateDatasetNameParam
+    DatasetMiddleware.validateDatasetNameParam,
+    validateParamLength("name", FIELD_LIMITS.DATASET_NAME)
 ];

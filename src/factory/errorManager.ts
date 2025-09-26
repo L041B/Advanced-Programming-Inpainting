@@ -89,6 +89,8 @@ const errorResponseMap: Map<ErrorStatus, Response> = new Map([
         status: HttpStatus.BAD_REQUEST, type: "application/json" }],
     [ErrorStatus.emptyDatasetError, { message: "Dataset contains no valid pairs for processing.", 
         status: HttpStatus.BAD_REQUEST, type: "application/json" }],
+    [ErrorStatus.noChangesToUpdateError, { message: "No changes detected in update request.", 
+        status: HttpStatus.BAD_REQUEST, type: "application/json" }],
     [ErrorStatus.defaultError,         { message: "An unexpected error occurred.", 
         status: HttpStatus.INTERNAL_SERVER_ERROR, type: "application/json" }],
 ]);

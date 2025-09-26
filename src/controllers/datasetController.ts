@@ -514,8 +514,19 @@ export class DatasetController {
                 );
             }
 
+            // Validate that there are meaningful changes
+            const hasNameChange = newName && newName.trim() !== currentName;
+            const hasTagsChange = tags !== undefined && !DatasetController.arraysEqual(tags, currentDataset.tags);
+
+            if (!hasNameChange && !hasTagsChange) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.noChangesToUpdateError,
+                    "No changes detected. Please provide a different name or modify tags to update the dataset."
+                );
+            }
+
             // Prepare update data
-            const updateData = await DatasetController.prepareUpdateData(userId, currentName, newName, tags);
+            const updateData = await DatasetController.prepareUpdateData(userId, currentName, newName, tags, hasNameChange);
             const updatedDataset = await DatasetController.datasetRepository.updateDataset(userId, currentName, updateData);
             if (updatedDataset.userId === null) {
                 throw DatasetController.errorManager.createError(
@@ -529,9 +540,9 @@ export class DatasetController {
                     ...updatedDataset, 
                     userId: updatedDataset.userId 
                 }, 
-                newName, 
+                hasNameChange ? newName : undefined,
                 currentName, 
-                tags
+                hasTagsChange ? tags : undefined
             );
 
             // Final response
@@ -561,21 +572,27 @@ export class DatasetController {
     }
 
     // Prepare update data, checking for name conflicts and sanitizing tags
-    private static async prepareUpdateData(userId: string, currentName: string, newName?: string, tags?: string[]): Promise<{ name?: string; tags?: string[] }> {
+    private static async prepareUpdateData(
+        userId: string, 
+        currentName: string, 
+        newName?: string, 
+        tags?: string[], 
+        hasNameChange?: boolean
+    ): Promise<{ name?: string; tags?: string[] }> {
         const updateData: { name?: string; tags?: string[] } = {};
 
-        // Check for name change and conflicts
-        if (newName && newName !== currentName) {
-            const nameConflict = await DatasetController.datasetRepository.datasetExists(userId, newName.trim());
-            // If a conflict is found, throw an error
+        // Only check for name conflicts if there's actually a name change
+        if (hasNameChange && newName) {
+            const trimmedNewName = newName.trim();
+            const nameConflict = await DatasetController.datasetRepository.datasetExists(userId, trimmedNewName);
+            
             if (nameConflict) {
                 throw DatasetController.errorManager.createError(
                     ErrorStatus.resourceAlreadyPresent,
-                    `A dataset named '${newName.trim()}' already exists in your account. Please choose a different name.`
+                    `A dataset named '${trimmedNewName}' already exists in your account. Please choose a different name.`
                 );
             }
-            // Sanitize and set new name
-            updateData.name = newName.trim();
+            updateData.name = trimmedNewName;
         }
 
         // Sanitize and set tags if provided
@@ -632,6 +649,14 @@ export class DatasetController {
                 previousName: newName && newName !== currentName ? currentName : undefined
             }
         };
+    }
+
+    // Helper method to compare arrays for equality
+    private static arraysEqual(arr1: string[], arr2: string[]): boolean {
+        if (arr1.length !== arr2.length) return false;
+        const sorted1 = [...arr1].sort();
+        const sorted2 = [...arr2].sort();
+        return sorted1.every((val, index) => val === sorted2[index]);
     }
 
     // Private helper methods remain unchanged

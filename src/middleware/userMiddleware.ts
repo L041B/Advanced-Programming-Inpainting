@@ -4,6 +4,7 @@ import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { validateUserIdFormat } from "./validationMiddleware";
+import { validateUserFieldLengths } from "./fieldLengthMiddleware";
 
 // Initialize error manager and logger
 const errorManager: ErrorManager = ErrorManager.getInstance();
@@ -192,6 +193,7 @@ export const sanitizeLoginData = (req: Request, res: Response, next: NextFunctio
 export const validateUserCreation = [
     checkRequiredFields,
     sanitizeUserData,
+    validateUserFieldLengths,
     validateNameFormat,
     validateEmailFormat,
     validatePasswordStrength,
@@ -201,6 +203,7 @@ export const validateUserCreation = [
 export const validateUserUpdate = [
     validateUserIdFormat,
     sanitizeUserData,
+    validateUserFieldLengths,
     validateNameFormat,
     validateEmailFormat,
     validatePasswordStrength,

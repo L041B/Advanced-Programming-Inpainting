@@ -4,6 +4,7 @@ import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, ErrorRouteLogger } from "../factory/loggerFactory";
 import { validateInferenceIdFormat } from "./validationMiddleware";
+import { validateInferenceFieldLengths, validateParametersSize, FIELD_LIMITS } from "./fieldLengthMiddleware";
 
 // Initialize singletons
 const errorManager = ErrorManager.getInstance();
@@ -32,10 +33,22 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
         return next(errorManager.createError(ErrorStatus.invalidFormat, "Dataset name is required and cannot be empty or contain only spaces."));
     }
 
+    // Check datasetName length
+    if (datasetName.length > FIELD_LIMITS.DATASET_NAME) {
+        errorLogger.logValidationError("datasetName", `length: ${datasetName.length}`, `Dataset name exceeds maximum length of ${FIELD_LIMITS.DATASET_NAME} characters`);
+        return next(errorManager.createError(ErrorStatus.invalidFormat, `Dataset name exceeds maximum length of ${FIELD_LIMITS.DATASET_NAME} characters (current: ${datasetName.length})`));
+    }
+
     // Validate optional fields
     if (modelId !== undefined && (typeof modelId !== "string" || modelId.length === 0)) {
         errorLogger.logValidationError("modelId", modelId, "\"modelId\" must be a non-empty string if provided.");
         return next(errorManager.createError(ErrorStatus.invalidFormat, "Model ID must be a non-empty string if provided and cannot contain only spaces."));
+    }
+
+    // Check modelId length if provided
+    if (modelId && modelId.length > FIELD_LIMITS.MODEL_ID) {
+        errorLogger.logValidationError("modelId", `length: ${modelId.length}`, `Model ID exceeds maximum length of ${FIELD_LIMITS.MODEL_ID} characters`);
+        return next(errorManager.createError(ErrorStatus.invalidFormat, `Model ID exceeds maximum length of ${FIELD_LIMITS.MODEL_ID} characters (current: ${modelId.length})`));
     }
 
     // parameters is optional but if provided must be a JSON object
@@ -55,7 +68,9 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
 
 // validateInferenceCreation is a chain of middlewares for validating inference creation requests
 export const validateInferenceCreation = [
-    checkCreateInferenceFields
+    checkCreateInferenceFields,
+    validateInferenceFieldLengths,
+    validateParametersSize
 ];
 
 // validateInferenceAccess is a chain for accessing a specific inference by its ID.

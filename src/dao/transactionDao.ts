@@ -73,6 +73,7 @@ export class TransactionDao {
                         required: true
                     }
                 ],
+                attributes: ["id", "operationType", "operationId", "amount", "balanceBefore", "balanceAfter", "description", "createdAt"],
                 order: [["createdAt", "DESC"]],
                 limit: pagination.limit,
                 offset: pagination.offset,
@@ -84,5 +85,4 @@ export class TransactionDao {
         }
     }
 }
- 
- 
+

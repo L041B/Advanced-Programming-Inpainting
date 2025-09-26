@@ -100,9 +100,92 @@ export function routeNotFoundHandler(req: Request, res: Response, next: NextFunc
     next(error);
 }
 
-// Exported error handling chain
+// Database error handler for Sequelize errors
+function handleDatabaseError(err: CustomError, req: Request, res: Response, next: NextFunction) {
+    // Check if it's a Sequelize error
+    const sequelizeError = err as CustomError & { 
+        name?: string; 
+        parent?: { code?: string; constraint?: string };
+        errors?: Array<{ path?: string; message?: string; type?: string }>;
+        original?: { code?: string; constraint?: string };
+    };
+
+    // Handle Sequelize validation errors
+    if (sequelizeError.name === "SequelizeValidationError") {
+        const validationErrors = sequelizeError.errors || [];
+        const errorMessages = validationErrors.map(error => 
+            `${error.path}: ${error.message}`
+        ).join(", ");
+        
+        errorLogger.log("Database validation error", {
+            errorType: "SequelizeValidationError",
+            errors: errorMessages
+        });
+
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            `Validation failed: ${errorMessages}`
+        );
+        return next(error);
+    }
+
+    // Handle Sequelize unique constraint errors
+    if (sequelizeError.name === "SequelizeUniqueConstraintError") {
+        errorLogger.log("Database unique constraint violation", {
+            errorType: "SequelizeUniqueConstraintError",
+            constraint: sequelizeError.parent?.constraint || "unknown"
+        });
+
+        const error = errorManager.createError(
+            ErrorStatus.resourceAlreadyPresent,
+            "Resource with this information already exists"
+        );
+        return next(error);
+    }
+
+    // Handle Sequelize database errors
+    if (sequelizeError.name === "SequelizeDatabaseError") {
+        const pgError = sequelizeError.original || sequelizeError.parent;
+        
+        // Handle string too long error 
+        if (pgError?.code === "22001") {
+            errorLogger.log("Database string length error", {
+                errorType: "SequelizeDatabaseError",
+                code: "22001",
+                message: "String data exceeds column length"
+            });
+
+            const error = errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "One or more fields exceed the maximum allowed length"
+            );
+            return next(error);
+        }
+
+        // Handle other database constraint errors
+        if (pgError?.code) {
+            errorLogger.log("Database constraint error", {
+                errorType: "SequelizeDatabaseError",
+                code: pgError.code,
+                constraint: pgError.constraint || "unknown"
+            });
+
+            const error = errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "Database constraint violation"
+            );
+            return next(error);
+        }
+    }
+
+    // If not a handled database error, pass to next handler
+    next(err);
+}
+
+// Updated error handling chain
 export const errorHandlingChain = [
     logErrors,
+    handleDatabaseError, 
     classifyError,
     formatErrorResponse,
     generalErrorHandler
