@@ -78,7 +78,7 @@ export interface AnalyzedDataset {
     createdAt: Date;
     updatedAt: Date;
     isDeleted: boolean;
-    deletedAt: Date | null; // Add deletedAt field
+    deletedAt: Date | null; 
     status: string;
     isOrphaned: boolean;
     user: {
@@ -195,7 +195,7 @@ export class AdminService {
             );
 
 
-            // Fetch user info for each transaction (assuming transactions have userId)
+            // Fetch user info for each transaction 
             const transactionsWithUser = await Promise.all(transactions.map(async (t) => {
                 let userInfo;
                 if (t.userId) {
@@ -409,7 +409,7 @@ export class AdminService {
                 createdAt: Date;
                 updatedAt: Date;
                 isDeleted: boolean;
-                deletedAt?: Date | null; // Add deletedAt field to input type
+                deletedAt?: Date | null; 
                 user?: {
                     id: string;
                     name: string;
@@ -437,7 +437,7 @@ export class AdminService {
             createdAt: Date;
             updatedAt: Date;
             isDeleted: boolean;
-            deletedAt?: Date | null; // Add deletedAt field to input type
+            deletedAt?: Date | null; 
             user?: {
                 id: string;
                 name: string;
@@ -453,10 +453,12 @@ export class AdminService {
         const user = dataset.user;
         const pairs = data.pairs || [];
  
+        // Default values
         let datasetType = "empty";
         let itemCount = 0;
         let estimatedTokenCost = 0;
  
+        // Analyze pairs to determine type, count, and estimated cost
         if (pairs.length > 0) {
             itemCount = pairs.length;
             datasetType = data.type || "unknown";
@@ -467,6 +469,7 @@ export class AdminService {
             return null;
         }
  
+        // return the analyzed dataset
         return {
             id: dataset.id,
             userId: dataset.userId,
@@ -479,7 +482,7 @@ export class AdminService {
             createdAt: dataset.createdAt,
             updatedAt: dataset.updatedAt,
             isDeleted: dataset.isDeleted,
-            deletedAt: dataset.deletedAt || null, // Include deletedAt in response
+            deletedAt: dataset.deletedAt || null, 
             status: dataset.isDeleted ? "deleted" : "active",
             isOrphaned: !user,
             user: user ? {
@@ -575,6 +578,7 @@ export class AdminService {
             return acc;
         }, {});
  
+        // return the summary
         return {
             totalDatasets: datasets.length,
             totalDatasetItems: totalItems,

@@ -1,6 +1,7 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
+// ESLint configuration file using the new flat config format
 export default [
   {
     files: ["**/*.ts", "**/*.js"],

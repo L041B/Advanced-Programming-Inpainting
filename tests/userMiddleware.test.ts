@@ -3,6 +3,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as userMiddleware from "../src/middleware/userMiddleware";
 import { ErrorStatus } from "../src/factory/status";
+import { validateUserIdFormat } from "../src/middleware/validationMiddleware";
 
 describe("User Middleware Suite", () => {
   let req: Partial<Request>;
@@ -146,26 +147,26 @@ describe("User Middleware Suite", () => {
     });
   });
 
-  describe("validateUUIDFormat", () => {
+  describe("validateUserIdFormat (from validationMiddleware)", () => {
     it("should call next() for a valid UUID", () => {
-        req.params = { userId: "f47ac10b-58cc-4372-a567-0e02b2c3d479" };
-        userMiddleware.validateUUIDFormat(req as Request, res as Response, next);
-        expect(next).toHaveBeenCalledWith();
+      req.params = { userId: "f47ac10b-58cc-4372-a567-0e02b2c3d479" };
+      validateUserIdFormat(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith();
     });
 
     it("should call next(error) for an invalid UUID", () => {
-        req.params = { userId: "not-a-valid-uuid" };
-        userMiddleware.validateUUIDFormat(req as Request, res as Response, next);
+      req.params = { userId: "not-a-valid-uuid" };
+      validateUserIdFormat(req as Request, res as Response, next);
 
-        expect(next).toHaveBeenCalledWith(expect.any(Error));
-        const error = (next as jest.Mock).mock.calls[0][0];
-        expect(error.message).toBe("Invalid user ID format");
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+      const error = (next as jest.Mock).mock.calls[0][0];
+      expect(error.message).toBe("Invalid userId format");
     });
 
     it("should call next() if the userId parameter is not present", () => {
-        req.params = {};
-        userMiddleware.validateUUIDFormat(req as Request, res as Response, next);
-        expect(next).toHaveBeenCalledWith();
+      req.params = {};
+      validateUserIdFormat(req as Request, res as Response, next);
+      expect(next).toHaveBeenCalledWith();
     });
   });
 });

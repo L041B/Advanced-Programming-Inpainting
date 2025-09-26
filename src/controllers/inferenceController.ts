@@ -232,7 +232,7 @@ export class InferenceController {
                 videos?: Array<{ originalVideoId: string; outputPath: string }>;
             };
 
-            // Base URL for constructing download links (without tokens)
+            // Base URL for constructing download links 
             const baseUrl = `${req.protocol}://${req.get("host")}`;
             
             // Generate clean URLs for images

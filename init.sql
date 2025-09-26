@@ -90,7 +90,7 @@ BEGIN
         NEW.deleted_at = CURRENT_TIMESTAMP;
     END IF;
     
-    -- Clear deleted_at when is_deleted changes from true to false (restoration)
+    -- Clear deleted_at when is_deleted changes from true to false 
     IF OLD.is_deleted = true AND NEW.is_deleted = false THEN
         NEW.deleted_at = NULL;
     END IF;
@@ -106,7 +106,7 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Create trigger for datasets table (replace the existing one)
+-- Create trigger for datasets table 
 DROP TRIGGER IF EXISTS update_datasets_updated_at ON datasets;
 CREATE TRIGGER update_datasets_updated_at
     BEFORE UPDATE ON datasets
@@ -134,7 +134,7 @@ CREATE INDEX IF NOT EXISTS idx_datasets_next_upload_index ON datasets(next_uploa
 CREATE INDEX IF NOT EXISTS idx_inferences_user_id ON inferences(user_id);
 CREATE INDEX IF NOT EXISTS idx_inferences_status ON inferences(status);
 CREATE INDEX IF NOT EXISTS idx_inferences_model_id ON inferences(model_id);
-CREATE INDEX IF NOT EXISTS idx_inferences_dataset_id ON inferences(dataset_id); -- Torna a dataset_id
+CREATE INDEX IF NOT EXISTS idx_inferences_dataset_id ON inferences(dataset_id); 
 CREATE INDEX IF NOT EXISTS idx_token_transactions_status ON token_transactions(status);
 CREATE INDEX IF NOT EXISTS idx_datasets_deleted_at ON datasets(deleted_at);
 

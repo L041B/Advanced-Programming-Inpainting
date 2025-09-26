@@ -1,4 +1,4 @@
-
+//import necessary modules and types
 import { UserRepository } from "../repository/userRepository";
 import { TokenTransaction } from "../models/TokenTransaction";
 import { DbConnection } from "../config/database";
@@ -65,7 +65,7 @@ export class TokenService {
         return TokenService.instance;
     }
 
-    // Refactored: Now throws standardized errors instead of returning result objects
+    // Throws standardized errors instead of returning result objects
     public async reserveTokens(
         userId: string,
         amount: number,

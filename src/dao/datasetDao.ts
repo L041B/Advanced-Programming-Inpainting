@@ -65,7 +65,7 @@ export class DatasetDao {
                 if (datasetData.userId) {
                     const existingDataset = await Dataset.findOne({
                         where: {
-                            userId: datasetData.userId,  // Only check within the same user's datasets
+                            userId: datasetData.userId,  
                             name: datasetData.name,
                             isDeleted: false
                         },
@@ -165,7 +165,7 @@ export class DatasetDao {
                 const [affectedCount] = await Dataset.update(
                     { 
                         isDeleted: true,
-                        deletedAt: new Date() // Explicitly set deletedAt timestamp
+                        deletedAt: new Date() 
                     },
                     {
                         where: {
@@ -200,7 +200,7 @@ export class DatasetDao {
                 const [affectedCount] = await Dataset.update(
                     { 
                         isDeleted: true,
-                        deletedAt: new Date() // Explicitly set deletedAt timestamp
+                        deletedAt: new Date() 
                     },
                     {
                         where: {
@@ -246,7 +246,7 @@ export class DatasetDao {
             const datasets = await Dataset.findAll({
                 where: {
                     userId,
-                    isDeleted: false // Solo quelli attivi
+                    isDeleted: false 
                 },
                 order: [["createdAt", "DESC"]]
             });

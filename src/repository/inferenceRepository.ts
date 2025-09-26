@@ -8,7 +8,7 @@ export interface InferenceData {
     status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "ABORTED";
     modelId: string;
     parameters?: Record<string, unknown>;
-    datasetId: string;  // Torna a datasetId
+    datasetId: string; 
     userId: string;
 }
 
@@ -77,22 +77,22 @@ export class InferenceRepository {
         }
     }
 
-    // Retrieves an inference by its ID.
+    // Retrieves an inference by its ID
     public async getInferenceById(id: string): Promise<Inference | null> {
         return await this.inferenceDao.findById(id);
     }
 
-    // Retrieves an inference by its ID and associated user ID.
+    // Retrieves an inference by its ID and associated user ID
     public async getInferenceByIdAndUserId(id: string, userId: string): Promise<Inference | null> {
         return await this.inferenceDao.findByIdAndUserId(id, userId);
     }
 
-    // Retrieves all inferences for a given user.
+    // Retrieves all inferences for a given user
     public async getUserInferences(userId: string): Promise<Inference[]> {
         return await this.inferenceDao.findAllByUserId(userId);
     }
 
-    // Retrieves inferences for a user with pagination support.
+    // Retrieves inferences for a user with pagination support
     public async getUserInferencesWithPagination(
         userId: string,
         limit: number,
@@ -101,7 +101,7 @@ export class InferenceRepository {
         return await this.inferenceDao.findByUserIdWithPagination(userId, limit, offset);
     }
 
-    // Updates the status of an inference.
+    // Updates the status of an inference
     public async updateInferenceStatus(
         id: string,
         status: InferenceData["status"],

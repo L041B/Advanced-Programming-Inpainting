@@ -46,7 +46,7 @@ export class TokenMiddleware {
             // Check user token balance
             const balance = await TokenMiddleware.tokenService.getUserTokenBalance(userId);
 
-            // Defensive check - should always be a number
+            // Check that should always be a number
             if (typeof balance !== "number") {
                 errorLogger.logDatabaseError("VALIDATE_TOKEN_BALANCE", "users", "Failed to retrieve balance");
                 throw errorManager.createError(
@@ -166,7 +166,7 @@ export class TokenMiddleware {
                     operationType: "operation_completed"
                 };
             } catch (confirmError) {
-                // Log but don't fail - this is supplementary information
+                // Log but don't fail 
                 errorLogger.logDatabaseError("FINALIZE_TOKEN_USAGE", "middleware", 
                     confirmError instanceof Error ? confirmError.message : "Token confirmation failed");
                 
@@ -181,7 +181,7 @@ export class TokenMiddleware {
             // Proceed to next middleware
             next();
         } catch (error) {
-            // Log but don't fail the request - this is cleanup logic
+            // Log but don't fail the request
             const err = error instanceof Error ? error : new Error("Unknown error");
             errorLogger.logDatabaseError("FINALIZE_TOKEN_USAGE", "middleware", err.message);
             next();

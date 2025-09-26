@@ -1,48 +1,40 @@
 module.exports = {
-  // Specifica che questo è il parser che ESLint deve usare.
-  // `@typescript-eslint/parser` permette a ESLint di capire la sintassi di TypeScript.
+  // This specifies the parser ESLint should use.
+  // '@typescript-eslint/parser' is the parser that allows ESLint to understand TypeScript syntax.
   parser: '@typescript-eslint/parser',
 
-  // Opzioni specifiche per il parser.
+  // Options specific to the parser.
   parserOptions: {
-    ecmaVersion: 2020, // Permette di usare le feature moderne di ECMAScript
-    sourceType: 'module', // Permette l'uso di 'import'
-    // Rimuovi l'opzione `project` per evitare errori di parsing su file di configurazione non inclusi nel TSConfig.
+    ecmaVersion: 2020, // Allows the use of modern ECMAScript features
+    sourceType: 'module', // Allows the use of 'import'
+    // Remove the `project` option to avoid parsing errors on config files not included in the TSConfig.
   },
 
-  // I plugin che ESLint deve usare.
-  // `@typescript-eslint` contiene tutte le regole specifiche per TypeScript.
+  // The plugins that ESLint should use.
+  // `@typescript-eslint` contains all the rules specific to TypeScript.
   plugins: ['@typescript-eslint'],
 
-  // Estende delle configurazioni predefinite. Questo è il modo più semplice per iniziare.
+  // Extends default configurations. This is the easiest way to get started.
   extends: [
-    // Regole di base raccomandate da ESLint
+    // Recommended base rules from ESLint
     'eslint:recommended',
-    
-    // Regole raccomandate dal plugin TypeScript-ESLint.
-    // Disabilita le regole di base di ESLint che sono in conflitto con TypeScript.
+
+    // Recommended rules from the TypeScript-ESLint plugin.
+    // Disables ESLint's base rules that conflict with TypeScript.
     'plugin:@typescript-eslint/recommended',
 
-    // (Opzionale, ma consigliato) Aggiunge regole più strette che usano le informazioni sui tipi.
-    // Richiede l'opzione `project` in `parserOptions`.
-    // 'plugin:@typescript-eslint/recommended-requiring-type-checking', // Disabilitato per evitare errori di parsing su file di configurazione
+    // 'plugin:@typescript-eslint/recommended-requiring-type-checking'
   ],
 
-  // Specifica che questo è il file di configurazione principale.
-  // ESLint smetterà di cercare file di configurazione nelle cartelle superiori.
+  // Specifies that this is the main configuration file.
+  // ESLint will stop looking for configuration files in parent folders.
   root: true,
 
-  // Qui puoi personalizzare o sovrascrivere le regole.
-  // 'off' = disattivata, 'warn' = avviso, 'error' = errore (interrompe la build in CI)
   rules: {
-    // Esempio: Rende un errore l'uso di variabili dichiarate ma non usate.
     '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
 
-    // Esempio: Permette l'uso di `require` (utile in alcuni file di configurazione Node.js).
     '@typescript-eslint/no-var-requires': 'off',
 
-    // Esempio: Rende un errore l'uso di `any` come tipo.
-    // Puoi disattivarlo se stai iniziando e hai molto codice legacy.
     '@typescript-eslint/no-explicit-any': 'warn',
   },
 };

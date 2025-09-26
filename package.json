@@ -27,7 +27,7 @@
     "queue",
     "redis"
   ],
-  "author": "Loris e Leonardo",
+  "author": "Loris Bottegoni e Leonardo Cambiotti",
   "license": "MIT",
   "dependencies": {
     "adm-zip": "^0.5.16",

@@ -107,7 +107,7 @@ export class DatasetService {
         }
     }
 
-    // Process and add data to dataset - now throws standardized errors
+    // Process and add data to dataset 
     static async processAndAddData(
         userId: string,
         datasetName: string,
@@ -127,7 +127,7 @@ export class DatasetService {
                 );
             }
 
-            // TokenService now throws standardized errors - no need to handle them here
+            // TokenService throws standardized errors
             tokenReservationId = await this.tokenService.reserveTokens(
                 userId, 
                 tokenCost, 
@@ -236,7 +236,7 @@ export class DatasetService {
         return [".mp4", ".avi", ".mov"].includes(extension);
     }
 
-    // Calculate token cost based on uploaded files - now throws standardized errors
+    // Calculate token cost based on uploaded files
     private static async calculateTokenCost(
         imageFile: Express.Multer.File, 
         maskFile: Express.Multer.File
@@ -323,7 +323,7 @@ export class DatasetService {
         }
     }
 
-    //  Process uploaded files and return structured data - now throws standardized errors
+    //  Process uploaded files and return structured data
     private static async processUploadedFiles(
         imageFile: Express.Multer.File, 
         maskFile: Express.Multer.File, 
@@ -391,7 +391,7 @@ export class DatasetService {
         }
     }
 
-    // Process image-mask pair - now throws standardized errors
+    // Process image-mask pair 
     private static async processImageMaskPair(
         imageBuffer: Buffer, 
         maskBuffer: Buffer, 
@@ -441,7 +441,7 @@ export class DatasetService {
         }
     }
 
-    // Process video with single mask - updated to include upload index for all frames
+    // Process video with single mask 
     private static async processVideoWithSingleMask(
         videoBuffer: Buffer, 
         maskBuffer: Buffer, 
@@ -471,7 +471,7 @@ export class DatasetService {
                 imagePath: framePath,
                 maskPath,
                 frameIndex: i,
-                uploadIndex // Same upload index for all frames of the same video
+                uploadIndex 
             });
         }
 
@@ -489,7 +489,7 @@ export class DatasetService {
         };
     }
 
-    // Process video with mask video - updated to include upload index for all frames
+    // Process video with mask video 
     private static async processVideoWithMaskVideo(
         videoBuffer: Buffer, 
         maskVideoBuffer: Buffer, 
@@ -534,7 +534,7 @@ export class DatasetService {
                 imagePath: framePath,
                 maskPath,
                 frameIndex: i,
-                uploadIndex // Same upload index for all frames of the same video
+                uploadIndex 
             });
         }
 
@@ -553,7 +553,7 @@ export class DatasetService {
         };
     }
 
-    // Process ZIP file - updated to handle upload indexing for multiple subdirectories
+    // Process ZIP file 
     private static async processZipFile(zipBuffer: Buffer, subfolder: string, startUploadIndex: number): Promise<DatasetData> {
         const zip = new AdmZip(zipBuffer);
         const subdirs = this.groupZipEntriesBySubdirectory(zip.getEntries());
@@ -816,11 +816,11 @@ export class DatasetService {
                 const framePath = path.join(tempDir, file);
                 const frameBuffer = await fs.readFile(framePath);
                 frames.push(frameBuffer);
-                await fs.unlink(framePath).catch(() => {}); // Ignore cleanup errors
+                await fs.unlink(framePath).catch(() => {}); 
             }
 
             // Cleanup video file
-            await fs.unlink(videoPath).catch(() => {}); // Ignore cleanup errors
+            await fs.unlink(videoPath).catch(() => {}); 
 
             // Handle case of no frames extracted
             if (frames.length === 0) {
@@ -855,7 +855,7 @@ export class DatasetService {
             const command = ffmpeg(videoPath)
                 .outputOptions([
                     "-vf", "fps=1", // Extract 1 frame per second
-                    "-q:v", "2"     
+                    "-q:v", "2"    // Set quality for output frames  
                 ])
                 .output(outputPattern)
                 .on("start", (commandLine) => {
