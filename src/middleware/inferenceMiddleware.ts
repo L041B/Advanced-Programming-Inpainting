@@ -53,9 +53,19 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
 
     // parameters is optional but if provided must be a JSON object
     if (parameters !== undefined && (typeof parameters !== "object" || Array.isArray(parameters) || parameters === null)) {
+        let parametersType: string;
+        if (parameters === null) {
+            parametersType = "null";
+        } else if (Array.isArray(parameters)) {
+            parametersType = "array";
+        } else if (typeof parameters === "object") {
+            parametersType = JSON.stringify(parameters);
+        } else {
+            parametersType = JSON.stringify(parameters);
+        }
         errorLogger.logValidationError(
             "parameters",
-            parameters === null ? "null" : Array.isArray(parameters) ? "array" : typeof parameters === "object" ? "object" : String(parameters),
+            parametersType,
             "\"parameters\" must be a JSON object if provided."
         );
         return next(errorManager.createError(ErrorStatus.invalidFormat, "\"parameters\" must be a JSON object if provided."));

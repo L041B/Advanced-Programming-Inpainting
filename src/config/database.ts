@@ -93,7 +93,7 @@ export class DbConnection {
             // Use safer sync options based on environment
             const syncOptions = process.env.NODE_ENV === "production" 
                 ? {} 
-                : { alter: true }; // Allow alter only in development
+                : { alter: true }; 
             
             await DbConnection.getSequelizeInstance().sync(syncOptions);
             logger.info("Database connected and synchronized successfully");

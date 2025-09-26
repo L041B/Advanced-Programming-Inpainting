@@ -53,10 +53,9 @@ if (!fs.existsSync(uploadsDir)) {
 app.use("/", appRoutes);
 // Mount the user-related routes under the '/api/users' path.
 app.use("/api/users", userRoutes); 
-
 app.use("/api/datasets", datasetRoutes);
 app.use("/api/inferences", inferenceRoutes);
-app.use("/api/admin", adminRoutes);              // Mount admin routes
+app.use("/api/admin", adminRoutes);              
 
 // Mount the error handler
 app.use(routeNotFoundHandler);

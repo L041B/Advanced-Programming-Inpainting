@@ -181,7 +181,7 @@ dataset.zip
  
 ### Requirements
  
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) (v22+)
 - [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
 - [Redis](https://redis.io/) (via Docker)
 - [PostgreSQL](https://www.postgresql.org/) (via Docker)
@@ -279,7 +279,7 @@ All endpoints are JWT-protected unless register and login for user.
 - `GET /api/inferences/` - Get all inferences
 - `GET /api/inferences/:id` - Get specific inference
 - `GET /api/inferences/:id/results` - Get inference result
-- `GET /api/inferences/download/:token` - Download specific result
+- `GET /api/inferences/:id/download/:filename"` - Download specific result
  
 ### Admin
 - `GET /api/admin/users/:email/tokens` - Get token balance for user

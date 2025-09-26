@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {
   validateInferenceCreation,
-  validateInferenceAccess,
-  validateFileAccess
+  validateInferenceAccess
 } from "../src/middleware/inferenceMiddleware";
 
 describe("Inference Middleware Suite", () => {
@@ -28,7 +27,7 @@ describe("Inference Middleware Suite", () => {
       validateInferenceCreation[0](req as Request, res as Response, next);
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = (next as jest.Mock).mock.calls[0][0];
-      expect(error.message).toContain("datasetName");
+      expect(error.message).toContain("Dataset name");
     });
 
     it("should call next(error) if parameters is not an object", () => {
@@ -52,25 +51,10 @@ describe("Inference Middleware Suite", () => {
       validateInferenceAccess[0](req as Request, res as Response, next);
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = (next as jest.Mock).mock.calls[0][0];
-      expect(error.message).toContain("inference ID");
+      expect(error.message).toContain("Invalid id format");
     });
   });
 
-  describe("validateFileAccess", () => {
-    it("should call next() for valid token", () => {
-      req.params = { token: "sometoken" };
-      validateFileAccess[0](req as Request, res as Response, next);
-      expect(next).toHaveBeenCalledWith();
-    });
-
-    it("should call next(error) for missing token", () => {
-      req.params = {};
-      validateFileAccess[0](req as Request, res as Response, next);
-      expect(next).toHaveBeenCalledWith(expect.any(Error));
-      const error = (next as jest.Mock).mock.calls[0][0];
-      expect(error.message).toContain("file access token");
-    });
-  });
 });
 
 

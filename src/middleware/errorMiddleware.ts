@@ -26,9 +26,9 @@ interface ErrorResponse {
 // We use chain of responsibility pattern to handle error responses.
 
 /** Log the incoming error. Its sole job is to record the error details.
- * @param err The error object.
- * @param req The Express request object.
- * @param res The Express response object.
+ *  err: The error object.
+ *  req: The Express request object.
+ *  res: The Express response object.
  */
 export function logErrors(err: CustomError, req: Request, res: Response, next: NextFunction) {    
     errorLogger.log("Application error occurred", {

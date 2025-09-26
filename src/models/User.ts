@@ -26,7 +26,7 @@ export class User extends Model {
         id: {
           type: DataTypes.UUID,
           primaryKey: true,
-          defaultValue: DataTypes.UUIDV4, // Automatically generates a v4 UUID for new users.
+          defaultValue: DataTypes.UUIDV4, 
         },
         name: {
           type: DataTypes.STRING(100),

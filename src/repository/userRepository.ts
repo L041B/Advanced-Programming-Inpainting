@@ -9,7 +9,6 @@ export interface UserData {
     surname: string;
     email: string;
     password: string;
-    // Remove tokens and role from interface - they should be set automatically
 }
 
 // UserRepository provides an abstraction layer over UserDao for user-related operations.
@@ -23,7 +22,7 @@ export class UserRepository {
         this.userLogger = loggerFactory.createUserLogger();
     }
 
-    // Get the singleton instance of UserRepository.
+    // Get the singleton instance of UserRepository
     public static getInstance(): UserRepository {
         if (!UserRepository.instance) {
             UserRepository.instance = new UserRepository();
@@ -31,7 +30,7 @@ export class UserRepository {
         return UserRepository.instance;
     }
 
-    // Creates a new user in the database.
+    // Creates a new user in the database
     public async createUser(data: UserData): Promise<User> {
         // DAO handles logging and errors now, just pass through
         return await this.userDao.create({
@@ -41,7 +40,7 @@ export class UserRepository {
         });
     }
 
-    // Validates user login credentials.
+    // Validates user login credentials
     public async validateLogin(email: string, password: string): Promise<User | null> {
         // DAO handles logging and errors now, just pass through
         return await this.userDao.validateLogin(email, password);

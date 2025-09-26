@@ -44,7 +44,7 @@ export class DatasetController {
     private static readonly errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
     private static readonly errorManager = ErrorManager.getInstance();
 
-    // Create an empty dataset - uses unified error handling
+    // Create an empty dataset 
     static async createEmptyDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
@@ -68,7 +68,7 @@ export class DatasetController {
         }
     }
 
-    // Upload data to dataset - uses unified error handling
+    // Upload data to dataset 
     static async uploadDataToDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         // Start timing and log request
         const startTime = Date.now();
@@ -105,7 +105,7 @@ export class DatasetController {
         }
     }
 
-    // Get all datasets for the authenticated user - now uses unified error handling
+    // Get all datasets for the authenticated user
     static async getUserDatasets(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
@@ -131,7 +131,7 @@ export class DatasetController {
                     tags: dataset.tags,
                     createdAt: dataset.createdAt,
                     updatedAt: dataset.updatedAt,
-                    deletedAt: dataset.deletedAt, // Include deletedAt in user datasets response
+                    deletedAt: dataset.deletedAt, 
                     itemCount,
                     type: data.type || "empty",
                     isDeleted: dataset.isDeleted,
@@ -172,7 +172,7 @@ export class DatasetController {
         }
     }
 
-    // Get a specific dataset by name - now uses unified error handling
+    // Get a specific dataset by name 
     static async getDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         // Start timing and log request
         const startTime = Date.now();
@@ -222,7 +222,7 @@ export class DatasetController {
         } catch (error) {
             DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
             
-            // Pass standardized errors directly, wrap others
+            // Pass standardized errors directly
             if (error instanceof Error && "errorType" in error) {
                 next(error);
             } else {
@@ -240,7 +240,7 @@ export class DatasetController {
         }
     }
 
-    // Get dataset data/contents - now uses unified error handling
+    // Get dataset data/contents 
     static async getDatasetData(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
@@ -340,7 +340,7 @@ export class DatasetController {
         }
     }
 
-    // Serve individual images - now uses unified error handling
+    // Serve individual images 
     static async serveImage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         // No authentication middleware, uses temporary token in URL
         const startTime = Date.now();
@@ -493,7 +493,7 @@ export class DatasetController {
         }
     }
 
-    // Update dataset metadata - now uses unified error handling
+    // Update dataset metadata
     static async updateDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);

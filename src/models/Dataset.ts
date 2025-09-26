@@ -4,7 +4,7 @@ import { DbConnection } from "../config/database";
 
 // Dataset model representing a dataset in the system.
 export class Dataset extends Model {
-  public id!: string; // New UUID primary key
+  public id!: string; 
   public userId!: string | null; // Can be null when user is deleted
   public name!: string;
   public data!: object | null;
@@ -25,11 +25,11 @@ export class Dataset extends Model {
         id: {
           type: DataTypes.UUID,
           primaryKey: true,
-          defaultValue: DataTypes.UUIDV4, // Auto-generate UUID
+          defaultValue: DataTypes.UUIDV4, 
         },
         userId: {
           type: DataTypes.UUID,
-          allowNull: true, // Allow NULL when user is deleted
+          allowNull: true, 
           field: "user_id"
         },
         name: {

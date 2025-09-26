@@ -33,7 +33,7 @@ export class DatasetRepository {
         return DatasetRepository.instance;
     }
  
-    // Creates a new dataset in the database.
+    // Creates a new dataset in the database
     public async createDataset(data: DatasetData): Promise<Dataset> {
         // Log dataset creation intent
         this.datasetLogger.logDatasetCreation(data.userId, data.name, data.type);
@@ -105,7 +105,7 @@ export class DatasetRepository {
  
     // Updates a dataset by its ID. This method requires business logic to first find the dataset.
     public async updateDatasetById(datasetId: string, data: Partial<DatasetData>): Promise<Dataset> {
-        // This method requires business logic - need to find dataset first
+        // This method requires business logic 
         const existingDataset = await this.datasetDao.findById(datasetId);
         if (!existingDataset?.userId || !existingDataset?.name) {
             // Log business logic decision

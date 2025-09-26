@@ -87,7 +87,7 @@ export class InferenceBlackBoxAdapter {
                 throw this.errorManager.createError(ErrorStatus.inferenceProcessingFailedError, errorMessage);
             }
         } catch (error) {
-            // Handle standardized errors (don't re-wrap them)
+            // Handle standardized errors 
             if (error instanceof Error && "errorType" in error) {
                 throw error;
             }

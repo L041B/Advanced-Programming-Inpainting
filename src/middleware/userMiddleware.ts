@@ -44,7 +44,7 @@ export const checkRequiredFields = (req: Request, res: Response, next: NextFunct
     next();
 };
 
-// validateNameFormat is a middleware function that checks the format of the name and surname fields if present.
+// validateNameFormat is a middleware function that checks the format of the name and surname fields if present
 export const validateNameFormat = (req: Request, res: Response, next: NextFunction): void => {
     const body = req.body as { name?: string; surname?: string };
     let { name, surname } = body;
@@ -71,7 +71,7 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
     next();
 };
 
-// validateEmailFormat is a middleware function that checks the format of the email field if present.
+// validateEmailFormat is a middleware function that checks the format of the email field if present
 export const validateEmailFormat = (req: Request, res: Response, next: NextFunction): void => {
     const body = req.body as { email?: string };
     let { email } = body;
@@ -189,7 +189,7 @@ export const sanitizeLoginData = (req: Request, res: Response, next: NextFunctio
     next();
 };
 
-// Middleware for validating user creation requests - all fields required
+// Middleware for validating user creation requests 
 export const validateUserCreation = [
     checkRequiredFields,
     sanitizeUserData,

@@ -1,9 +1,9 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  // Indica a Jest di usare il preset di ts-jest per trasformare i file .ts
+  //  indicate to use the ts-jest preset which allows Jest to handle TypeScript files
   preset: "ts-jest",
 
-  // Specifica l'ambiente di test. 'node' è essenziale per testare applicazioni backend.
+  // Specify the test environment. 'node' is essential for testing backend applications.
   testEnvironment: "node",
 
   // Setup environment variables and global mocks
@@ -15,6 +15,7 @@ module.exports = {
     "<rootDir>/tests"
   ],
 
+  // Specific test files to run
   testMatch: [
     "**/tests/authMiddleware.test.ts",
     "**/tests/userMiddleware.test.ts", 
@@ -34,6 +35,7 @@ module.exports = {
     "!src/**/index.ts"
   ],
   
+  // Directory where Jest should output its coverage files
   coverageDirectory: "coverage",
   
   coverageReporters: [
@@ -42,16 +44,17 @@ module.exports = {
     "html"
   ],
 
-  // Pulisce automaticamente i mock tra ogni test per garantire l'isolamento.
+  // Automatically clear mocks between tests to ensure isolation.
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
 
-  // Imposta una regola per risolvere i percorsi (se usi alias come @/src)
+  // Set up a rule for resolving paths (if using aliases like @/src)
   moduleNameMapping: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
 
+  // Recognize these file extensions
   moduleFileExtensions: [
     "ts",
     "js",

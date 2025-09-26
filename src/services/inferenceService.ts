@@ -7,6 +7,7 @@ import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 import { loggerFactory, InferenceRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
 
+// Define interfaces for input data and response structures
 interface CreateInferenceData {
     datasetName: string;
     modelId?: string;
@@ -151,7 +152,7 @@ export class InferenceService {
         }
     }
 
-    // Attempts to reserve tokens for the inference, throwing errors for any issues encountered.
+    // Attempts to reserve tokens for the inference, throwing errors for any issues encountered
     private static async reserveTokensOrThrow(userId: string, totalCost: number, datasetId: string): Promise<string> {
         const operationId = `inference_on_${datasetId}`;
         InferenceService.inferenceLogger.log("Token reservation requested", { userId, amount: totalCost, type: "inference", operationId });
@@ -168,7 +169,7 @@ export class InferenceService {
         return InferenceService.handleObjectReservationResult(reservationResult, userId, totalCost);
     }
 
-    // Handles string responses from the token reservation service.
+    // Handles string responses from the token reservation service
     private static handleStringReservationResult(reservationResult: string, userId: string, totalCost: number): string {
         // Validate error string
         if (InferenceService.isErrorString(reservationResult)) {
@@ -273,7 +274,7 @@ export class InferenceService {
                 InferenceService.errorLogger.logDatabaseError("QUEUE_JOB", "inference_proxy", jobResult);
                 throw InferenceService.errorManager.createError(ErrorStatus.jobAdditionFailedError, jobResult);
             }
-            // Return the string job ID (will be converted to number in controller)
+            // Return the string job ID 
             return jobResult;
         } else if (
             // Object with success flag
@@ -283,7 +284,7 @@ export class InferenceService {
             (jobResult as { success: boolean }).success &&
             "jobId" in jobResult
         ) {
-            // Return the job ID as string (will be converted to number in controller)
+            // Return the job ID as string 
             return (jobResult as { jobId: string }).jobId;
         } else {
             InferenceService.errorLogger.logDatabaseError(

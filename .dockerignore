@@ -16,7 +16,7 @@ yarn-error.log*
 *.swo
 *~
 
-# Local environment files (NEVER commit these to Git or include in an image)
+# Local environment files 
 .env
 .env.local
 .env.development.local
@@ -52,7 +52,7 @@ Thumbs.db
 .pm2/
 ecosystem.config.js
 
-# Redis dump files (if generated locally)
+# Redis dump files 
 dump.rdb
 
 # Local database files

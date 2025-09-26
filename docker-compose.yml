@@ -13,7 +13,7 @@ services:
     command: redis-server --appendonly yes
     hostname: redis
 
-  # Service for PostgreSQL database - FIXED VERSION
+  # Service for PostgreSQL database
   postgres:
     image: postgres:15-alpine 
     hostname: postgres

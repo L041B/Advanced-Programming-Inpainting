@@ -52,7 +52,7 @@ export class InferenceBlackBoxProxy {
                 parameters
             });
 
-            // Return job ID as string (but it will be parsed to number in controller)
+            // Return job ID as string
             return job.id?.toString() || "";
 
         } catch (error) {

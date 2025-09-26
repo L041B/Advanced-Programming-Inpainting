@@ -9,7 +9,7 @@ export class Inference extends Model {
   public modelId!: string;
   public parameters!: Record<string, unknown> | null;
   public result!: Record<string, unknown> | null;
-  public datasetId!: string; // Riportiamo a datasetId
+  public datasetId!: string; 
   public userId!: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -47,7 +47,7 @@ export class Inference extends Model {
         datasetId: {
           type: DataTypes.UUID,
           allowNull: false,
-          field: "dataset_id" // Torna a dataset_id
+          field: "dataset_id" 
         },
         userId: {
           type: DataTypes.UUID,
