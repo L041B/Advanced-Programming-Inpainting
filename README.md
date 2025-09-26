@@ -1116,7 +1116,6 @@ The project includes a comprehensive suite of unit tests written with Jest, focu
 - **Inference Request Validation Middleware**
   - Inference creation payload
   - Resource access (ID format)
-  - Secure file access (token validation)
  
 Run tests with:
 - **Unit/Integration Tests**: `npm test`
