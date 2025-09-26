@@ -49,18 +49,49 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
     const body = req.body as { name?: string; surname?: string };
     let { name, surname } = body;
     const nameRegex = /^[a-zA-Z\s'-]+$/; 
+    const multipleSpacesRegex = /\s{2,}/; // Check for 2 or more consecutive spaces
     
     // Trim inputs if they are strings
     if (typeof name === "string") name = name.trim();
     if (typeof surname === "string") surname = surname.trim();
     
     // Validate format if fields are present and not empty after trimming
-    if ((name && (!nameRegex.test(name) || name.length === 0)) || 
-        (surname && (!nameRegex.test(surname) || surname.length === 0))) {
-        errorLogger.logValidationError("nameFormat", `name: ${name}, surname: ${surname}`, "Invalid name or surname format");
+    if (name && (!nameRegex.test(name) || name.length === 0)) {
+        errorLogger.logValidationError("nameFormat", `name: ${name}`, "Invalid name format");
         const error = errorManager.createError(
             ErrorStatus.invalidFormat,
-            "Name and surname must contain only letters, spaces, hyphens, or apostrophes and cannot be empty or contain only spaces"
+            "Name must contain only letters, spaces, hyphens, or apostrophes and cannot be empty or contain only spaces"
+        );
+        next(error);
+        return;
+    }
+    
+    if (surname && (!nameRegex.test(surname) || surname.length === 0)) {
+        errorLogger.logValidationError("nameFormat", `surname: ${surname}`, "Invalid surname format");
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            "Surname must contain only letters, spaces, hyphens, or apostrophes and cannot be empty or contain only spaces"
+        );
+        next(error);
+        return;
+    }
+
+    // Check for multiple consecutive spaces
+    if (name && multipleSpacesRegex.test(name)) {
+        errorLogger.logValidationError("nameFormat", `name: ${name}`, "Name contains too many consecutive spaces");
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            "Name cannot contain more than two consecutive spaces"
+        );
+        next(error);
+        return;
+    }
+
+    if (surname && multipleSpacesRegex.test(surname)) {
+        errorLogger.logValidationError("nameFormat", `surname: ${surname}`, "Surname contains too many consecutive spaces");
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            "Surname cannot contain more than two consecutive spaces"
         );
         next(error);
         return;

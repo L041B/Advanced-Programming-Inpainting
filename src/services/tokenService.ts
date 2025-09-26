@@ -305,7 +305,6 @@ export class TokenService {
         amount: string;
         balanceBefore: string;
         balanceAfter: string;
-        status: string;
         description: string | null;
         createdAt: Date;
     }>> {
@@ -322,7 +321,6 @@ export class TokenService {
                     "amount",
                     "balanceBefore",
                     "balanceAfter",
-                    "status",
                     "description",
                     "createdAt"
                 ]
@@ -336,7 +334,6 @@ export class TokenService {
                 amount: t.amount.toString(),
                 balanceBefore: t.balanceBefore.toString(),
                 balanceAfter: t.balanceAfter.toString(),
-                status: t.status,
                 description: t.description,
                 createdAt: t.createdAt
             }));
