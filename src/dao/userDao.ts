@@ -65,8 +65,6 @@ export class UserDao {
                     role: "user"
                 }, { transaction: t });
 
-                // Log the creation event
-                this.userLogger.logUserCreation(user.id, userData.email);
                 return user;
             } catch (error) {
                 if (error instanceof Error && "errorType" in error) {
@@ -110,7 +108,6 @@ export class UserDao {
 
                 // Update the user with new data
                 await user.update(userData, { transaction: t });
-                this.userLogger.logUserUpdate(id, Object.keys(userData));
                 return user;
             } catch (error) {
                 if (error instanceof Error && "errorType" in error) {
@@ -138,7 +135,6 @@ export class UserDao {
                     throw this.errorManager.createError(ErrorStatus.userNotFoundError);
                 }
                 await user.destroy({ transaction: t });
-                this.userLogger.logUserDeletion(id);
                 return true;
             } catch (error) {
                 if (error instanceof Error && "errorType" in error) {
@@ -157,10 +153,6 @@ export class UserDao {
                 attributes: { exclude: ["password"] }
             });
             
-            // Log the retrieval of the user
-            if (user) {
-                this.userLogger.logUserRetrieval(id);
-            }
             return user;
         } catch (error) {
             this.errorLogger.logDatabaseError("findById", "User", (error as Error).message);
@@ -201,7 +193,6 @@ export class UserDao {
             const isValid = await bcrypt.compare(password, user.password);
             const result = isValid ? user : null;
             
-            this.userLogger.logUserLogin(email, !!result);
             return result;
         } catch (error) {
             this.errorLogger.logDatabaseError("validateLogin", "User", (error as Error).message);
@@ -220,7 +211,6 @@ export class UserDao {
                 }
 
                 await user.update({ tokens }, { transaction: t });
-                this.userLogger.logTokenUpdate(id, tokens);
                 return user;
             } catch (error) {
                 if (error instanceof Error && "errorType" in error) {
