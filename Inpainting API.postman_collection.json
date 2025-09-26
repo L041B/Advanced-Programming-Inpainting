@@ -1,0 +1,1104 @@
+{
+	"info": {
+		"_postman_id": "11b7de71-9178-45ae-a545-2f5e855a4058",
+		"name": "Inpainting API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46807056"
+	},
+	"item": [
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoicGlub3Rpbm9yZUBnbWFpbC5jb20iLCJpYXQiOjE3NTQ1NjM4NjksImV4cCI6MTc1NDY1MDI2OX0.Jz_9U7Otf0xdcm895D4NIkaMFlqVIqZaNcRI60KR0cc",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"description": "{\n    \"name\": \"Test User\"\n    \"surname\": \"Test User\"\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\", \n}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password1234!\" \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/user",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"user"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let jsonData = pm.response.json();\r",
+									"\r",
+									"// Estraggo il token dal JSON\r",
+									"let token = jsonData.data.token;\r",
+									"\r",
+									"// Se esiste, salvo come variabile d’ambiente\r",
+									"if (token) {\r",
+									"    pm.environment.set(\"token\", token);\r",
+									"    console.log(\" Token salvato:\", token);\r",
+									"} else {\r",
+									"    console.log(\" Nessun token trovato nella risposta!\");\r",
+									"}\r",
+									"\r",
+									"if (jsonData.data && jsonData.data.user && jsonData.data.user.id) {\r",
+									"    let userId = jsonData.data.user.id.trim();\r",
+									"    pm.environment.set(\"userId\", userId);\r",
+									"    console.log(\" User ID salvato:\", userId);\r",
+									"} else {\r",
+									"    console.log(\" Nessun userId trovato nella risposta!\");\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NzE3NDY3LCJleHAiOjE3NTg4MDM4Njd9.mXVRj8iIwc-2IUeaswrY_hLkP94GmYz0CNyqESsvZnA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password1234!\" \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Profile",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tokens",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/tokens",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Marietto\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossi@gmail.com\",\r\n    \"password\": \"Password1234!\" \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossii@gmail.com\",\r\n    \"password\": \"Password123!\" \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dataset",
+			"item": [
+				{
+					"name": "New Datasets",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Inpainting dataset\",\r\n    \"tags\": [\"Inpainting\", \"Damage\", \"Mask\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "datasetName",
+									"value": "Inpainting dataset",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "postman-cloud:///1f093309-4ded-4470-b29b-40005627ba9a"
+								},
+								{
+									"key": "mask",
+									"type": "file",
+									"src": "postman-cloud:///1f06ebd7-f8eb-4aa0-93ee-d1689eea0eb9"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/data",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"data"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Datasets",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Specific Dataset",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Data specific dataset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset/data",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset",
+								"data"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "View specific image",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting%20dataset/image/458164cd-2029-42c4-b17b-67ef8e62b55f.png",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting%20dataset",
+								"image",
+								"458164cd-2029-42c4-b17b-67ef8e62b55f.png"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Dataset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Inpainting dataset\",\r\n    \"tags\": [\"Inpainting\", \"Damage\", \"Mask\", \"Cracks\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Dataset",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/datasets/Inpainting dataset",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"datasets",
+								"Inpainting dataset"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Inference",
+			"item": [
+				{
+					"name": "Inference",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let jsonData = pm.response.json();\r",
+									"\r",
+									"// --- INFERENCE ID ---\r",
+									"if (jsonData.inference && jsonData.inference.id) {\r",
+									"    let inferenceId = jsonData.inference.id.trim();\r",
+									"    pm.environment.set(\"inferenceId\", inferenceId);\r",
+									"    console.log(\" Inference ID salvato:\", inferenceId);\r",
+									"} else {\r",
+									"    console.log(\" Nessun inferenceId trovato nella risposta!\");\r",
+									"}\r",
+									"\r",
+									"// --- JOB ID (opzionale) ---\r",
+									"if (jsonData.jobId) {\r",
+									"    let jobId = jsonData.jobId.toString().trim();\r",
+									"    pm.environment.set(\"jobId\", jobId);\r",
+									"    console.log(\" Job ID salvato:\", jobId);\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"datasetName\": \"Inpainting dataset\",\r\n    \"modelId\": \"default_inpainting\", \r\n    \"parameters\": {\r\n        \"quality\": \"high\",\r\n        \"blendMode\": \"lighten\",\r\n        \"outputFormat\": \"png\",\r\n        \"customParameter\": \"EigenCAM\"  //Grad-CAM\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Job Status",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"datasetName\": \"Inpainting dataset\",\r\n    \"modelId\": \"default_inpainting\", \r\n    \"parameters\": {\r\n        \"quality\": \"high\",\r\n        \"blendMode\": \"lighten\",\r\n        \"outputFormat\": \"png\",\r\n        \"customParameter\": \"EigenCAM\"  //Grad-CAM\r\n    }\r\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/job/{{jobId}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"job",
+								"{{jobId}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Inference",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Specific Inference",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/{{inferenceId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"{{inferenceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Results specific inference",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let jsonData = pm.response.json();\r",
+									"\r",
+									"// --- Salvo sempre l'inferenceId ---\r",
+									"if (jsonData.data && jsonData.data.inferenceId) {\r",
+									"    let inferenceId = jsonData.data.inferenceId.trim();\r",
+									"    pm.environment.set(\"inferenceId\", inferenceId);\r",
+									"    console.log(\" Inference ID salvato:\", inferenceId);\r",
+									"} else {\r",
+									"    console.log(\" Nessun inferenceId trovato!\");\r",
+									"}\r",
+									"\r",
+									"// --- Salvo la prima immagine (se esiste) ---\r",
+									"if (jsonData.data && jsonData.data.images && jsonData.data.images.length > 0) {\r",
+									"    let firstImage = jsonData.data.images[0];\r",
+									"    pm.environment.set(\"firstImageUrl\", firstImage.downloadUrl.trim());\r",
+									"    pm.environment.set(\"firstImagePath\", firstImage.outputPath.trim());\r",
+									"    console.log(\"Prima immagine salvata:\", firstImage.downloadUrl);\r",
+									"} else {\r",
+									"    console.log(\" Nessuna immagine trovata!\");\r",
+									"}\r",
+									"\r",
+									"// --- Salvo il primo video (se esiste) ---\r",
+									"if (jsonData.data && jsonData.data.videos && jsonData.data.videos.length > 0) {\r",
+									"    let firstVideo = jsonData.data.videos[0];\r",
+									"    pm.environment.set(\"firstVideoUrl\", firstVideo.downloadUrl.trim());\r",
+									"    pm.environment.set(\"firstVideoPath\", firstVideo.outputPath.trim());\r",
+									"    console.log(\" Primo video salvato:\", firstVideo.downloadUrl);\r",
+									"} else {\r",
+									"    console.log(\" Nessun video trovato!\");\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/{{inferenceId}}/results",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"{{inferenceId}}",
+								"results"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "View specific result",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}} ",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/inferences/04a1a0d8-c3d3-429e-9c91-95e49657b208/download/b611d628-fb52-4391-905f-5cb7935147ce_video_1.mp4",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inferences",
+								"04a1a0d8-c3d3-429e-9c91-95e49657b208",
+								"download",
+								"b611d628-fb52-4391-905f-5cb7935147ce_video_1.mp4"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"let jsonData = pm.response.json();\r",
+									"\r",
+									"// Estraggo il token dal JSON\r",
+									"let token = jsonData.data.token;\r",
+									"\r",
+									"// Se esiste, salvo come variabile d’ambiente\r",
+									"if (token) {\r",
+									"    pm.environment.set(\"adminToken\", token);\r",
+									"    console.log(\" Token salvato:\", token);\r",
+									"} else {\r",
+									"    console.log(\" Nessun token trovato nella risposta!\");\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"admin@system.com\",\r\n    \"password\": \"AdminPassword123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Token balance user",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/users/mariorossi@gmail.com/tokens",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"users",
+								"mariorossi@gmail.com",
+								"tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rechange token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"mariorossi@gmail.com\",\r\n    \"amount\": 1000000\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/user-tokens",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"user-tokens"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Transaction",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/transactions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"transactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Datasets",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{adminToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/admin/datasets",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"datasets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "{{baseUrl}}",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "{{authToken}}",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
