@@ -45,8 +45,12 @@ router.get("/:name/data",
     DatasetController.getDatasetData
 );
 
-// Route for serving individual images from dataset (uses temporary token, no auth required)
-router.get("/image/:imagePath", DatasetController.serveImage);
+// Route for serving individual images/masks from dataset 
+router.get("/:name/:type(image|mask)/:filename", 
+    ...authenticateToken,
+    ...validateDatasetAccess,
+    DatasetController.serveImage
+);
 
 // Route for deleting a dataset (protected)
 router.delete("/:name", 

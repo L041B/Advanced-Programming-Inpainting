@@ -285,24 +285,23 @@ export class DatasetController {
             // Slice the pairs array for pagination
             const paginatedPairs = pairs.slice(startIndex, endIndex);
 
-            // Generate temporary access tokens for images
+            // Generate clean URLs without tokens 
             const baseUrl = `${req.protocol}://${req.get("host")}`;
-            const items = await Promise.all(paginatedPairs.map(
-                async (pair, index: number) => {
-                    const imageToken = await DatasetController.generateImageToken(userId, pair.imagePath);
-                    const maskToken = await DatasetController.generateImageToken(userId, pair.maskPath);
-                    
-                    return {
-                        index: startIndex + index,
-                        imagePath: pair.imagePath,
-                        maskPath: pair.maskPath,
-                        imageUrl: `${baseUrl}/api/datasets/image/${imageToken}`,
-                        maskUrl: `${baseUrl}/api/datasets/image/${maskToken}`,
-                        frameIndex: pair.frameIndex || null,
-                        uploadIndex: pair.uploadIndex
-                    };
-                }
-            ));
+            const items = paginatedPairs.map((pair, index: number) => {
+                // Extract just the filename from the path
+                const imageFilename = pair.imagePath.split("/").pop() || "";
+                const maskFilename = pair.maskPath.split("/").pop() || "";
+                
+                return {
+                    index: startIndex + index,
+                    imagePath: pair.imagePath,
+                    maskPath: pair.maskPath,
+                    imageUrl: `${baseUrl}/api/datasets/${encodeURIComponent(name)}/image/${encodeURIComponent(imageFilename)}`,
+                    maskUrl: `${baseUrl}/api/datasets/${encodeURIComponent(name)}/mask/${encodeURIComponent(maskFilename)}`,
+                    frameIndex: pair.frameIndex || null,
+                    uploadIndex: pair.uploadIndex
+                };
+            });
 
             // Final response
             res.status(200).json({ 
@@ -340,27 +339,93 @@ export class DatasetController {
         }
     }
 
-    // Serve individual images 
+    // Serve individual images/masks with JWT authentication
     static async serveImage(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-        // No authentication middleware, uses temporary token in URL
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
-        // Validate request parameters
         try {
-            const token = decodeURIComponent(req.params.imagePath);
-            const decoded = await DatasetController.verifyImageToken(token);
+            const userId = req.user!.userId;
+            const { name: datasetName, filename, type } = req.params;
 
-            // Security check: ensure the path belongs to the user
-            if (!decoded.imagePath.startsWith(`datasets/${decoded.userId}/`)) {
+            // Validate type parameter
+            if (type !== "image" && type !== "mask") {
                 throw DatasetController.errorManager.createError(
-                    ErrorStatus.userNotAuthorized,
-                    "Access denied to this image"
+                    ErrorStatus.invalidFormat,
+                    "Invalid file type. Must be 'image' or 'mask'"
                 );
             }
 
-            // Serve the image file
-            await DatasetController.serveImageFile(decoded.imagePath, res);
+            // Verify the user owns this dataset
+            const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
+            
+            if (!dataset) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.datasetNotFoundError,
+                    "Dataset not found or access denied"
+                );
+            }
+
+            // Find the requested file in the dataset
+            interface DatasetData {
+                pairs?: Array<{ 
+                    imagePath: string; 
+                    maskPath: string; 
+                    frameIndex?: number; 
+                    uploadIndex: number; 
+                }>;
+            }
+            const data = dataset.data as DatasetData;
+            const pairs = data?.pairs || [];
+
+            const decodedFilename = decodeURIComponent(filename);
+            let filePath: string | undefined;
+
+            // Search for the file in the dataset pairs
+            for (const pair of pairs) {
+                if (type === "image" && pair.imagePath.endsWith(decodedFilename)) {
+                    filePath = pair.imagePath;
+                    break;
+                } else if (type === "mask" && pair.maskPath.endsWith(decodedFilename)) {
+                    filePath = pair.maskPath;
+                    break;
+                }
+            }
+
+            if (!filePath) {
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.resourceNotFoundError,
+                    "File not found in dataset"
+                );
+            }
+
+            // Serve the file using FileStorage
+            const { FileStorage } = await import("../utils/fileStorage");
+            try {
+                const imageBuffer = await FileStorage.readFile(filePath);
+                const ext = filePath.toLowerCase().split(".").pop();
+
+                let contentType = "image/png";
+                if (ext === "jpg" || ext === "jpeg") {
+                    contentType = "image/jpeg";
+                } else if (ext === "gif") {
+                    contentType = "image/gif";
+                }
+
+                res.set({
+                    "Content-Type": contentType,
+                    "Content-Length": imageBuffer.length.toString(),
+                    "Cache-Control": "public, max-age=3600"
+                });
+
+                res.send(imageBuffer);
+            } catch (fileError) {
+                DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE_FILE", "file_system", fileError instanceof Error ? fileError.message : "Unknown file error");
+                throw DatasetController.errorManager.createError(
+                    ErrorStatus.resourceNotFoundError,
+                    "Image file not found"
+                );
+            }
 
             // Log response
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
@@ -382,66 +447,6 @@ export class DatasetController {
                 );
                 next(standardError);
             }
-        }
-    }
-
-    // Verify and decode the temporary image access token
-    private static async verifyImageToken(token: string): Promise<{ userId: string; imagePath: string; type: string }> {
-        const jwt = await import("jsonwebtoken");
-        interface ImageTokenPayload {
-            userId: string;
-            imagePath: string;
-            type: string;
-            iat?: number;
-            exp?: number;
-        }
-
-        // Verify and decode the JWT token
-        try {
-            const verifyResult = jwt.default.verify(token, process.env.JWT_SECRET || "fallback_secret");
-            if (typeof verifyResult === "string") {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.jwtNotValid,
-                    "Invalid image token format"
-                );
-            }
-            return verifyResult as ImageTokenPayload;
-        } catch (error) {
-            if (error instanceof Error && "errorType" in error) {
-                throw error;
-            }
-            throw DatasetController.errorManager.createError(
-                ErrorStatus.jwtNotValid,
-                "Invalid or expired image token"
-            );
-        }
-    }
-
-    // Serve the image file from storage
-    private static async serveImageFile(imagePath: string, res: Response): Promise<void> {
-        const { FileStorage } = await import("../utils/fileStorage");
-        try {
-            const imageBuffer = await FileStorage.readFile(imagePath);
-            const ext = imagePath.toLowerCase().split(".").pop();
-
-            let contentType = "image/png";
-            if (ext === "jpg" || ext === "jpeg") {
-                contentType = "image/jpeg";
-            }
-
-            res.set({
-                "Content-Type": contentType,
-                "Content-Length": imageBuffer.length.toString(),
-                "Cache-Control": "public, max-age=3600"
-            });
-
-            res.send(imageBuffer);
-        } catch (fileError) {
-            DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE_FILE", "file_system", fileError instanceof Error ? fileError.message : "Unknown file error");
-            throw DatasetController.errorManager.createError(
-                ErrorStatus.resourceNotFoundError,
-                "Image file not found"
-            );
         }
     }
 
@@ -686,21 +691,6 @@ export class DatasetController {
             DatasetController.errorLogger.logDatabaseError("TOKEN_TRANSACTION", "tokens", 
                 error instanceof Error ? error.message : "Token transaction processing failed");
         }
-    }
-
-    // Generate a temporary JWT token for image access
-    private static async generateImageToken(userId: string, imagePath: string): Promise<string> {
-        const jwt = await import("jsonwebtoken");
-        const token = jwt.default.sign(
-            { 
-                userId, 
-                imagePath, 
-                type: "image_access" 
-            },
-            process.env.JWT_SECRET || "fallback_secret",
-            { expiresIn: "1h" }
-        );
-        return encodeURIComponent(token);
     }
 
     // Process token transaction and handle potential errors

@@ -269,7 +269,7 @@ All endpoints are JWT-protected unless register and login for user.
 - `GET /api/datasets/` - List datasets
 - `GET /api/datasets/:name` - Get dataset info
 - `GET /api/datasets/:name/data` - Get dataset items
-- `GET /api/datasets/image/:imagePath` - Get image from dataset
+- `GET /api/datasets/:name/:type(image|mask)/:filename` - Get image from dataset
 - `PUT /api/datasets/:name` - Update dataset
 - `DELETE /api/datasets/:name` - Logical deletion of dataset
  
