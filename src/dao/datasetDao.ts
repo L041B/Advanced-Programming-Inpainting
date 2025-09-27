@@ -118,8 +118,6 @@ export class DatasetDao {
                     throw this.errorManager.createError(ErrorStatus.datasetNotFoundError);
                 }
  
-                // Log the update attempt with dataset size if data is being changed
-                this.datasetLogger.logDatasetUpdate(userId, name, datasetData.data ? Object.keys(datasetData.data).length : undefined);
  
                 // Perform the update
                 const [affectedRows] = await Dataset.update(datasetData, {
@@ -144,8 +142,6 @@ export class DatasetDao {
                     throw this.errorManager.createError(ErrorStatus.datasetUpdateFailedError);
                 }
  
-                // Log successful update
-                this.datasetLogger.logDatasetUpdate(userId, updatedDataset.name);
                 return updatedDataset;
             } catch (error) {
                 if (error instanceof Error && "errorType" in error) {

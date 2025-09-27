@@ -1,5 +1,5 @@
 // Import necessary modules from LoggerDecorator.
-import { ApiRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger, DatasetRouteLogger, InferenceRouteLogger } from "../utils/loggerDecorator";
+import { ApiRouteLogger, ErrorRouteLogger, UserRouteLogger, AuthRouteLogger, DatasetRouteLogger, InferenceRouteLogger, LoggerDecorator } from "../utils/loggerDecorator";
 
 // Factory for creating logger decorators
 export class LoggerFactory {
@@ -16,33 +16,33 @@ export class LoggerFactory {
     }
 
     // Create specific logger instances
-    public createApiLogger(): ApiRouteLogger {
-        return new ApiRouteLogger();
+    public createApiLogger(wrappedLogger?: LoggerDecorator): ApiRouteLogger {
+        return new ApiRouteLogger(wrappedLogger);
     }
 
     // Create an error logger instance
-    public createErrorLogger(): ErrorRouteLogger {
-        return new ErrorRouteLogger();
+    public createErrorLogger(wrappedLogger?: LoggerDecorator): ErrorRouteLogger {
+        return new ErrorRouteLogger(wrappedLogger);
     }
 
     // Create a user logger instance
-    public createUserLogger(): UserRouteLogger {
-        return new UserRouteLogger();
+    public createUserLogger(wrappedLogger?: LoggerDecorator): UserRouteLogger {
+        return new UserRouteLogger(wrappedLogger);
     }
 
     // Create an auth logger instance
-    public createAuthLogger(): AuthRouteLogger {
-        return new AuthRouteLogger();
+    public createAuthLogger(wrappedLogger?: LoggerDecorator): AuthRouteLogger {
+        return new AuthRouteLogger(wrappedLogger);
     }
 
     // Create a dataset logger instance
-    public createDatasetLogger(): DatasetRouteLogger {
-        return new DatasetRouteLogger();
+    public createDatasetLogger(wrappedLogger?: LoggerDecorator): DatasetRouteLogger {
+        return new DatasetRouteLogger(wrappedLogger);
     }
 
     // Create an inference logger instance
-    public createInferenceLogger(): InferenceRouteLogger {
-        return new InferenceRouteLogger();
+    public createInferenceLogger(wrappedLogger?: LoggerDecorator): InferenceRouteLogger {
+        return new InferenceRouteLogger(wrappedLogger);
     }
 }
 

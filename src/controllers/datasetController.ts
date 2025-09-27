@@ -82,9 +82,6 @@ export class DatasetController {
             const imageFile = files.image[0];
             const maskFile = files.mask[0];
 
-            // Log file upload
-            DatasetController.datasetLogger.logFileUpload(userId, datasetName, imageFile.originalname, imageFile.size);
-
             // Process and add data to dataset
             const result = await DatasetService.processAndAddData(userId, datasetName, imageFile, maskFile);
 
@@ -498,8 +495,6 @@ export class DatasetController {
                 );
             }
 
-            // Log deletion
-            DatasetController.datasetLogger.logDatasetDeletion(userId, name);
             res.status(200).json({
                 success: true,
                 message: "Dataset deleted successfully"

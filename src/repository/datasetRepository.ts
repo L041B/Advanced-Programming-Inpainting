@@ -35,8 +35,6 @@ export class DatasetRepository {
  
     // Creates a new dataset in the database
     public async createDataset(data: DatasetData): Promise<Dataset> {
-        // Log dataset creation intent
-        this.datasetLogger.logDatasetCreation(data.userId, data.name, data.type);
         return await this.datasetDao.create({
             ...data,
             data: data.data !== undefined ? data.data : null,
@@ -70,9 +68,14 @@ export class DatasetRepository {
     public async updateDataset(userId: string, name: string, data: Partial<DatasetData>): Promise<Dataset> {
         // Log business intent before DAO call
         this.datasetLogger.logRepositoryOperation("update_intent", userId, name);
- 
-        // DAO handles detailed logging and errors now, just pass through
-        return await this.datasetDao.update(userId, name, data);
+
+        // DAO handles the database operation
+        const updatedDataset = await this.datasetDao.update(userId, name, data);
+        
+        // Log successful completion
+        this.datasetLogger.logDatasetUpdate(userId, updatedDataset.name);
+        
+        return updatedDataset;
     }
  
     // Deletes a dataset for a user by name.

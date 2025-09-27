@@ -24,8 +24,8 @@ export interface LoggerDecorator {
 // Base Logger Decorator 
 export abstract class BaseLoggerDecorator implements LoggerDecorator {
     protected logger: winston.Logger;
-
-    constructor() {
+    // Accept an optional wrapped logger for chaining decorators
+    constructor(protected wrappedLogger?: LoggerDecorator) {
         this.logger = Logger.getInstance();
     }
 
@@ -35,101 +35,126 @@ export abstract class BaseLoggerDecorator implements LoggerDecorator {
 
 // User Route Logger Decorator
 export class UserRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "USER_ACTION", ...data });
+        const decoratedData = { type: "USER_ACTION", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.info(message, decoratedData);
+        }
     }
 
     // Log user creation events
     logUserCreation(userId: string, email: string): void {
-        this.logger.info("USER_CREATED", { type: "USER_ACTION", userId, email });
+        this.log("USER_CREATED", { userId, email });
     }
 
     // Log user login events
     logUserLogin(email: string, success: boolean): void {
-        this.logger.info("USER_LOGIN", { type: "AUTH_ACTION", email, success });
+        this.log("USER_LOGIN", { email, success });
     }
 
     // Log user update events
     logUserUpdate(userId: string, updatedFields: string[]): void {
-        this.logger.info("USER_UPDATED", { type: "USER_ACTION", userId, updatedFields });
+        this.log("USER_UPDATED", { userId, updatedFields });
     }
 
     // Log user deletion events
     logUserDeletion(userId: string): void {
-        this.logger.info("USER_DELETED", { type: "USER_ACTION", userId });
+        this.log("USER_DELETED", { userId });
     }
 
     // Log user retrieval events
     logUserRetrieval(userId: string): void {
-        this.logger.info("USER_RETRIEVED", { type: "USER_ACTION", userId });
+        this.log("USER_RETRIEVED", { userId });
     }
 
     // Log token-related events
     logTokenUpdate(userId: string, newTokenAmount: number): void {
-        this.logger.info("USER_TOKENS_UPDATED", { type: "USER_ACTION", userId, newTokenAmount });
+        this.log("USER_TOKENS_UPDATED", { userId, newTokenAmount });
     }
 
     // Log token reservation events
     logTokenReservation(userId: string, amount: number, operationType: string, operationId: string): void {
-        this.logger.info("TOKENS_RESERVED", { type: "TOKEN_ACTION", userId, amount, operationType, operationId });
+        this.log("TOKENS_RESERVED", { userId, amount, operationType, operationId });
     }
 
     // Log token confirmation events
     logTokenConfirmation(reservationId: string, tokensSpent: number, remainingBalance: number): void {
-        this.logger.info("TOKENS_CONFIRMED", { type: "TOKEN_ACTION", reservationId, tokensSpent, remainingBalance });
+        this.log("TOKENS_CONFIRMED", { reservationId, tokensSpent, remainingBalance });
     }
 
     // Log token refund events
     logTokenRefund(reservationId: string, refundAmount: number, restoredBalance: number): void {
-        this.logger.info("TOKENS_REFUNDED", { type: "TOKEN_ACTION", reservationId, refundAmount, restoredBalance });
+        this.log("TOKENS_REFUNDED", { reservationId, refundAmount, restoredBalance });
     }
 
     // Log admin token recharge events
     logAdminTokenRecharge(adminUserId: string, targetUserEmail: string, amount: number, newBalance: number): void {
-        this.logger.info("ADMIN_TOKEN_RECHARGE", { type: "TOKEN_ACTION", adminUserId, targetUserEmail, amount, newBalance });
+        this.log("ADMIN_TOKEN_RECHARGE", { adminUserId, targetUserEmail, amount, newBalance });
     }
 
     // Log token balance inquiries
     logTokenBalanceCheck(userId: string, currentBalance: number): void {
-        this.logger.info("TOKEN_BALANCE_CHECKED", { type: "TOKEN_ACTION", userId, currentBalance });
+        this.log("TOKEN_BALANCE_CHECKED", { userId, currentBalance });
     }
 }
 
-
 // Auth Route Logger Decorator
 export class AuthRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "AUTH_ACTION", ...data });
+        const decoratedData = { type: "AUTH_ACTION", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.info(message, decoratedData);
+        }
     }
 
     // Log token validation events
     logTokenValidation(userId: string, email: string, success: boolean): void {
-        this.logger.info("TOKEN_VALIDATED", { type: "AUTH_ACTION", email, userId, success });
+        this.log("TOKEN_VALIDATED", { email, userId, success });
     }
 
     // Log authorization check events
     logAuthorizationCheck(userId: string, requestedUserId: string, authorized: boolean): void {
-        this.logger.info("AUTHORIZATION_CHECKED", { type: "AUTH_ACTION", userId, requestedUserId, authorized });
+        this.log("AUTHORIZATION_CHECKED", { userId, requestedUserId, authorized });
     }
 
     // Log token expiration events
     logTokenExpiration(email: string): void {
-        this.logger.info("TOKEN_EXPIRED", { type: "AUTH_ACTION", email });
+        this.log("TOKEN_EXPIRED", { email });
     }
 }
 
 // API Request/Response Logger Decorator
 export class ApiRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "API_ACTION", ...data });
+        const decoratedData = { type: "API_ACTION", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.info(message, decoratedData);
+        }
     }
 
     // Log API request events
     logRequest(req: Request): void {
         const authReq = req as AuthenticatedRequest;
         const userId = authReq.user?.userId;
-        this.logger.info(`API_REQUEST: ${req.method} ${req.path}`, {
-            type: "API_REQUEST",
+        this.log(`API_REQUEST: ${req.method} ${req.path}`, {
             method: req.method,
             path: req.path,
             userId,
@@ -142,8 +167,7 @@ export class ApiRouteLogger extends BaseLoggerDecorator {
     logResponse(req: Request, res: Response, executionTime?: number): void {
         const authReq = req as AuthenticatedRequest;
         const userId = authReq.user?.userId;
-        this.logger.info(`API_RESPONSE: ${req.method} ${req.path} - ${res.statusCode}`, {
-            type: "API_RESPONSE",
+        this.log(`API_RESPONSE: ${req.method} ${req.path} - ${res.statusCode}`, {
             method: req.method,
             path: req.path,
             statusCode: res.statusCode,
@@ -157,209 +181,240 @@ export class ApiRouteLogger extends BaseLoggerDecorator {
     logError(req: Request, error: Error): void {
         const authReq = req as AuthenticatedRequest;
         const userId = authReq.user?.userId;
-        this.logger.error(`API_ERROR: ${req.method} ${req.path}`, {
-            type: "API_ERROR",
+        const errorData = {
             method: req.method,
             path: req.path,
             userId,
             error: error.message,
             stack: error.stack,
             ip: req.ip
-        });
+        };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(`API_ERROR: ${req.method} ${req.path}`, errorData);
+        } else {
+            this.logger.error(`API_ERROR: ${req.method} ${req.path}`, { type: "API_ERROR", ...errorData });
+        }
     }
 }
 
 // Error Logger Decorator
 export class ErrorRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.error(message, { type: "ERROR", ...data });
+        const decoratedData = { type: "ERROR", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.error(message, decoratedData);
+        }
     }
 
     // Log validation error events
     logValidationError(field: string, value: string | number | undefined, message: string): void {
-        this.logger.error("VALIDATION_ERROR", { type: "VALIDATION_ERROR", field, value, message });
+        this.log("VALIDATION_ERROR", { field, value, message });
     }
 
     // Log authentication error events
     logAuthenticationError(email?: string, reason?: string): void {
-        this.logger.error("AUTHENTICATION_ERROR", { type: "AUTHENTICATION_ERROR", email, reason });
+        this.log("AUTHENTICATION_ERROR", { email, reason });
     }
 
     // Log authorization error events
     logAuthorizationError(userId?: string, resource?: string): void {
-        this.logger.error("AUTHORIZATION_ERROR", { type: "AUTHORIZATION_ERROR", userId, resource });
+        this.log("AUTHORIZATION_ERROR", { userId, resource });
     }
 
     // Log database error events
     logDatabaseError(operation: string, table?: string, error?: string): void {
-        this.logger.error("DATABASE_ERROR", { type: "DATABASE_ERROR", operation, table, error });
+        this.log("DATABASE_ERROR", { operation, table, error });
     }
 
     // Log file upload error events
     logFileUploadError(filename?: string, size?: number, error?: string): void {
-        this.logger.error("FILE_UPLOAD_ERROR", { type: "FILE_UPLOAD_ERROR", filename, size, error });
+        this.log("FILE_UPLOAD_ERROR", { filename, size, error });
     }
 }
 
 // Dataset Route Logger Decorator
 export class DatasetRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "DATASET_ACTION", ...data });
+        const decoratedData = { type: "DATASET_ACTION", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.info(message, decoratedData);
+        }
     }
 
     // Log dataset creation events
     logDatasetCreation(userId: string, datasetName: string, type?: string): void {
-        this.logger.info("DATASET_CREATED", { type: "DATASET_ACTION", userId, datasetName, datasetType: type });
+        this.log("DATASET_CREATED", { userId, datasetName, datasetType: type });
     }
 
     // Log dataset retrieval events
     logDatasetRetrieval(userId: string, datasetName: string): void {
-        this.logger.info("DATASET_RETRIEVED", { type: "DATASET_ACTION", userId, datasetName });
+        this.log("DATASET_RETRIEVED", { userId, datasetName });
     }
 
     // Log dataset update events
     logDatasetUpdate(userId: string, datasetName: string, processedItems?: number): void {
-        this.logger.info("DATASET_UPDATED", { type: "DATASET_ACTION", userId, datasetName, processedItems });
+        this.log("DATASET_UPDATED", { userId, datasetName, processedItems });
     }
 
     // Log dataset deletion events
     logDatasetDeletion(userId: string, datasetName: string): void {
-        this.logger.info("DATASET_DELETED", { type: "DATASET_ACTION", userId, datasetName });
+        this.log("DATASET_DELETED", { userId, datasetName });
     }
 
     // Log dataset data processing events
     logDataProcessing(userId: string, datasetName: string, fileType: string, success: boolean): void {
-        this.logger.info("DATA_PROCESSED", { type: "DATASET_ACTION", userId, datasetName, fileType, success });
+        this.log("DATA_PROCESSED", { userId, datasetName, fileType, success });
     }
 
     // Log file upload events
     logFileUpload(userId: string, datasetName: string, fileName: string, fileSize?: number): void {
-        this.logger.info("FILE_UPLOADED", { type: "DATASET_ACTION", userId, datasetName, fileName, fileSize });
+        this.log("FILE_UPLOADED", { userId, datasetName, fileName, fileSize });
     }
 
     // Log image serving events
     logImageServed(userId: string, imagePath: string): void {
-        this.logger.info("IMAGE_SERVED", { type: "DATASET_ACTION", userId, imagePath });
+        this.log("IMAGE_SERVED", { userId, imagePath });
     }
 
     // Log user datasets retrieval events
     logUserDatasetsRetrieval(userId: string, count: number): void {
-        this.logger.info("USER_DATASETS_RETRIEVED", { type: "DATASET_ACTION", userId, count });
+        this.log("USER_DATASETS_RETRIEVED", { userId, count });
     }
 
     // Log repository operations
     logRepositoryOperation(operation: string, userId: string, datasetName?: string): void {
-        this.logger.info("DATASET_REPOSITORY_OPERATION", { type: "DATASET_ACTION", operation, userId, datasetName });
+        this.log("DATASET_REPOSITORY_OPERATION", { operation, userId, datasetName });
     }
 }
 
 // Inference Route Logger Decorator
 export class InferenceRouteLogger extends BaseLoggerDecorator {
+    constructor(wrappedLogger?: LoggerDecorator) {
+        super(wrappedLogger);
+    }
+
     log(message: string, data?: LogData): void {
-        this.logger.info(message, { type: "INFERENCE_ACTION", ...data });
+        const decoratedData = { type: "INFERENCE_ACTION", ...data };
+        if (this.wrappedLogger) {
+            this.wrappedLogger.log(message, decoratedData);
+        } else {
+            this.logger.info(message, decoratedData);
+        }
     }
 
     // Log inference creation events
     logInferenceCreation(inferenceId: string, userId: string, datasetName: string, modelId?: string): void {
-        this.logger.info("INFERENCE_CREATED", { type: "INFERENCE_ACTION", inferenceId, userId, datasetName, modelId });
+        this.log("INFERENCE_CREATED", { inferenceId, userId, datasetName, modelId });
     }
 
     // Log inference retrieval events
     logInferenceRetrieval(inferenceId: string, userId: string): void {
-        this.logger.info("INFERENCE_RETRIEVED", { type: "INFERENCE_ACTION", inferenceId, userId });
+        this.log("INFERENCE_RETRIEVED", { inferenceId, userId });
     }
 
     // Log inference status check events
     logInferenceStatusCheck(jobId: string): void {
-        this.logger.info("INFERENCE_STATUS_CHECKED", { type: "INFERENCE_ACTION", jobId });
+        this.log("INFERENCE_STATUS_CHECKED", { jobId });
     }
 
     // Log inference results download events
     logInferenceResultsDownload(inferenceId: string, userId: string): void {
-        this.logger.info("INFERENCE_RESULTS_DOWNLOADED", { type: "INFERENCE_ACTION", inferenceId, userId });
+        this.log("INFERENCE_RESULTS_DOWNLOADED", { inferenceId, userId });
     }
 
     // Log output file serving events
     logOutputFileServed(filePath: string): void {
-        this.logger.info("OUTPUT_FILE_SERVED", { type: "INFERENCE_ACTION", filePath });
+        this.log("OUTPUT_FILE_SERVED", { filePath });
     }
 
     // Log job queuing events
     logJobQueued(inferenceId: string, userId: string, jobId?: string): void {
-        this.logger.info("JOB_QUEUED", { type: "INFERENCE_ACTION", inferenceId, userId, jobId });
+        this.log("JOB_QUEUED", { inferenceId, userId, jobId });
     }
 
     // Log job validation events
     logJobValidation(success: boolean, pairCount?: number): void {
-        this.logger.info("JOB_VALIDATED", { type: "INFERENCE_ACTION", success, pairCount });
+        this.log("JOB_VALIDATED", { success, pairCount });
     }
 
     // Log user inferences retrieval events
     logUserInferencesRetrieval(userId: string, count: number): void {
-        this.logger.info("USER_INFERENCES_RETRIEVED", { type: "INFERENCE_ACTION", userId, count });
+        this.log("USER_INFERENCES_RETRIEVED", { userId, count });
     }
 
     // Log queue operations
     logJobAdded(inferenceId: string, userId: string, jobId?: string): void {
-        this.logger.info("JOB_ADDED_TO_QUEUE", { type: "INFERENCE_ACTION", inferenceId, userId, jobId });
+        this.log("JOB_ADDED_TO_QUEUE", { inferenceId, userId, jobId });
     }
 
     logJobStatusRetrieved(jobId: string, status: string): void {
-        this.logger.info("JOB_STATUS_RETRIEVED", { type: "INFERENCE_ACTION", jobId, status });
+        this.log("JOB_STATUS_RETRIEVED", { jobId, status });
     }
 
     // Log worker operations
     logWorkerStarted(): void {
-        this.logger.info("INFERENCE_WORKER_STARTED", { type: "INFERENCE_ACTION" });
+        this.log("INFERENCE_WORKER_STARTED", {});
     }
 
     // Log worker stop events
     logWorkerStopped(): void {
-        this.logger.info("INFERENCE_WORKER_STOPPED", { type: "INFERENCE_ACTION" });
+        this.log("INFERENCE_WORKER_STOPPED", {});
     }
 
     // Log worker start events
     logJobProcessingStarted(jobId: string, inferenceId: string): void {
-        this.logger.info("JOB_PROCESSING_STARTED", { type: "INFERENCE_ACTION", jobId, inferenceId });
+        this.log("JOB_PROCESSING_STARTED", { jobId, inferenceId });
     }
 
     // Log job completion events
     logJobProcessingCompleted(jobId: string, inferenceId: string): void {
-        this.logger.info("JOB_PROCESSING_COMPLETED", { type: "INFERENCE_ACTION", jobId, inferenceId });
+        this.log("JOB_PROCESSING_COMPLETED", { jobId, inferenceId });
     }
 
     // Log job failure events
     logJobProcessingFailed(jobId: string, inferenceId: string, error: string): void {
-        this.logger.error("JOB_PROCESSING_FAILED", { type: "INFERENCE_ACTION", jobId, inferenceId, error });
+        this.log("JOB_PROCESSING_FAILED", { jobId, inferenceId, error });
     }
 
     // Log blackbox adapter operations
     logBlackBoxProcessingStarted(userId: string): void {
-        this.logger.info("BLACKBOX_PROCESSING_STARTED", { type: "INFERENCE_ACTION", userId });
+        this.log("BLACKBOX_PROCESSING_STARTED", { userId });
     }
 
     // Log blackbox processing completion events
     logBlackBoxProcessingCompleted(userId: string, imageCount?: number, videoCount?: number): void {
-        this.logger.info("BLACKBOX_PROCESSING_COMPLETED", { type: "INFERENCE_ACTION", userId, imageCount, videoCount });
+        this.log("BLACKBOX_PROCESSING_COMPLETED", { userId, imageCount, videoCount });
     }
 
     // Log blackbox processing failure events
     logBlackBoxProcessingFailed(userId: string, error: string): void {
-        this.logger.error("BLACKBOX_PROCESSING_FAILED", { type: "INFERENCE_ACTION", userId, error });
+        this.log("BLACKBOX_PROCESSING_FAILED", { userId, error });
     }
 
     // Log queue connection operations
     logQueueConnected(): void {
-        this.logger.info("INFERENCE_QUEUE_CONNECTED", { type: "INFERENCE_ACTION" });
+        this.log("INFERENCE_QUEUE_CONNECTED", {});
     }
 
     // Log queue disconnection events
     logQueueClosed(): void {
-        this.logger.info("INFERENCE_QUEUE_CLOSED", { type: "INFERENCE_ACTION" });
+        this.log("INFERENCE_QUEUE_CLOSED", {});
     }
 
     // Log data processing events (adding missing method used in service)
     logDataProcessing(userId: string, datasetName: string, operationType: string, success: boolean): void {
-        this.logger.info("DATA_PROCESSING", { type: "INFERENCE_ACTION", userId, datasetName, operationType, success });
+        this.log("DATA_PROCESSING", { userId, datasetName, operationType, success });
     }
 }

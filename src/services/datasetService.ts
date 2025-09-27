@@ -88,8 +88,6 @@ export class DatasetService {
                 );
             }
 
-            // Log successful creation
-            datasetLogger.logDatasetCreation(userId, name);
             return dataset as Dataset;
         } catch (error) {
             // Re-throw standardized errors
@@ -173,8 +171,7 @@ export class DatasetService {
 
             // Cleanup temporary files
             await FileStorage.cleanupTempFiles(tempFiles);
-            datasetLogger.logDatasetUpdate(userId, datasetName, result.processedItems);
-
+            
             return {
                 processedItems: result.processedItems,
                 reservationId: tokenReservationId,

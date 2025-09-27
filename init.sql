@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS inferences (
 );
 
 -- Create function to automatically update updated_at timestamp and handle deleted_at
-CREATE OR REPLACE FUNCTION update_dataset_timestamps()
+CREATE OR REPLACE FUNCTION update_timestamps()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
@@ -97,6 +97,7 @@ BEGIN
     
     RETURN NEW;
 END;
+
 $$ language 'plpgsql';
 
 -- Create triggers for automatic updated_at updates
@@ -104,21 +105,21 @@ DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_timestamps();
 
 -- Create trigger for datasets table 
 DROP TRIGGER IF EXISTS update_datasets_updated_at ON datasets;
 CREATE TRIGGER update_datasets_updated_at
     BEFORE UPDATE ON datasets
     FOR EACH ROW
-    EXECUTE FUNCTION update_dataset_timestamps();
+    EXECUTE FUNCTION update_timestamps();
 
 -- Create trigger for inferences table
 DROP TRIGGER IF EXISTS update_inferences_updated_at ON inferences;
 CREATE TRIGGER update_inferences_updated_at
     BEFORE UPDATE ON inferences
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION update_timestamps();
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_name_surname ON users(name, surname);

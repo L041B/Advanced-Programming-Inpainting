@@ -82,7 +82,7 @@ export interface Response {
     message: string; // The message to return
     status: number; // HTTP status code
     data?: string; // Optional additional data
-    type: string; // The type of response (application/json)
+    type: string; // Type of response
 }
 
 // Interface for message objects
