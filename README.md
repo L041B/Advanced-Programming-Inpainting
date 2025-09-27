@@ -436,7 +436,8 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
         "changes": {
             "nameChanged": false,
             "tagsChanged": true
-             }}
+             }
+             }
 }
 ```
  
@@ -464,6 +465,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
       "updatedAt": "2025-09-27T08:56:59.694Z",
       "deletedAt": null,
       "itemCount": 0,
+      "type": "empty",
       "isDeleted": false,
       "status": "active"
     }
@@ -477,14 +479,23 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
+  "message": "Dataset data retrieved successfully",
   "data": {
+    "name": "Inpainting dataset",
+    "type": "image-mask",
+    "totalItems": 72,
+    "currentPage": 1,
+    "totalPages": 8,
+    "itemsPerPage": 10,
     "items": [
       {
         "index": 0,
         "imagePath": "datasets/uuid/image1.jpg",
         "maskPath": "datasets/uuid/mask1.png",
         "imageUrl": "http://...image/image1.jpg",
-        "maskUrl": "http://...image/mask1.png"
+        "maskUrl": "http://...image/mask1.png",
+        "frameIndex": null,
+        "uploadIndex": 1
       },
       // ...
     ]
@@ -504,8 +515,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "tokenUsage": {
         "tokensSpent": 0.65,
         "remainingBalance": 99.35,
-        "operationType": "dataset_upload"
-}
+        "operationType": "dataset_upload"}
 }
 ```
  
@@ -519,13 +529,15 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 // Success
 {
   "success": true,
-  "message": "Inference started",
-  "data": {
-    "inferenceId": "c4edbda2-2ff1-45de-af20-c615b673508d",
+  "message": "Inference created and queued successfully",
+  "inference": {
+    "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "status": "PENDING",
     "modelId": "default_inpainting",
-    "parameters": { /* ... */ }
-  }
+    "datasetName": "Inpainting dataset",
+    "createdAt": "2025-09-27T09:12:15.908Z"
+  },
+  "jobId": 1
 }
 ```
  
@@ -541,6 +553,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "progress": 100,
     "result":{/*...*/}
   }
+  /*...*/
 }
 ```
  
@@ -550,25 +563,26 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 // Success (COMPLETED)
 {
   "success": true,
+  "message": "Inference results retrieved successfully",
   "data": {
     "inferenceId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "status": "COMPLETED",
-    "result": {
-      "images": [
+    "images": [
         {
           "originalPath": "datasets/uuid/image1.jpg",
           "outputPath": "inferences/uuid/processed_image1.png",
           "downloadUrl": "http://..."
         }
+        /*...*/
       ],
       "videos": [
         {
-          "originalPath": "datasets/uuid/video.mp4",
+          "originalVideoId": "1",
           "outputPath": "inferences/uuid/video_1.mp4",
           "downloadUrl": "http://..."
         }
+        /*...*/
       ]
-    }
   }
 }
 ```
@@ -582,7 +596,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
-  "message": "Token recharged succesfully",
+  "message": "Tokens recharged succesfully",
   "data": {
     "userEmail": "mariorossi@gmail.com",
     "amountAdded": 200,
@@ -596,7 +610,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
-  "email": "mariorossi@gmail.com",
+  "message": "User token information retrieved successfully",
   "data": {
     "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
@@ -604,7 +618,18 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "email" : "mariorossi@fmail.com",
     "currentBalance" : 300,
     "role" :"user"
-  }
+  },
+        "transactions": [
+            {
+                "id": "8e897a50-d8f8-4e07-83f1-651cd17a007c",
+                "operationType": "admin_recharge",
+                "operationId": "admin_recharge_e7e834a2-931e-405f-b674-8478b300323c_1758964794928",
+                "amount": 200,
+                "description": "Admin recharge by admin@system.com: +200 tokens",
+                "createdAt": "2025-09-27T09:19:54.929Z",
+            },
+        ]
+        /*...*/
 }
 ```
  
@@ -613,19 +638,20 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
-  "data": [
+  "message": "All transactions retrieved successfully",
+  "data": {
+    "transactions": [
     {
       "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
       "operationType": "admin_recharge",
       "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
       "amount": 200,
-      "status": "completed",
       "description": "Admin recharge by admin@system.com: +1000 tokens",
       "createdAt": "2025-09-23T09:58:15.751Z",
       "user": {/*....*/}
     }
-    // ...
-  ]
+    /*...*/
+  ]}
 }
 ```
  
@@ -634,17 +660,22 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
-  "data": [
+  "message": "All datasets retrieved successfully",
+  "data": {
+    "datasets": [
+  
     {
       "id": "uuid",
       "name": "Inpainting dataset",
       "tags": ["Inpainting", "Damage", "Mask"],
-      "isDeleted": false,
-      "createdAt": "2024-01-01T10:00:00Z"
+      "datasetType": "image-mask",
+      "itemCount": 72,
+      "estimatedInferenceCost": 109.25,
       /*...*/
     }
-    // ...other datasets
+    /*...*/
   ]
+  /*...*/
 }
 ```
  
