@@ -3,7 +3,8 @@
 		"_postman_id": "11b7de71-9178-45ae-a545-2f5e855a4058",
 		"name": "Inpainting API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "46807056"
+		"_exporter_id": "46807056",
+		"_collection_link": "https://loris-bottegoni-s-team.postman.co/workspace/My-Workspace~ce4bbe36-0b0f-424f-873f-0eb4b097d478/collection/46807056-11b7de71-9178-45ae-a545-2f5e855a4058?action=share&source=collection_link&creator=46807056"
 	},
 	"item": [
 		{
@@ -25,10 +26,10 @@
 						"method": "POST",
 						"header": [
 							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"description": "{\n    \"name\": \"Test User\"\n    \"surname\": \"Test User\"\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\", \n}",
-								"type": "text"
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
 							}
 						],
 						"body": {
@@ -262,7 +263,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"Mario\",\r\n    \"surname\": \"Rossi\",\r\n    \"email\": \"mariorossii@gmail.com\",\r\n    \"password\": \"Password123!\" \r\n}",
+							"raw": "",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -680,7 +681,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"datasetName\": \"Inpainting dataset\",\r\n    \"modelId\": \"default_inpainting\", \r\n    \"parameters\": {\r\n        \"quality\": \"high\",\r\n        \"blendMode\": \"lighten\",\r\n        \"outputFormat\": \"png\",\r\n        \"customParameter\": \"EigenCAM\"  //Grad-CAM\r\n    }\r\n}"
+							"raw": ""
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/inferences/job/{{jobId}}/status",
@@ -849,7 +850,7 @@
 					"response": []
 				},
 				{
-					"name": "View specific result",
+					"name": "View specific video result",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -864,16 +865,23 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/api/inferences/04a1a0d8-c3d3-429e-9c91-95e49657b208/download/b611d628-fb52-4391-905f-5cb7935147ce_video_1.mp4",
+							"raw": "{{firstVideoUrl}}",
 							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"inferences",
-								"04a1a0d8-c3d3-429e-9c91-95e49657b208",
-								"download",
-								"b611d628-fb52-4391-905f-5cb7935147ce_video_1.mp4"
+								"{{firstVideoUrl}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "View specific image result",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{firstImageUrl}}",
+							"host": [
+								"{{firstImageUrl}}"
 							]
 						}
 					},

@@ -25,7 +25,7 @@ router.get("/:id", ...authenticateToken, ...validateInferenceAccess, InferenceCo
 // Route for getting inference results with download links (protected)
 router.get("/:id/results", ...authenticateToken, ...validateInferenceAccess, InferenceController.getInferenceResults);
 
-// Route for serving inference output files (protected by JWT, no token needed)
+// Route for serving inference output files (protected by JWT)
 router.get("/:id/download/:filename", ...authenticateToken, InferenceController.serveOutputFile);
 
 export default router;

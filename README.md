@@ -86,6 +86,7 @@
 - [Environment Setup](#environment-setup)
 - [API Documentation](#api-documentation)
 - [API Routes & Responses](#api-routes--responses)
+- [Postman Collection for API Testing](#postman-collection-for-api-testing)
 - [Database Structure](#database-structure)
 - [Architecture](#architecture)
 - [Design Patterns](#design-patterns)
@@ -286,13 +287,18 @@ All endpoints are JWT-protected unless register and login for user.
 - `POST /api/admin/user-tokens` - Recharge user tokens
 - `GET /api/admin/transactions` - List transactions
 - `GET /api/admin/datasets` - List all datasets (optionally include deleted)
- 
+
+       
+> **Note:**  
+> For routes where you want to view deleted elements as well, simply add the query parameter `?includeDeleted=true` to the route.  
+> Pagination is also supported: you can view additional pages by adding `?page=<page_number>` to the route (e.g., `?page=2`).
+
 ---
  
 ## API Routes & Responses
- 
+
 Below are all main API routes, grouped by feature, with example JSON outputs.
-All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
+
  
 ### User
  
@@ -634,6 +640,34 @@ All API routes are in the file ["PA.postman_collection"](PA.postman_collection).
  
 ---
  
+## Postman Collection for API Testing
+
+A comprehensive Postman collection is provided to test all backend functionalities. You can import both the collection and the corresponding environment directly into Postman.
+
+Operations are grouped into four main sections:
+- **User**
+- **Dataset**
+- **Inference**
+- **Admin**
+
+Each group contains all requests needed to cover typical usage and administration flows.
+
+> **Note:**  
+> If you run the entire collection in bulk, some tests may fail due to the order of operations (for example, deleting a user or dataset may prevent subsequent tests from working).  
+> A recommended configuration is to move the "Delete Dataset" and "Delete User" requests to the end of the collection.  
+> In other cases, you must correctly insert dynamic data into the routes, using values obtained from previous operations.
+
+To view the images or results uploaded to a dataset, use the URLs provided in the relevant API responses (e.g., imageUrl, maskUrl, downloadUrl).
+
+When testing inference, you may encounter errors when viewing results if the inference process is still running or pending. Wait for the job to complete before accessing the results.
+
+It is recommended to execute requests sequentially and update dynamic parameters as needed to ensure successful testing.
+
+The collection and environment files are included in the repository at  
+[`postman_collection/Inpainting API.postman_collection.json`](postman_collection/Inpainting%20API.postman_collection.json).
+
+---
+ 
 ## Database Structure
  
 The application uses PostgreSQL with the following tables:
@@ -829,7 +863,6 @@ The Inference Workflow implements the following schema.
 - **Repository**: Persists job results and state updates to the database.  
 - **Token Service**: Confirms or refunds tokens depending on job success.  
 ```
- 
 ---
 ## Patterns
  
@@ -1081,7 +1114,7 @@ router.patch(
 This diagram illustrate how a user authenticates with email and password.
 ![Login](public/sdLogin.png)
 ### Recharge user token by admin
-This diagram model a privileged, administrator-only operation, highlighting the authorization checks involved.
+This diagram models a privileged, administrator-only operation, highlighting the authorization checks involved.
 ![Recharge token](public/sdRechargetokenadmin.png)
 ### JWT token validation
 This diagram details the process of verifying a JSON Web Token (JWT) for a protected API route. It covers the entire authenticateToken middleware chain.
