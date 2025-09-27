@@ -4,7 +4,7 @@ import { DatasetDao } from "../dao/datasetDao";
 import { loggerFactory } from "../factory/loggerFactory";
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
-import type { DatasetData } from "../controllers/datasetController";
+
  
 export interface DatasetFilters {
     userId?: string;
@@ -12,6 +12,18 @@ export interface DatasetFilters {
     type?: string;
     includeDeleted?: boolean;
 }
+// Define the structure for dataset creation and update data.
+export type DatasetData = {
+    userId: string;
+    name: string;
+    tags?: string[];
+    type?: string;
+    data?: {
+        pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex: number }>,
+        type?: string
+    } | null;
+    nextUploadIndex?: number;
+};
  
 // DatasetRepository provides an abstraction layer over DatasetDao for dataset-related operations.
 export class DatasetRepository {

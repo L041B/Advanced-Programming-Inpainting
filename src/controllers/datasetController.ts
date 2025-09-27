@@ -6,6 +6,7 @@ import { loggerFactory, DatasetRouteLogger, ApiRouteLogger, ErrorRouteLogger } f
 import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 
+
 // Extend Request type to include user and token info
 interface AuthRequest extends Request {
     user?: {
@@ -22,19 +23,6 @@ interface AuthRequest extends Request {
         operationType?: string;
     };
 }
-
-// Add this type definition and export it
-export type DatasetData = {
-    userId: string;
-    name: string;
-    tags?: string[];
-    type?: string;
-    data?: {
-        pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex: number }>,
-        type?: string
-    } | null;
-    nextUploadIndex?: number;
-};
 
 // Controller class for dataset-related operations
 export class DatasetController {
