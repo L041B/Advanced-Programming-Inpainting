@@ -1,5 +1,5 @@
 # P.A. Inpainting
- 
+
 <div align="center">
   <!-- Technology badges with logos and links -->
   <a href="https://www.postman.com/" target="_blank">
@@ -41,13 +41,19 @@
   <a href="https://eslint.org/" target="_blank">
     <img src="https://img.shields.io/badge/ESLint-4B32C3?logo=eslint&logoColor=white&style=for-the-badge" alt="ESLint" />
   </a>
+  <a href="https://pylint.org/" target="_blank">
+    <img src="https://img.shields.io/badge/Pylint-4B8BBE?logo=python&logoColor=white&style=for-the-badge" alt="Pylint" />
+  </a>
+  <a href="https://www.sonarsource.com/products/sonarqube/" target="_blank">
+    <img src="https://img.shields.io/badge/SonarQube-4E9BCD?logo=sonarqube&logoColor=white&style=for-the-badge" alt="SonarQube" />
+  </a>
   <a href="https://redis.io/" target="_blank">
     <img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white&style=for-the-badge" alt="Redis" />
   </a>
   <a href="https://www.postgresql.org/" target="_blank">
     <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-the-badge" alt="PostgreSQL" />
   </a>
-  <a href="https://bull.io/" target="_blank">
+  <a href="https://github.com/OptimalBits/bull" target="_blank">
     <img src="https://img.shields.io/badge/Bull-EA1B1B?logo=redis&logoColor=white&style=for-the-badge" alt="Bull" />
   </a>
   <a href="https://www.npmjs.com/" target="_blank">
@@ -176,8 +182,7 @@ dataset.zip
     ├── clip_1.avi
     └── mask_1.png
 ```
----
- 
+--- 
 ## Installation
  
 ### Requirements
@@ -209,8 +214,7 @@ docker-compose up -d
 docker-compose down
 ```
  
----
- 
+--- 
 ## Environment Setup
  
 Example `.env` configuration:
@@ -250,8 +254,7 @@ INFERENCE_BLACKBOX_UPLOAD_DIR=/usr/src/app/uploads
 INFERENCE_BLACKBOX_LOG_LEVEL=INFO
 ```
  
----
- 
+--- 
 ## API Documentation
  
 All endpoints are JWT-protected unless register and login for user.
@@ -293,8 +296,7 @@ All endpoints are JWT-protected unless register and login for user.
 > For routes where you want to view deleted elements as well, simply add the query parameter `?includeDeleted=true` to the route.  
 > Pagination is also supported: you can view additional pages by adding `?page=<page_number>` to the route (e.g., `?page=2`).
 
----
- 
+--- 
 ## API Routes & Responses
 
 Below are all main API routes, grouped by feature, with example JSON outputs.
@@ -304,7 +306,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Register
 `POST /api/users/user`
-```json
+```jsonc
 {
   "success": true,
   "message": "User created successfully",
@@ -321,7 +323,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Login
 `POST /api/users/login`
-```json
+```jsonc
 {
   "success": true,
   "message": "Login successful",
@@ -338,7 +340,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Profile
 `GET /api/users/profile`
-```json
+```jsonc
 {
   "success": true,
   "data": {
@@ -352,7 +354,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Update User
 `PUT /api/users/:userId`
-```json
+```jsonc
 {
   "success": true,
   "message": "User updated successfully",
@@ -364,7 +366,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Delete User
 `DELETE /api/users/:userId`
-```json
+```jsonc
 {
   "success": true,
   "message": "User deleted successfully"
@@ -373,7 +375,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Get Token Balance
 `GET /api/users/tokens`
-```json
+```jsonc
 {
   "success": true,
   "message": "Token balance retrieved successfully",
@@ -403,7 +405,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Create Dataset
 `POST /api/datasets/`
-```json
+```jsonc
 {
   "success": true,
   "message": "Empty dataset created successfully",
@@ -424,7 +426,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Update Dataset
 `PUT /api/datasets/:name`
-```json
+```jsonc
 {
   "success": true,
   "message": "Dataset updated succesfully",
@@ -442,7 +444,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Delete Dataset (logical)
 `DELETE /api/datasets/:name`
-```json
+```jsonc
 {
   "success": true,
   "message": "Dataset deleted succesfully"
@@ -451,7 +453,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### List Datasets
 `GET /api/datasets/`
-```json
+```jsonc
 {
   "success": true,
   "message": "Datasets retrieved successfully",
@@ -475,7 +477,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Get Dataset Items
 `GET /api/datasets/:name/data`
-```json
+```jsonc
 {
   "success": true,
   "message": "Dataset data retrieved successfully",
@@ -504,7 +506,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Upload Data (image/video/zip)
 `POST /api/datasets/data`
-```json
+```jsonc
 {
   "message": "Data uploaded and processed successfully",
   "processedItems": 1,
@@ -524,7 +526,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Start Inference
 `POST /api/inferences/`
-```json
+```jsonc
 {
   "success": true,
   "message": "Inference created and queued successfully",
@@ -541,7 +543,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Get Inference Status
 `GET /api/inferences/job/:jobid/status`
-```json
+```jsonc
 {
   "success": true,
   "message": "Job status retrieved successfully",
@@ -559,7 +561,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Get Inference Result
 `GET /api/inferences/:id/results`
-```json
+```jsonc
 {
   "success": true,
   "message": "Inference results retrieved successfully",
@@ -592,7 +594,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Recharge User Tokens
 `POST /api/admin/user-tokens`
-```json
+```jsonc
 {
   "success": true,
   "message": "Tokens recharged succesfully",
@@ -606,7 +608,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### Get User Token Balance
 `GET /api/admin/users/:email/tokens`
-```json
+```jsonc
 {
   "success": true,
   "message": "User token information retrieved successfully",
@@ -634,7 +636,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### List Transactions
 `GET /api/admin/transactions`
-```json
+```jsonc
 {
   "success": true,
   "message": "All transactions retrieved successfully",
@@ -659,7 +661,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
 #### List All Datasets (admin)
 `GET /api/admin/datasets`
-```json
+```jsonc
 {
   "success": true,
   "message": "All datasets retrieved successfully",
@@ -680,8 +682,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   }
 }
 ```
----
- 
+--- 
 ## Postman Collection for API Testing
 
 A comprehensive Postman collection is provided to test all backend functionalities. You can import both the collection and the corresponding environment directly into Postman.
@@ -708,8 +709,7 @@ It is recommended to execute requests sequentially and update dynamic parameters
 The collection and environment files are included in the repository at  
 [`postman_collection/Inpainting API.postman_collection.json`](postman_collection/Inpainting%20API.postman_collection.json).
 
----
- 
+--- 
 ## Database Structure
  
 The application uses PostgreSQL with the following tables:
@@ -721,8 +721,7 @@ The application uses PostgreSQL with the following tables:
  
 ![Database Structure](public/Database.png)
  
----
- 
+--- 
 ### Table Fields
  
 #### **Users**
@@ -779,8 +778,7 @@ The application uses PostgreSQL with the following tables:
 | description     | TEXT            | Additional details or notes                         |
 | created_at      | TIMESTAMP       | Transaction creation timestamp                      |
  
----
- 
+--- 
  
 ## System Architecture
 The system architecture implements the following schema.
@@ -854,7 +852,6 @@ The system architecture implements the following schema.
 - **Model**: Entity definitions.
 ```
  
- 
 ## Inference Workflow (Worker + External Service)
 The Inference Workflow implements the following schema.
  
@@ -905,12 +902,12 @@ The Inference Workflow implements the following schema.
 - **Repository**: Persists job results and state updates to the database.  
 - **Token Service**: Confirms or refunds tokens depending on job success.  
 ```
----
+--- 
 ## Patterns
  
 This project extensively uses classic patterns to ensure a **robust, maintainable, and scalable architecture**. Below are the main patterns used, with their purpose and rationale.
  
----
+--- 
  
 ### 1. Singleton
 **Purpose:** Ensures a class has only one instance and provides a global access point.  
@@ -936,7 +933,7 @@ export class TokenService {
 }
 ```
  
----
+--- 
  
 ### 2. Factory Method
 **Purpose:** Defines an interface for creating objects but lets subclasses decide which concrete class to instantiate.  
@@ -956,7 +953,7 @@ export class LoggerFactory {
   }
 }
 ```
----
+--- 
  
 ### 3. DAO & Repository
 **Purpose:** Separates database access logic into two layers:  
@@ -993,7 +990,7 @@ export class DatasetRepository {
   }
 }
 ```
----
+--- 
  
 ### 4. Chain of Responsibility
 **Purpose:** Passes a request along a chain of handlers; each decides whether to process or forward it.  
@@ -1018,7 +1015,7 @@ function formatErrorResponse(err, req, res, next) {
  
 export const errorHandlingChain = [logErrors, formatErrorResponse, /*...*/];
 ```
----
+--- 
  
 ### 5. Proxy
 **Purpose:** Provides a surrogate to control access to another object.  
@@ -1040,7 +1037,7 @@ export class InferenceBlackBoxProxy {
   }
 }
 ```
----
+--- 
  
 ### 6. Adapter
 **Purpose:** Converts one interface into another expected by the client.  
@@ -1063,7 +1060,7 @@ export class InferenceBlackBoxAdapter {
   }
 }
 ```
----
+--- 
 ### 7. Decorator 
 **Purpose:** Dynamically adds functionality to an object without altering its structure.  
 **Why used:** Provides structured, domain-specific logging instead of a generic logger  
@@ -1084,7 +1081,7 @@ export class DatasetRouteLogger extends BaseLoggerDecorator {
   }
 }
 ```
----
+--- 
  
 ### 8. MVC (Model-View-Controller) for APIs
 **Purpose:** Separates application logic into three components:  
@@ -1118,7 +1115,7 @@ export class DatasetController {
   }
 }
 ```
----
+--- 
  
 ### 9. Middleware
 **Purpose:** Chain of reusable functions that handle HTTP requests.  
@@ -1138,8 +1135,7 @@ router.patch(
     userController.updateUser // 4. If all checks pass, execute controller logic.
 );
 ```
----
- 
+--- 
  
 ## Diagram
  
