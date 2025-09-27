@@ -133,13 +133,28 @@ export class InferenceController {
         const startTime = Date.now();
         InferenceController.apiLogger.logRequest(req);
 
-        // Validate input parameters
         try {
             const userId = req.user!.userId;
             const { page = 1, limit = 10 } = req.query;
 
             const pageNum = parseInt(page as string);
             const limitNum = parseInt(limit as string);
+
+            // Validate pagination parameters
+            const MAX_PAGE = 1_000_000;
+            const MAX_LIMIT = 100;
+
+            if (
+                isNaN(pageNum) || pageNum < 1 || pageNum > MAX_PAGE ||
+                isNaN(limitNum) || limitNum < 1 || limitNum > MAX_LIMIT
+            ) {
+                const error = InferenceController.errorManager.createError(
+                    ErrorStatus.invalidParametersError,
+                    `Invalid pagination parameters: 'page' must be 1-${MAX_PAGE}.`
+                );
+                next(error);
+                return;
+            }
 
             const { rows: inferences, count } = await InferenceController.inferenceRepository.getUserInferencesWithPagination(
                 userId,

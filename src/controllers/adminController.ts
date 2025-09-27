@@ -116,8 +116,13 @@ export class AdminController {
             const limitNum = parseInt(limit as string);
  
             // Validate pagination parameters
-            if (isNaN(pageNum) || pageNum < 1 || isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-                const error = AdminController.errorManager.createError(ErrorStatus.invalidParametersError, "Invalid pagination parameters");
+            const MAX_PAGE = 1_000_000;
+            const MAX_LIMIT = 100;
+            if (isNaN(pageNum) || pageNum < 1 || pageNum > MAX_PAGE || isNaN(limitNum) || limitNum < 1 || limitNum > MAX_LIMIT) {
+                const error = AdminController.errorManager.createError(
+                    ErrorStatus.invalidParametersError,
+                    `Invalid pagination parameters: 'page' must be 1-${MAX_PAGE}.`
+                );
                 next(error);
                 return;
             }

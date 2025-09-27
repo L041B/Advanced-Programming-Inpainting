@@ -251,6 +251,25 @@ export class DatasetController {
             const { name } = req.params;
             const { page = 1, limit = 10 } = req.query;
 
+            // Validate pagination parameters
+            const pageNum = parseInt(page as string);
+            const limitNum = parseInt(limit as string);
+
+            const MAX_PAGE = 1_000_000;
+            const MAX_LIMIT = 100;
+
+            if (
+                isNaN(pageNum) || pageNum < 1 || pageNum > MAX_PAGE ||
+                isNaN(limitNum) || limitNum < 1 || limitNum > MAX_LIMIT
+            ) {
+                const error = DatasetController.errorManager.createError(
+                    ErrorStatus.invalidParametersError,
+                    `Invalid pagination parameters: 'page' must be 1-${MAX_PAGE}.`
+                );
+                next(error);
+                return;
+            }
+
             // Fetch dataset by user ID and name
             const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, name);
 
@@ -277,8 +296,6 @@ export class DatasetController {
             const pairs = data?.pairs || [];
             
             // Pagination
-            const pageNum = parseInt(page as string);
-            const limitNum = parseInt(limit as string);
             const startIndex = (pageNum - 1) * limitNum;
             const endIndex = startIndex + limitNum;
             

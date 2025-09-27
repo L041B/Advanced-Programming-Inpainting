@@ -308,7 +308,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 // Success
 {
   "success": true,
-  "message": "User registered successfully",
+  "message": "User created successfully",
   "data": {
     "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
@@ -329,7 +329,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "success": true,
   "message": "Login successful",
   "data": {
-    "token": "jwt-token",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5OGJhOTY2Yy01OTVhLTRjNzktOWFjMy00Mjg1NDAwYTEyNmEiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4OTYyOTUzLCJleHAiOjE3NTkwNDkzNTN9.qM2mgQVEJZOcHgtBOgz-pxp6ahaml1xdp-dKWM9OUks",
     "user": {
       "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
       "name": "Mario",
@@ -382,7 +382,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "Token balance retrieved successfully",
     "data": {
         "balance": 100,
-        "recentTransactions": [],
+        "recentTransactions": [{/* ... */}],
         "tokenPricing": {
             "dataset_upload": {
                 "single_image": 0.65,
@@ -409,13 +409,17 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 {
   "success": true,
   "message": "Empty dataset created successfully",
-  "data": {
+  "dataset": {
     "id": "c4edbdq2-2ff1-45de-af20-c615b673551a",
+    "deletedAt": null,
     "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Inpainting dataset",
+    "data": null,
     "tags": ["Inpainting", "Damage", "Mask"],
     "isDeleted": false,
-    "createdAt": "2024-01-01T10:00:00Z"
+    "nextUploadIndex": 1,
+    "updatedAt": "2025-09-27T08:56:59.694Z",
+    "createdAt": "2025-09-27T08:56:59.694Z"
   }
 }
 ```
@@ -433,7 +437,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
             "nameChanged": false,
             "tagsChanged": true
              }}
- 
+}
 ```
  
 #### Delete Dataset (logical)
@@ -450,13 +454,18 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 ```json
 {
   "success": true,
+  "message": "Datasets retrieved successfully",
   "data": [
     {
-      "id": "uuid",
+      "userId": "98ba966c-595a-4c79-9ac3-4285400a126a",
       "name": "Inpainting dataset",
       "tags": ["Inpainting", "Damage", "Mask"],
+      "createdAt": "2025-09-27T08:56:59.694Z",
+      "updatedAt": "2025-09-27T08:56:59.694Z",
+      "deletedAt": null,
+      "itemCount": 0,
       "isDeleted": false,
-      "createdAt": "2024-01-01T10:00:00Z"
+      "status": "active"
     }
     // ...other datasets
   ]
@@ -496,6 +505,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
         "tokensSpent": 0.65,
         "remainingBalance": 99.35,
         "operationType": "dataset_upload"
+}
 }
 ```
  

@@ -56,7 +56,7 @@ export class UserController {
                     name: user.name,
                     surname: user.surname,
                     email: user.email,
-                    tokens: user.tokens, 
+                    tokens: typeof user.tokens === "string" ? Number(user.tokens) : user.tokens, 
                     role: user.role 
                 }
             });
