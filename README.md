@@ -3,7 +3,7 @@
 <div align="center">
   <!-- Technology badges with logos and links -->
   <a href="https://www.postman.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white&style=for-the-badg… alt="Postman" />
+    <img src="https://img.shields.io/badge/Postman-FF6C37?logo=postman&logoColor=white&style=for-the-badge" alt="Postman" />
   </a>
   <a href="https://github.com/" target="_blank">
     <img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" />
@@ -12,31 +12,31 @@
     <img src="https://img.shields.io/badge/Jest-C21325?logo=jest&logoColor=white&style=for-the-badge" alt="Jest" />
   </a>
   <a href="https://jwt.io/" target="_blank">
-    <img src="https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white&style=for-the-ba… alt="JWT" />
+    <img src="https://img.shields.io/badge/JWT-000000?logo=jsonwebtokens&logoColor=white&style=for-the-badge" alt="JWT" />
   </a>
   <a href="https://sequelize.org/" target="_blank">
-    <img src="https://img.shields.io/badge/Sequelize-52B0E7?logo=sequelize&logoColor=white&style=for-the-… alt="Sequelize" />
+    <img src="https://img.shields.io/badge/Sequelize-52B0E7?logo=sequelize&logoColor=white&style=for-the-badge" alt="Sequelize" />
   </a>
   <a href="https://www.python.org/" target="_blank">
     <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white&style=for-the-badge" alt="Python" />
   </a>
   <a href="https://www.javascript.com/" target="_blank">
-    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=for-th… alt="JavaScript" />
+    <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black&style=for-the-badge" alt="JavaScript" />
   </a>
   <a href="https://www.typescriptlang.org/" target="_blank">
-    <img src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white&style=for-th… alt="TypeScript" />
+    <img src="https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" />
   </a>
   <a href="https://nodejs.org/" target="_blank">
-    <img src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=for-the-badg… alt="Node.js" />
+    <img src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=for-the-badge" alt="Node.js" />
   </a>
   <a href="https://expressjs.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Express-000000?logo=express&logoColor=white&style=for-the-badg… alt="Express" />
+    <img src="https://img.shields.io/badge/Express-000000?logo=express&logoColor=white&style=for-the-badge" alt="Express" />
   </a>
   <a href="https://www.docker.com/" target="_blank">
-    <img src="https://img.shields.io/badge/Docker-2496ed?logo=docker&logoColor=white&style=for-the-badge" alt="Docker" />
+    <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white&style=for-the-badge" alt="Docker" />
   </a>
   <a href="https://docs.docker.com/compose/" target="_blank">
-    <img src="https://img.shields.io/badge/Docker%20Compose-142f46?logo=docker&logoColor=white&style=for-… alt="Docker Compose" />
+    <img src="https://img.shields.io/badge/Docker%20Compose-142f46?logo=docker&logoColor=white&style=for-the-badge" alt="Docker Compose" />
   </a>
   <a href="https://eslint.org/" target="_blank">
     <img src="https://img.shields.io/badge/ESLint-4B32C3?logo=eslint&logoColor=white&style=for-the-badge" alt="ESLint" />
@@ -45,7 +45,7 @@
     <img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white&style=for-the-badge" alt="Redis" />
   </a>
   <a href="https://www.postgresql.org/" target="_blank">
-    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-th… alt="PostgreSQL" />
+    <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=for-the-badge" alt="PostgreSQL" />
   </a>
   <a href="https://bull.io/" target="_blank">
     <img src="https://img.shields.io/badge/Bull-EA1B1B?logo=redis&logoColor=white&style=for-the-badge" alt="Bull" />
@@ -66,7 +66,7 @@
     <img src="https://img.shields.io/badge/Helmet-006400?logo=helmet&logoColor=white&style=for-the-badge" alt="Helmet" />
   </a>
   <a href="https://github.com/winstonjs/winston" target="_blank">
-    <img src="https://img.shields.io/badge/Winston-4F4F4F?logo=winston&logoColor=white&style=for-the-badg… alt="Winston" />
+    <img src="https://img.shields.io/badge/Winston-4F4F4F?logo=winston&logoColor=white&style=for-the-badge" alt="Winston" />
   </a>
 </div>
  
@@ -301,11 +301,10 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
 
  
 ### User
- 
+
 #### Register
 `POST /api/users/user`
 ```json
-// Success
 {
   "success": true,
   "message": "User created successfully",
@@ -318,13 +317,11 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "role" : "user"
   }
 }
- 
 ```
- 
+
 #### Login
 `POST /api/users/login`
 ```json
-// Success
 {
   "success": true,
   "message": "Login successful",
@@ -337,9 +334,8 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     }
   }
 }
- 
 ```
- 
+
 #### Profile
 `GET /api/users/profile`
 ```json
@@ -349,22 +345,23 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
     "surname": "Rossi",
-    "email": "mariorossi@gmail.com",
-
+    "email": "mariorossi@gmail.com"
   }
 }
 ```
- 
+
 #### Update User
 `PUT /api/users/:userId`
 ```json
 {
   "success": true,
   "message": "User updated successfully",
-  "data": { /* updated user fields */ }
+  "data": {
+    /* updated user fields */
+  }
 }
 ```
- 
+
 #### Delete User
 `DELETE /api/users/:userId`
 ```json
@@ -373,39 +370,40 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "User deleted successfully"
 }
 ```
- 
+
 #### Get Token Balance
 `GET /api/users/tokens`
 ```json
 {
   "success": true,
   "message": "Token balance retrieved successfully",
-    "data": {
-        "balance": 100,
-        "recentTransactions": [{/* ... */}],
-        "tokenPricing": {
-            "dataset_upload": {
-                "single_image": 0.65,
-                "video_frame": 0.4,
-                "zip_file": 0.7
-            },
-            "inference": {
-                "single_image": 2.75,
-                "video_frame": 1.5
-            }
-        }
+  "data": {
+    "balance": 100,
+    "recentTransactions": [
+      /* ... */
+    ],
+    "tokenPricing": {
+      "dataset_upload": {
+        "single_image": 0.65,
+        "video_frame": 0.4,
+        "zip_file": 0.7
+      },
+      "inference": {
+        "single_image": 2.75,
+        "video_frame": 1.5
+      }
     }
+  }
 }
 ```
- 
+
 ---
- 
+
 ### Dataset
- 
+
 #### Create Dataset
 `POST /api/datasets/`
 ```json
-// Success
 {
   "success": true,
   "message": "Empty dataset created successfully",
@@ -423,24 +421,25 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   }
 }
 ```
- 
+
 #### Update Dataset
 `PUT /api/datasets/:name`
 ```json
 {
   "success": true,
   "message": "Dataset updated succesfully",
-  "data": { "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
-        "itemCount": 0,
-        "type": "empty",
-        "changes": {
-            "nameChanged": false,
-            "tagsChanged": true
-             }
-             }
+  "data": {
+    "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
+    "itemCount": 0,
+    "type": "empty",
+    "changes": {
+      "nameChanged": false,
+      "tagsChanged": true
+    }
+  }
 }
 ```
- 
+
 #### Delete Dataset (logical)
 `DELETE /api/datasets/:name`
 ```json
@@ -449,7 +448,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "Dataset deleted succesfully"
 }
 ```
- 
+
 #### List Datasets
 `GET /api/datasets/`
 ```json
@@ -469,11 +468,11 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
       "isDeleted": false,
       "status": "active"
     }
-    // ...other datasets
+    /* ...other datasets */
   ]
 }
 ```
- 
+
 #### Get Dataset Items
 `GET /api/datasets/:name/data`
 ```json
@@ -496,37 +495,36 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
         "maskUrl": "http://...image/mask1.png",
         "frameIndex": null,
         "uploadIndex": 1
-      },
-      // ...
+      }
+      /* ... */
     ]
   }
 }
 ```
- 
+
 #### Upload Data (image/video/zip)
 `POST /api/datasets/data`
 ```json
-// Success
 {
   "message": "Data uploaded and processed successfully",
-    "processedItems": 1,
-    "tokenSpent": 0.65,
-    "userTokens": 99.35,
-    "tokenUsage": {
-        "tokensSpent": 0.65,
-        "remainingBalance": 99.35,
-        "operationType": "dataset_upload"}
+  "processedItems": 1,
+  "tokenSpent": 0.65,
+  "userTokens": 99.35,
+  "tokenUsage": {
+    "tokensSpent": 0.65,
+    "remainingBalance": 99.35,
+    "operationType": "dataset_upload"
+  }
 }
 ```
- 
+
 ---
- 
+
 ### Inference
- 
+
 #### Start Inference
 `POST /api/inferences/`
 ```json
-// Success
 {
   "success": true,
   "message": "Inference created and queued successfully",
@@ -540,7 +538,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "jobId": 1
 }
 ```
- 
+
 #### Get Inference Status
 `GET /api/inferences/job/:jobid/status`
 ```json
@@ -549,18 +547,19 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "Job status retrieved successfully",
   "data": {
     "jobId": "1",
-    "status": "COMPLETED", // or PENDING, FAILED, ABORTED, RUNNING
+    "status": "COMPLETED", /* or PENDING, FAILED, ABORTED, RUNNING */
     "progress": 100,
-    "result":{/*...*/}
+    "result": {
+      /* ... */
+    }
   }
-  /*...*/
+  /* ... */
 }
 ```
- 
+
 #### Get Inference Result
 `GET /api/inferences/:id/results`
 ```json
-// Success (COMPLETED)
 {
   "success": true,
   "message": "Inference results retrieved successfully",
@@ -568,29 +567,29 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "inferenceId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "status": "COMPLETED",
     "images": [
-        {
-          "originalPath": "datasets/uuid/image1.jpg",
-          "outputPath": "inferences/uuid/processed_image1.png",
-          "downloadUrl": "http://..."
-        }
-        /*...*/
-      ],
-      "videos": [
-        {
-          "originalVideoId": "1",
-          "outputPath": "inferences/uuid/video_1.mp4",
-          "downloadUrl": "http://..."
-        }
-        /*...*/
-      ]
+      {
+        "originalPath": "datasets/uuid/image1.jpg",
+        "outputPath": "inferences/uuid/processed_image1.png",
+        "downloadUrl": "http://..."
+      }
+      /* ... */
+    ],
+    "videos": [
+      {
+        "originalVideoId": "1",
+        "outputPath": "inferences/uuid/video_1.mp4",
+        "downloadUrl": "http://..."
+      }
+      /* ... */
+    ]
   }
 }
 ```
- 
+
 ---
- 
+
 ### Admin
- 
+
 #### Recharge User Tokens
 `POST /api/admin/user-tokens`
 ```json
@@ -604,7 +603,7 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   }
 }
 ```
- 
+
 #### Get User Token Balance
 `GET /api/admin/users/:email/tokens`
 ```json
@@ -615,24 +614,24 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
     "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "name": "Mario",
     "surname": "Rossi",
-    "email" : "mariorossi@fmail.com",
-    "currentBalance" : 300,
-    "role" :"user"
+    "email": "mariorossi@fmail.com",
+    "currentBalance": 300,
+    "role": "user"
   },
-        "transactions": [
-            {
-                "id": "8e897a50-d8f8-4e07-83f1-651cd17a007c",
-                "operationType": "admin_recharge",
-                "operationId": "admin_recharge_e7e834a2-931e-405f-b674-8478b300323c_1758964794928",
-                "amount": 200,
-                "description": "Admin recharge by admin@system.com: +200 tokens",
-                "createdAt": "2025-09-27T09:19:54.929Z",
-            },
-        ]
-        /*...*/
+  "transactions": [
+    {
+      "id": "8e897a50-d8f8-4e07-83f1-651cd17a007c",
+      "operationType": "admin_recharge",
+      "operationId": "admin_recharge_e7e834a2-931e-405f-b674-8478b300323c_1758964794928",
+      "amount": 200,
+      "description": "Admin recharge by admin@system.com: +200 tokens",
+      "createdAt": "2025-09-27T09:19:54.929Z"
+    }
+    /* ... */
+  ]
 }
 ```
- 
+
 #### List Transactions
 `GET /api/admin/transactions`
 ```json
@@ -641,20 +640,23 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "All transactions retrieved successfully",
   "data": {
     "transactions": [
-    {
-      "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
-      "operationType": "admin_recharge",
-      "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
-      "amount": 200,
-      "description": "Admin recharge by admin@system.com: +1000 tokens",
-      "createdAt": "2025-09-23T09:58:15.751Z",
-      "user": {/*....*/}
-    }
-    /*...*/
-  ]}
+      {
+        "id": "c4edbda2-2ff1-45de-af20-c615b673508d",
+        "operationType": "admin_recharge",
+        "operationId": "admin_recharge_850849ab-dfe8-4882-8c18-36df30aac669_1758621495751",
+        "amount": 200,
+        "description": "Admin recharge by admin@system.com: +1000 tokens",
+        "createdAt": "2025-09-23T09:58:15.751Z",
+        "user": {
+          /* ... */
+        }
+      }
+      /* ... */
+    ]
+  }
 }
 ```
- 
+
 #### List All Datasets (admin)
 `GET /api/admin/datasets`
 ```json
@@ -663,22 +665,21 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "message": "All datasets retrieved successfully",
   "data": {
     "datasets": [
-  
-    {
-      "id": "uuid",
-      "name": "Inpainting dataset",
-      "tags": ["Inpainting", "Damage", "Mask"],
-      "datasetType": "image-mask",
-      "itemCount": 72,
-      "estimatedInferenceCost": 109.25,
-      /*...*/
-    }
-    /*...*/
-  ]
-  /*...*/
+      {
+        "id": "uuid",
+        "name": "Inpainting dataset",
+        "tags": ["Inpainting", "Damage", "Mask"],
+        "datasetType": "image-mask",
+        "itemCount": 72,
+        "estimatedInferenceCost": 109.25
+        /* ... */
+      }
+      /* ... */
+    ]
+    /* ... */
+  }
 }
 ```
- 
 ---
  
 ## Postman Collection for API Testing
@@ -718,7 +719,7 @@ The application uses PostgreSQL with the following tables:
 - **Inferences**: Tracks inference jobs, their status, parameters, results, and associations to users and datasets.
 - **Token_transactions**: Records all token-related operations for audit purposes, including recharges, deductions, and transaction details.
  
-![Database Structure](public/database.png)
+![Database Structure](public/Database.png)
  
 ---
  
@@ -919,7 +920,7 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
 - `InferenceQueue`: single Redis connection  
 - All DAOs, Repositories, Services, Proxies, and Adapters  
  
-```plaintext
+```typescript
  
 // src/services/TokenService.ts
 export class TokenService {
@@ -944,7 +945,7 @@ export class TokenService {
 - `ErrorManager`: Creates standardized error objects  
 - `LoggerFactory`: Creates specialized loggers for different domains  
  
-```plaintext
+```typescript
 // src/factory/loggerFactory.ts
 export class LoggerFactory {
   // ... (Singleton implementation) ...
@@ -966,7 +967,7 @@ export class LoggerFactory {
 - DAO: `UserDao`, `DatasetDao`, `InferenceDao`, `TransactionDao`  
 - Repository: `UserRepository`, `DatasetRepository`, `InferenceRepository`, `TransactionRepository`  
  
-```plaintext
+```typescript
 // src/dao/DatasetDao.ts
 export class DatasetDao {
   public async findWithUsers(filters: DatasetFilters, pagination: PaginationOptions) {
@@ -980,7 +981,7 @@ export class DatasetDao {
 }
 ```
  
-```plaintext
+```typescript
  
 // src/repository/DatasetRepository.ts
 export class DatasetRepository {
@@ -1001,7 +1002,7 @@ export class DatasetRepository {
 - `errorHandler.ts`: logErrors → classifyError → formatErrorResponse → sendErrorResponse  
 - `auth.middleware.ts`: authenticateToken chain  
  
-```plaintext
+```typescript
 // src/middleware/errorHandler.ts
 function logErrors(err, req, res, next) {
   // Responsibility: Log the error.
@@ -1025,7 +1026,7 @@ export const errorHandlingChain = [logErrors, formatErrorResponse, /*...*/];
 **Example usage:**  
 - `InferenceBlackBoxProxy`: intermediates between Controllers/Services and InferenceQueue  
  
-```plaintext
+```typescript
 // src/proxy/inferenceBlackBoxProxy.ts
 export class InferenceBlackBoxProxy {
   private readonly inferenceQueue: InferenceQueue;
@@ -1047,7 +1048,7 @@ export class InferenceBlackBoxProxy {
 **Example usage:**  
 - `InferenceBlackBoxAdapter`: Bridges Node.js/TypeScript and Python/Flask inference service  
  
-```plaintext
+```typescript
 // src/services/inferenceBlackBoxAdapter.ts
 export class InferenceBlackBoxAdapter {
   private readonly pythonServiceUrl: string;
@@ -1069,7 +1070,7 @@ export class InferenceBlackBoxAdapter {
 **Example usage:**  
 - `loggerDecorator.ts`: `UserRouteLogger`, `DatasetRouteLogger` extending a base logger with specialized logging methods  
  
-```plaintext
+```typescript
 // src/utils/loggerDecorator.ts
 export abstract class BaseLoggerDecorator {
   protected logger: winston.Logger = Logger.getInstance();
@@ -1094,7 +1095,7 @@ export class DatasetRouteLogger extends BaseLoggerDecorator {
 **Example usage:**  
 - `UserController`, `DatasetController`, `InferenceController`  
  
-```plaintext
+```typescript
 // src/controllers/DatasetController.ts
 export class DatasetController {
   static async createEmptyDataset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -1125,7 +1126,7 @@ export class DatasetController {
 **Example usage:**  
 - `auth.middleware.ts`, `validation.middleware.ts`, `dataset.middleware.ts`, `errorHandler.ts`  
  
-```plaintext
+```typescript
 // src/routes/userRoutes.ts (example)
 // To update a user, the request must pass through three middleware functions
 // BEFORE reaching the final controller logic.

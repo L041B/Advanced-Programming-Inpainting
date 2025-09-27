@@ -30,7 +30,7 @@ export type DatasetData = {
     tags?: string[];
     type?: string;
     data?: {
-        pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>,
+        pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex: number }>,
         type?: string
     } | null;
     nextUploadIndex?: number;
@@ -365,105 +365,115 @@ export class DatasetController {
             const userId = req.user!.userId;
             const { name: datasetName, filename, type } = req.params;
 
-            // Validate type parameter
-            if (type !== "image" && type !== "mask") {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.invalidFormat,
-                    "Invalid file type. Must be 'image' or 'mask'"
-                );
-            }
+            // Validate file type
+            DatasetController.validateFileType(type);
+            const dataset = await DatasetController.getDatasetOrThrow(userId, datasetName);
+            const filePath = DatasetController.findFilePath(dataset, type, filename);
 
-            // Verify the user owns this dataset
-            const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
-            
-            if (!dataset) {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.datasetNotFoundError,
-                    "Dataset not found or access denied"
-                );
-            }
+            await DatasetController.serveFile(filePath, res);
 
-            // Find the requested file in the dataset
-            interface DatasetData {
-                pairs?: Array<{ 
-                    imagePath: string; 
-                    maskPath: string; 
-                    frameIndex?: number; 
-                    uploadIndex: number; 
-                }>;
-            }
-            const data = dataset.data as DatasetData;
-            const pairs = data?.pairs || [];
-
-            const decodedFilename = decodeURIComponent(filename);
-            let filePath: string | undefined;
-
-            // Search for the file in the dataset pairs
-            for (const pair of pairs) {
-                if (type === "image" && pair.imagePath.endsWith(decodedFilename)) {
-                    filePath = pair.imagePath;
-                    break;
-                } else if (type === "mask" && pair.maskPath.endsWith(decodedFilename)) {
-                    filePath = pair.maskPath;
-                    break;
-                }
-            }
-
-            if (!filePath) {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.resourceNotFoundError,
-                    "File not found in dataset"
-                );
-            }
-
-            // Serve the file using FileStorage
-            const { FileStorage } = await import("../utils/fileStorage");
-            try {
-                const imageBuffer = await FileStorage.readFile(filePath);
-                const ext = filePath.toLowerCase().split(".").pop();
-
-                let contentType = "image/png";
-                if (ext === "jpg" || ext === "jpeg") {
-                    contentType = "image/jpeg";
-                } else if (ext === "gif") {
-                    contentType = "image/gif";
-                }
-
-                res.set({
-                    "Content-Type": contentType,
-                    "Content-Length": imageBuffer.length.toString(),
-                    "Cache-Control": "public, max-age=3600"
-                });
-
-                res.send(imageBuffer);
-            } catch (fileError) {
-                DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE_FILE", "file_system", fileError instanceof Error ? fileError.message : "Unknown file error");
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.resourceNotFoundError,
-                    "Image file not found"
-                );
-            }
-
-            // Log response
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
 
-            // Pass standardized errors directly, wrap others
             if (error instanceof Error && "errorType" in error) {
                 next(error);
             } else {
-                // Log error
                 const err = error instanceof Error ? error : new Error("Unknown error");
                 DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE", "file_system", err.message);
 
-                // Create standardized error and pass to middleware
                 const standardError = DatasetController.errorManager.createError(
                     ErrorStatus.readInternalServerError,
                     "Failed to serve image"
                 );
                 next(standardError);
             }
+        }
+    }
+
+    // Helper to validate file type
+    private static validateFileType(type: string): void {
+        if (type !== "image" && type !== "mask") {
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "Invalid file type. Must be 'image' or 'mask'"
+            );
+        }
+    }
+
+    // Helper to get dataset or throw error
+    private static async getDatasetOrThrow(userId: string, datasetName: string) {
+        const dataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, datasetName);
+        if (!dataset) {
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.datasetNotFoundError,
+                "Dataset not found or access denied"
+            );
+        }
+        return dataset;
+    }
+
+    // Helper to find file path in dataset
+    private static findFilePath(
+        dataset: {
+            data?: object | null;
+        },
+        type: string,
+        filename: string
+    ): string {
+        interface DatasetData {
+            pairs?: Array<{
+                imagePath: string;
+                maskPath: string;
+                frameIndex?: number;
+                uploadIndex: number;
+            }>;
+        }
+        const data = dataset.data as DatasetData | null | undefined;
+        const pairs = data?.pairs || [];
+        const decodedFilename = decodeURIComponent(filename);
+
+        for (const pair of pairs) {
+            if (type === "image" && pair.imagePath.endsWith(decodedFilename)) {
+                return pair.imagePath;
+            } else if (type === "mask" && pair.maskPath.endsWith(decodedFilename)) {
+                return pair.maskPath;
+            }
+        }
+
+        throw DatasetController.errorManager.createError(
+            ErrorStatus.resourceNotFoundError,
+            "File not found in dataset"
+        );
+    }
+
+    // Helper to serve the file
+    private static async serveFile(filePath: string, res: Response): Promise<void> {
+        const { FileStorage } = await import("../utils/fileStorage");
+        try {
+            const imageBuffer = await FileStorage.readFile(filePath);
+            const ext = filePath.toLowerCase().split(".").pop();
+
+            let contentType = "image/png";
+            if (ext === "jpg" || ext === "jpeg") {
+                contentType = "image/jpeg";
+            } else if (ext === "gif") {
+                contentType = "image/gif";
+            }
+
+            res.set({
+                "Content-Type": contentType,
+                "Content-Length": imageBuffer.length.toString(),
+                "Cache-Control": "public, max-age=3600"
+            });
+
+            res.send(imageBuffer);
+        } catch (fileError) {
+            DatasetController.errorLogger.logDatabaseError("SERVE_IMAGE_FILE", "file_system", fileError instanceof Error ? fileError.message : "Unknown file error");
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.resourceNotFoundError,
+                "Image file not found"
+            );
         }
     }
 
@@ -520,54 +530,26 @@ export class DatasetController {
         const startTime = Date.now();
         DatasetController.apiLogger.logRequest(req);
 
-        // Input validation is handled by middleware
         try {
-            // Extract parameters
-            const userId = req.user!.userId;
-            const currentName = req.params.name;
-            const { name: newName, tags } = req.body;
+            const { userId, currentName, newName, tags } = DatasetController.extractUpdateParams(req);
+            const currentDataset = await DatasetController.getCurrentDatasetOrThrow(userId, currentName);
 
-            // Fetch current dataset
-            const currentDataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, currentName);
-            if (!currentDataset) {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.datasetNotFoundError,
-                    "Dataset not found"
-                );
-            }
+            const { hasNameChange, hasTagsChange } = DatasetController.detectChanges(newName, currentName, tags, currentDataset.tags);
 
-            // Validate that there are meaningful changes
-            const hasNameChange = newName && newName.trim() !== currentName;
-            const hasTagsChange = tags !== undefined && !DatasetController.arraysEqual(tags, currentDataset.tags);
+            DatasetController.throwIfNoChanges(hasNameChange, hasTagsChange);
 
-            if (!hasNameChange && !hasTagsChange) {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.noChangesToUpdateError,
-                    "No changes detected. Please provide a different name or modify tags to update the dataset."
-                );
-            }
-
-            // Prepare update data
             const updateData = await DatasetController.prepareUpdateData(userId, currentName, newName, tags, hasNameChange);
             const updatedDataset = await DatasetController.datasetRepository.updateDataset(userId, currentName, updateData);
-            if (updatedDataset.userId === null) {
-                throw DatasetController.errorManager.createError(
-                    ErrorStatus.readInternalServerError,
-                    "Dataset userId is null"
-                );
-            }
-            // Prepare response data
+
+            DatasetController.throwIfUserIdNull(updatedDataset);
+
             const responseData = DatasetController.prepareResponseData(
-                { 
-                    ...updatedDataset, 
-                    userId: updatedDataset.userId 
-                }, 
+                { ...updatedDataset, userId: updatedDataset.userId as string },
                 hasNameChange ? newName : undefined,
-                currentName, 
+                currentName,
                 hasTagsChange ? tags : undefined
             );
 
-            // Final response
             res.status(200).json({
                 success: true,
                 message: "Dataset updated successfully",
@@ -575,21 +557,73 @@ export class DatasetController {
             });
             DatasetController.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
-            DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+            DatasetController.handleUpdateDatasetError(req, error, next);
+        }
+    }
 
-            // Pass standardized errors directly, wrap others
-            if (error instanceof Error && "errorType" in error) {
-                next(error);
-            } else {
-                const err = error instanceof Error ? error : new Error("Unknown error");
-                DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
+    // Helper to extract parameters for updateDataset
+    private static extractUpdateParams(req: AuthRequest) {
+        return {
+            userId: req.user!.userId,
+            currentName: req.params.name,
+            newName: req.body.name,
+            tags: req.body.tags
+        };
+    }
 
-                const standardError = DatasetController.errorManager.createError(
-                    ErrorStatus.updateInternalServerError,
-                    "Failed to update dataset"
-                );
-                next(standardError);
-            }
+    // Helper to fetch current dataset or throw error
+    private static async getCurrentDatasetOrThrow(userId: string, currentName: string) {
+        const currentDataset = await DatasetController.datasetRepository.getDatasetByUserIdAndName(userId, currentName);
+        if (!currentDataset) {
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.datasetNotFoundError,
+                "Dataset not found"
+            );
+        }
+        return currentDataset;
+    }
+
+    // Helper to detect changes
+    private static detectChanges(newName: string | undefined, currentName: string, tags: string[] | undefined, currentTags: string[]) {
+        const hasNameChange = newName !== undefined && newName.trim() !== currentName;
+        const hasTagsChange = tags !== undefined && !DatasetController.arraysEqual(tags, currentTags);
+        return { hasNameChange, hasTagsChange };
+    }
+
+    // Helper to throw if no changes
+    private static throwIfNoChanges(hasNameChange: boolean, hasTagsChange: boolean) {
+        if (!hasNameChange && !hasTagsChange) {
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.noChangesToUpdateError,
+                "No changes detected. Please provide a different name or modify tags to update the dataset."
+            );
+        }
+    }
+
+    // Helper to throw if userId is null
+    private static throwIfUserIdNull(updatedDataset: { userId: string | null }) {
+        if (updatedDataset.userId === null) {
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.readInternalServerError,
+                "Dataset userId is null"
+            );
+        }
+    }
+
+    // Error handler for updateDataset
+    private static handleUpdateDatasetError(req: AuthRequest, error: unknown, next: NextFunction) {
+        DatasetController.apiLogger.logError(req, error instanceof Error ? error : new Error("Unknown error"));
+        if (error instanceof Error && "errorType" in error) {
+            next(error);
+        } else {
+            const err = error instanceof Error ? error : new Error("Unknown error");
+            DatasetController.errorLogger.logDatabaseError("UPDATE_DATASET", "datasets", err.message);
+
+            const standardError = DatasetController.errorManager.createError(
+                ErrorStatus.updateInternalServerError,
+                "Failed to update dataset"
+            );
+            next(standardError);
         }
     }
 
@@ -676,8 +710,8 @@ export class DatasetController {
     // Helper method to compare arrays for equality
     private static arraysEqual(arr1: string[], arr2: string[]): boolean {
         if (arr1.length !== arr2.length) return false;
-        const sorted1 = [...arr1].sort();
-        const sorted2 = [...arr2].sort();
+        const sorted1 = [...arr1].sort((a, b) => a.localeCompare(b));
+        const sorted2 = [...arr2].sort((a, b) => a.localeCompare(b));
         return sorted1.every((val, index) => val === sorted2[index]);
     }
 

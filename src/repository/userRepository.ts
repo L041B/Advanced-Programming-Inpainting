@@ -57,6 +57,7 @@ export class UserRepository {
             const user = await this.userDao.findById(userId);
             return user?.role === "admin" || false;
         } catch (error) {
+            console.error("Error checking admin role:", error);
             return false;
         }
     }
