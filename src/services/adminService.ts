@@ -139,7 +139,7 @@ export class AdminService {
     }
 
     // Method to get user token information
-    public async getUserTokenInfo(email: string): Promise<{ user: { id: string; name: string; surname: string; email: string; currentBalance: number; role: string }; transactions: Array<{ id: string; operationType: string; operationId: string; amount: number; description: string; createdAt: Date ; balanceBefore: number; balanceAfter: number }> }> {
+    public async getUserTokenInfo(email: string): Promise<{ user: { id: string; name: string; surname: string; email: string; currentBalance: number; role: string }; transactions: Array<{ id: string; operationType: string; operationId: string; amount: number; description: string; createdAt: Date }> }> {
         try {
             const user = await this.userRepository.getUserByEmail(email);
             if (!user) {
@@ -167,9 +167,7 @@ export class AdminService {
                     operationId: t.operationId ?? "",
                     amount: Number(t.amount),
                     description: t.description ?? "",
-                    createdAt: t.createdAt,
-                    balanceBefore: typeof t.balanceBefore === "number" ? t.balanceBefore : 0,
-                    balanceAfter: typeof t.balanceAfter === "number" ? t.balanceAfter : 0
+                    createdAt: t.createdAt
                 }))
             };
         } catch (error) {
@@ -595,3 +593,4 @@ export class AdminService {
         };
     }
 }
+    
