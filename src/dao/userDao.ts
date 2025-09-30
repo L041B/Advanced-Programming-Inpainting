@@ -1,6 +1,6 @@
 // Import necessary modules and models
 import { User } from "../models/User";
-import { Sequelize } from "sequelize";
+import { Sequelize, Transaction } from "sequelize";
 import { DbConnection } from "../config/database";
 import bcrypt from "bcrypt";
 import { ErrorManager } from "../factory/errorManager";
@@ -84,29 +84,18 @@ export class UserDao {
     public async update(id: string, userData: Partial<UserMutationData>): Promise<User> {
         return await this.sequelize.transaction(async (t) => {
             try {
-                // Find the user by primary key
                 const user = await User.findByPk(id, { transaction: t });
                 if (!user) {
                     this.errorLogger.logDatabaseError("findByPk", "User", `User not found: ${id}`);
                     throw this.errorManager.createError(ErrorStatus.userNotFoundError);
                 }
 
-                // If email is being updated, check for uniqueness
-                if (userData.email && userData.email !== user.email) {
-                    // Check if the new email is already in use
-                    const existingUser = await User.findOne({ where: { email: userData.email }, transaction: t });
-                    if (existingUser) {
-                        this.errorLogger.logValidationError("email", userData.email, "Email already in use by another account during update");
-                        throw this.errorManager.createError(ErrorStatus.userAlreadyExistsError, "Email already in use by another account");
-                    }
-                }
+                await this.checkEmailUniquenessForUpdate(user, userData, t);
 
-                // If password is being updated, hash the new password
                 if (userData.password) {
-                    userData.password = await bcrypt.hash(userData.password, 10);
+                    userData.password = await this.hashPasswordForUpdate(userData.password);
                 }
 
-                // Update the user with new data
                 await user.update(userData, { transaction: t });
                 return user;
             } catch (error) {
@@ -117,7 +106,6 @@ export class UserDao {
                     this.errorLogger.logDatabaseError("password_hashing", "User", error.message);
                     throw this.errorManager.createError(ErrorStatus.passwordHashingFailedError);
                 }
-                // Handle database constraint violations (email uniqueness at DB level)
                 if (error instanceof Error && (
                     error.message.includes("unique constraint") ||
                     error.message.includes("duplicate key") ||
@@ -131,6 +119,20 @@ export class UserDao {
                 throw this.errorManager.createError(ErrorStatus.userUpdateFailedError);
             }
         });
+    }
+
+    private async checkEmailUniquenessForUpdate(user: User, userData: Partial<UserMutationData>, t: Transaction): Promise<void> {
+        if (userData.email && userData.email !== user.email) {
+            const existingUser = await User.findOne({ where: { email: userData.email }, transaction: t });
+            if (existingUser) {
+                this.errorLogger.logValidationError("email", userData.email, "Email already in use by another account during update");
+                throw this.errorManager.createError(ErrorStatus.userAlreadyExistsError, "Email already in use by another account");
+            }
+        }
+    }
+
+    private async hashPasswordForUpdate(password: string): Promise<string> {
+        return await bcrypt.hash(password, 10);
     }
 
     // Deletes a user from the database after verifying their existence.

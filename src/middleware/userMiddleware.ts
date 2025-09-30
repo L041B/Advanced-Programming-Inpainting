@@ -191,9 +191,10 @@ export const validateEmailFormat = (req: Request, res: Response, next: NextFunct
         // Update body with trimmed and lowercased email
         req.body = { ...body, email: email.toLowerCase() };
         next();
-    } catch (error) {
+    } catch (error: unknown) {
         // Catch any unexpected errors and convert them to 400 errors
-        errorLogger.logValidationError("emailFormat", "validation_error", "Email validation failed unexpectedly");
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errorLogger.logValidationError("emailFormat", "validation_error", `Email validation failed unexpectedly: ${errorMessage}`);
         const managedError = errorManager.createError(
             ErrorStatus.emailNotValid,
             "Email validation failed. Please provide a valid email address."

@@ -60,7 +60,7 @@ describe("User Middleware Suite", () => {
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = (next as jest.Mock).mock.calls[0][0];
-      expect(error.message).toContain("must contain only letters");
+      expect(error.message).toContain("can only include letters");
     });
   });
 

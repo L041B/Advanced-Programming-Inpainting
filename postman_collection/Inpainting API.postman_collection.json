@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "11b7de71-9178-45ae-a545-2f5e855a4058",
-		"name": "Inpainting API",
+		"_postman_id": "0493bf4f-b21e-4531-97e9-6ddf2f3ceb46",
+		"name": "Inpainting API Copy 3",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "46807056",
-		"_collection_link": "https://loris-bottegoni-s-team.postman.co/workspace/My-Workspace~ce4bbe36-0b0f-424f-873f-0eb4b097d478/collection/46807056-11b7de71-9178-45ae-a545-2f5e855a4058?action=share&source=collection_link&creator=46807056"
+		"_collection_link": "https://loris-bottegoni-s-team.postman.co/workspace/My-Workspace~ce4bbe36-0b0f-424f-873f-0eb4b097d478/collection/40548755-0493bf4f-b21e-4531-97e9-6ddf2f3ceb46?action=share&source=collection_link&creator=46807056"
 	},
 	"item": [
 		{
@@ -333,7 +333,7 @@
 								{
 									"key": "image",
 									"type": "file",
-									"src": "postman-cloud:///1f093309-4ded-4470-b29b-40005627ba9a"
+									"src": "postman-cloud:///1f09de66-6643-4ed0-a5ec-aee3624e9802"
 								},
 								{
 									"key": "mask",
@@ -983,7 +983,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"email\":\"mariorossi@gmail.com\",\r\n    \"amount\": 1000000\r\n}",
+							"raw": "{\r\n    \"email\":\"mariorossi@gmail.com\",\r\n    \"amount\": 100\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"

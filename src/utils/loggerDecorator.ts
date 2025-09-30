@@ -35,9 +35,6 @@ export abstract class BaseLoggerDecorator implements LoggerDecorator {
 
 // User Route Logger Decorator
 export class UserRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "USER_ACTION", ...data };
@@ -106,9 +103,6 @@ export class UserRouteLogger extends BaseLoggerDecorator {
 
 // Auth Route Logger Decorator
 export class AuthRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "AUTH_ACTION", ...data };
@@ -137,9 +131,6 @@ export class AuthRouteLogger extends BaseLoggerDecorator {
 
 // API Request/Response Logger Decorator
 export class ApiRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "API_ACTION", ...data };
@@ -199,9 +190,6 @@ export class ApiRouteLogger extends BaseLoggerDecorator {
 
 // Error Logger Decorator
 export class ErrorRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "ERROR", ...data };
@@ -240,9 +228,6 @@ export class ErrorRouteLogger extends BaseLoggerDecorator {
 
 // Dataset Route Logger Decorator
 export class DatasetRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "DATASET_ACTION", ...data };
@@ -301,9 +286,6 @@ export class DatasetRouteLogger extends BaseLoggerDecorator {
 
 // Inference Route Logger Decorator
 export class InferenceRouteLogger extends BaseLoggerDecorator {
-    constructor(wrappedLogger?: LoggerDecorator) {
-        super(wrappedLogger);
-    }
 
     log(message: string, data?: LogData): void {
         const decoratedData = { type: "INFERENCE_ACTION", ...data };

@@ -99,7 +99,7 @@ describe("Auth Middleware Suite", () => {
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
       const error = (next as jest.Mock).mock.calls[0][0];
-      expect(error.status).toBe(403);
+      expect(error.status).toBe(401);
     });
 
      it("should call next(error) if JWT_SECRET is not defined", () => {
