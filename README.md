@@ -94,9 +94,10 @@
 - [API Routes & Responses](#api-routes--responses)
 - [Postman Collection for API Testing](#postman-collection-for-api-testing)
 - [Database Structure](#database-structure)
-- [Architecture](#architecture)
-- [Design Patterns](#design-patterns)
-- [Sequence Diagrams](#sequence-diagrams)
+- [System Architecture](#system-architecture)
+- [Inference Workflow](#inference-workflow-worker--external-service)
+- [Patterns](#patterns)
+- [Diagrams](#diagrams)
 - [Testing](#testing)
 - [Linting & Code Quality](#linting--code-quality)
  
@@ -128,7 +129,7 @@
   - Media processing:
     - Frame extraction from videos (1 FPS with FFmpeg)
     - Mask validation (binary check with Sharp)
-  - Secure data access via temporary signed URLs (JWT-based)
+  - Secure data access via signed URLs (JWT-based)
  
 - **Asynchronous Inference System**
   - Job queueing with Redis + Bull
@@ -141,7 +142,7 @@
   - Admin token recharge for users
   - Monitoring dashboard APIs:
     - Full list of datasets (including orphaned ones)
-    - Full list of token transactions with aggregation
+    - Full list of token transactions
  
  
 ---
@@ -198,7 +199,7 @@ dataset.zip
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Progetto Programmazione Avanzata
+cd <repository-path>
  
 # Copy and edit environment variables
 cp .env
@@ -433,7 +434,6 @@ Below are all main API routes, grouped by feature, with example JSON outputs.
   "data": {
     "userId": "c4edbda2-2ff1-45de-af20-c615b673508d",
     "itemCount": 0,
-    "type": "empty",
     "changes": {
       "nameChanged": false,
       "tagsChanged": true
@@ -709,6 +709,8 @@ It is recommended to execute requests sequentially and update dynamic parameters
 The collection and environment files are included in the repository at  
 [`postman_collection/Inpainting API.postman_collection.json`](postman_collection/Inpainting%20API.postman_collection.json).
 
+Additionally, the project includes a [`imageForTest.zip`](public/imageForTest/imageForTest.zip) folder containing sample images, videos, and masks that can be used for testing the API endpoints.
+
 --- 
 ## Database Structure
  
@@ -844,7 +846,7 @@ The system architecture implements the following schema.
 - **Controller**: Handles request logic, validation, error handling.
 - **Middleware**: Auth, rate limiting, file upload, logging.
 - **Proxy**: Intercepts requests, validates, queues jobs.
-- **Queue**: BullMQ job management.
+- **Queue**: Bull job management.
 - **Worker**: Background job processor.
 - **Service**: Core business logic (e.g., image processing).
 - **Repository**: Data access abstraction.
@@ -911,11 +913,11 @@ This project extensively uses classic patterns to ensure a **robust, maintainabl
  
 ### 1. Singleton
 **Purpose:** Ensures a class has only one instance and provides a global access point.  
-**Why used:** Ideal for shared resources or services that maintain global state, avoiding multiple expensive instances.  
+**Why used:** Ideal for shared resources or services that maintain global state, avoiding multiple instances.  
 **Example usage:**  
 - `DbConnection`: single database connection pool  
 - `InferenceQueue`: single Redis connection  
-- All DAOs, Repositories, Services, Proxies, and Adapters  
+- All DAOs, Repositories, Services, Proxies, and Adapter  
  
 ```typescript
  
@@ -938,8 +940,7 @@ export class TokenService {
 ### 2. Factory Method
 **Purpose:** Defines an interface for creating objects but lets subclasses decide which concrete class to instantiate.  
 **Why used:** Centralizes creation of complex objects (e.g., error messages, loggers) and decouples client code from specific creation logic.  
-**Example usage:**  
-- `ErrorManager`: Creates standardized error objects  
+**Example usage:**    
 - `LoggerFactory`: Creates specialized loggers for different domains  
  
 ```typescript
@@ -948,9 +949,9 @@ export class LoggerFactory {
   // ... (Singleton implementation) ...
  
   // This method is a "factory method" that creates a specific type of logger.
-  public createDatasetLogger(): DatasetRouteLogger {
-      return new DatasetRouteLogger();
-  }
+  public createDatasetLogger(wrappedLogger?: LoggerDecorator): DatasetRouteLogger {
+        return new DatasetRouteLogger(wrappedLogger);
+    }
 }
 ```
 --- 
@@ -996,7 +997,7 @@ export class DatasetRepository {
 **Purpose:** Passes a request along a chain of handlers; each decides whether to process or forward it.  
 **Why used:** Flexible and decoupled pipeline for request processing, validation, or error handling  
 **Example usage:**  
-- `errorHandler.ts`: logErrors → classifyError → formatErrorResponse → sendErrorResponse  
+- `errorHandler.ts`  
 - `auth.middleware.ts`: authenticateToken chain  
  
 ```typescript
@@ -1041,7 +1042,7 @@ export class InferenceBlackBoxProxy {
  
 ### 6. Adapter
 **Purpose:** Converts one interface into another expected by the client.  
-**Why used:** Integrates external or legacy components without changing existing code  
+**Why used:** Integrates external components without changing existing code  
 **Example usage:**  
 - `InferenceBlackBoxAdapter`: Bridges Node.js/TypeScript and Python/Flask inference service  
  
@@ -1052,9 +1053,9 @@ export class InferenceBlackBoxAdapter {
   // ...
   async processDataset(userId: string, datasetData: object, parameters: object) {
     // 1. Adapts the method call into an HTTP request payload.
-    const requestPayload = { userId, data: datasetData, parameters };
+    const request: ProcessingRequest = { userId, data: datasetData, parameters };
     // 2. Uses Axios to communicate via a different protocol (HTTP).
-    const response = await axios.post(`${this.pythonServiceUrl}/process-dataset`, requestPayload);
+    const response = await axios.post(`${this.pythonServiceUrl}/process-dataset`, request);
     // 3. Adapts the HTTP response back into an object the application expects.
     return response.data;
   }
@@ -1069,15 +1070,23 @@ export class InferenceBlackBoxAdapter {
  
 ```typescript
 // src/utils/loggerDecorator.ts
-export abstract class BaseLoggerDecorator {
-  protected logger: winston.Logger = Logger.getInstance();
-  // ...
+export interface LoggerDecorator {
+    log(message: string, data?: LogData): void;
+}
+
+// Base Logger Decorator 
+export abstract class BaseLoggerDecorator implements LoggerDecorator {
+    protected logger: winston.Logger;
+    // Accept an optional wrapped logger for chaining decorators
+    constructor(protected wrappedLogger?: LoggerDecorator) {
+        this.logger = Logger.getInstance();
+    }
 }
  
 export class DatasetRouteLogger extends BaseLoggerDecorator {
   // Adds new, specialized functionality
-  public logDatasetCreation(userId: string, datasetName: string): void {
-    this.logger.info("DATASET_CREATED", { type: "DATASET_ACTION", userId, datasetName });
+  logDatasetCreation(userId: string, datasetName: string, type?: string): void {
+        this.log("DATASET_CREATED", { userId, datasetName, datasetType: type });
   }
 }
 ```
@@ -1124,20 +1133,18 @@ export class DatasetController {
 - `auth.middleware.ts`, `validation.middleware.ts`, `dataset.middleware.ts`, `errorHandler.ts`  
  
 ```typescript
-// src/routes/userRoutes.ts (example)
-// To update a user, the request must pass through three middleware functions
+// src/routes/datasetRoutes.ts (example)
+// To create a dataset, the request must pass through two middleware functions
 // BEFORE reaching the final controller logic.
-router.patch(
-    '/:userId',
-    authenticateToken,  // 1. Is the user logged in?
-    authorizeUser,      // 2. Is the user authorized to modify this specific resource?
-    validateUserUpdate, // 3. Is the data in the request body valid?
-    userController.updateUser // 4. If all checks pass, execute controller logic.
+router.post("/", 
+    ...authenticateToken, 
+    ...validateDatasetCreation,
+    DatasetController.createEmptyDataset
 );
 ```
 --- 
  
-## Diagram
+## Diagrams
  
 ### Actor Diagram
 ![Actor](public/actorUML.png)
@@ -1152,14 +1159,14 @@ router.patch(
 This diagram illustrate how a user authenticates with email and password.
 ![Login](public/sdLogin.png)
 ### Recharge user token by admin
-This diagram models a privileged, administrator-only operation, highlighting the authorization checks involved.
+This diagram models a privileged, administrator-only operation (recharge user token), highlighting the authorization checks involved.
 ![Recharge token](public/sdRechargetokenadmin.png)
 ### JWT token validation
 This diagram details the process of verifying a JSON Web Token (JWT) for a protected API route. It covers the entire authenticateToken middleware chain.
  
 ![JWT Token validation](public/sdjwttokenvalidation.png)
 ### Upload data in a dataset
-This diagram details the workflow of uploading a video file to a dataset.
+This diagram details the workflow of uploading data to a dataset.
 ![Upload data](public/sdUploaddata.png)
 ### Inference creation
 This diagram illustrate the workflow for the creation of an inference operation.
@@ -1190,7 +1197,6 @@ The project includes a comprehensive suite of unit tests written with Jest, focu
  
 Run tests with:
 - **Unit/Integration Tests**: `npm test`
-- **API Testing**: Import Postman collection and run requests
  
 ---
  

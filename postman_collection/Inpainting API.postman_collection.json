@@ -13,16 +13,6 @@
 				{
 					"name": "Register",
 					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImVtYWlsIjoicGlub3Rpbm9yZUBnbWFpbC5jb20iLCJpYXQiOjE3NTQ1NjM4NjksImV4cCI6MTc1NDY1MDI2OX0.Jz_9U7Otf0xdcm895D4NIkaMFlqVIqZaNcRI60KR0cc",
-									"type": "string"
-								}
-							]
-						},
 						"method": "POST",
 						"header": [
 							{
@@ -91,16 +81,6 @@
 						}
 					],
 					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjNGVkYmRhMi0yZmYxLTQ1ZGUtYWYyMC1jNjE1YjY3MzUwOGQiLCJlbWFpbCI6Im1hcmlvcm9zc2lAZ21haWwuY29tIiwiaWF0IjoxNzU4NzE3NDY3LCJleHAiOjE3NTg4MDM4Njd9.mXVRj8iIwc-2IUeaswrY_hLkP94GmYz0CNyqESsvZnA",
-									"type": "string"
-								}
-							]
-						},
 						"method": "POST",
 						"header": [],
 						"body": {
@@ -876,6 +856,16 @@
 				{
 					"name": "View specific image result",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}} ",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
 						"header": [],
 						"url": {

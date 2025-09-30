@@ -230,7 +230,7 @@ export class DatasetService {
 
     // Check if file is a video based on extension
     private static isVideoFile(extension: string): boolean {
-        return [".mp4", ".avi", ".mov"].includes(extension);
+        return [".mp4", ".avi"].includes(extension);
     }
 
     // Calculate token cost based on uploaded files
@@ -243,7 +243,7 @@ export class DatasetService {
             const imageExt = path.extname(imageFile.originalname).toLowerCase();
             const maskExt = path.extname(maskFile.originalname).toLowerCase();
             const imageFormats = [".png", ".jpg", ".jpeg"];
-            const videoFormats = [".mp4", ".avi", ".mov"];
+            const videoFormats = [".mp4", ".avi"];
             const zipFormats = [".zip"];
 
             // Handle ZIP files
@@ -287,7 +287,7 @@ export class DatasetService {
             const entries = zip.getEntries().filter(entry => !entry.isDirectory);
             const subdirs = new Map<string, { images: number; videos: number }>();
             const imageFormats = [".png", ".jpg", ".jpeg"];
-            const videoFormats = [".mp4", ".avi", ".mov"];
+            const videoFormats = [".mp4", ".avi"];
 
             // Group entries by subdirectory and count images/videos
             for (const entry of entries) {
@@ -332,7 +332,7 @@ export class DatasetService {
             const imageExt = path.extname(imageFile.originalname).toLowerCase();
             const maskExt = path.extname(maskFile.originalname).toLowerCase();
             const imageFormats = [".png", ".jpg", ".jpeg"];
-            const videoFormats = [".mp4", ".avi", ".mov"];
+            const videoFormats = [".mp4", ".avi"];
             const zipFormats = [".zip"];
 
             // Log the start of processing
@@ -450,7 +450,10 @@ export class DatasetService {
         const isBinary = await this.validateBinaryMask(maskBuffer);
         if (!isBinary) {
             errorLogger.logValidationError("mask", maskName, "Mask must be a binary image");
-            throw new Error("Mask must be a binary image");
+            throw this.errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "Mask must be a binary image (only black and white pixels)."
+            );
         }
 
         // Save mask to permanent storage
@@ -503,7 +506,10 @@ export class DatasetService {
         if (frames.length !== maskFrames.length) {
             const mismatchMessage = `Video and mask video must have the same number of frames. Video: ${frames.length} frames, Mask: ${maskFrames.length} frames`;
             errorLogger.logValidationError("frameCount", `${frames.length}vs${maskFrames.length}`, mismatchMessage);
-            throw new Error(mismatchMessage);
+            throw this.errorManager.createError(
+                ErrorStatus.invalidFormat,
+                mismatchMessage
+            );
         }
 
         // Validate all mask frames are binary
@@ -511,7 +517,10 @@ export class DatasetService {
             const isBinary = await this.validateBinaryMask(maskFrame);
             if (!isBinary) {
                 errorLogger.logValidationError("maskFrames", maskVideoName, "All mask frames must be binary images");
-                throw new Error("All mask frames must be binary images");
+                throw this.errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "All mask frames must be binary images (only black and white pixels)."
+                );
             }
         }
 
@@ -569,7 +578,10 @@ export class DatasetService {
         if (pairs.length === 0 && subdirs.size > 0) {
             const errorMessage = "ZIP processing failed: No valid image-mask pairs were found in any subdirectory.";
             errorLogger.logFileUploadError("ZIP", zipBuffer.length, errorMessage);
-            throw new Error(errorMessage);
+            throw this.errorManager.createError(
+                ErrorStatus.invalidFormat,
+                errorMessage
+            );
         }
 
         // Log final processing summary
@@ -586,7 +598,7 @@ export class DatasetService {
     // Group ZIP entries by their subdirectory and classify as images or masks
     private static groupZipEntriesBySubdirectory(entries: AdmZip.IZipEntry[]): Map<string, { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }> {
         const subdirs = new Map<string, { images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[] }>();
-        const supportedFormats = [".png", ".jpg", ".jpeg", ".mp4", ".avi", ".mov"];
+        const supportedFormats = [".png", ".jpg", ".jpeg", ".mp4", ".avi"];
 
         // Classify entries into subdirectories
         for (const entry of entries) {
@@ -710,7 +722,7 @@ export class DatasetService {
         const imageExt = path.extname(imageEntry.name).toLowerCase();
         const maskExt = path.extname(maskEntry.name).toLowerCase();
         const imageFormats = [".png", ".jpg", ".jpeg"];
-        const videoFormats = [".mp4", ".avi", ".mov"];
+        const videoFormats = [".mp4", ".avi"];
 
         // Determine processing method based on file types
         let subData: DatasetData;
@@ -726,11 +738,17 @@ export class DatasetService {
             } else if (videoFormats.includes(maskExt)) {
                 subData = await this.processVideoWithMaskVideo(imageBuffer, maskBuffer, zipSubfolder, imageEntry.name, maskEntry.name, uploadIndex);
             } else {
-                throw new Error("Unsupported mask format for video");
+                throw this.errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "Unsupported mask format for video processing."
+                );
             }
             nextUploadIndex++;
         } else {
-            throw new Error("Unsupported file formats");
+            throw this.errorManager.createError(
+                ErrorStatus.invalidFormat,
+                "Unsupported file format combination."
+            );
         }
 
         return { pairs: subData.pairs, nextUploadIndex };
@@ -739,7 +757,7 @@ export class DatasetService {
     // Validate that a mask image is binary (only black and white pixels)
     private static validateSubdirectoryFormats(images: AdmZip.IZipEntry[], masks: AdmZip.IZipEntry[]): boolean {
         const imageFormats = [".png", ".jpg", ".jpeg"];
-        const videoFormats = [".mp4", ".avi", ".mov"];
+        const videoFormats = [".mp4", ".avi"];
 
         // Check if any combination of formats is valid
         for (const imageEntry of images) {
@@ -822,7 +840,11 @@ export class DatasetService {
             // Handle case of no frames extracted
             if (frames.length === 0) {
                 errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "No frames extracted from video");
-                reject(new Error("No frames were extracted from the video. The video might be corrupted or in an unsupported format."));
+                const error = this.errorManager.createError(
+                    ErrorStatus.invalidFormat,
+                    "No frames were extracted from the video. The video might be corrupted or in an unsupported format."
+                );
+                reject(error);
                 return;
             }
 
@@ -837,7 +859,11 @@ export class DatasetService {
         } catch (error) {
             const err = error instanceof Error ? error : new Error("Unknown error");
             errorLogger.logDatabaseError("VIDEO_EXTRACTION", "file_system", err.message);
-            reject(err instanceof Error ? err : new Error(String(error)));
+            const standardError = this.errorManager.createError(
+                ErrorStatus.creationInternalServerError,
+                "Failed to read extracted video frames."
+            );
+            reject(standardError);
         }
     }
 
@@ -865,7 +891,11 @@ export class DatasetService {
                     errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", error.message);
                     // Cleanup on error
                     fs.unlink(videoPath).catch(() => {});
-                    reject(new Error(`Video processing failed: ${error.message}`));
+                    const standardError = this.errorManager.createError(
+                        ErrorStatus.externalServiceError,
+                        `Video processing failed: ${error.message}`
+                    );
+                    reject(standardError);
                 });
 
             // Add timeout to prevent hanging
@@ -873,7 +903,11 @@ export class DatasetService {
                 command.kill("SIGKILL");
                 fs.unlink(videoPath).catch(() => {});
                 errorLogger.logDatabaseError("VIDEO_EXTRACTION", "ffmpeg", "Processing timeout (60 seconds)");
-                reject(new Error("Video processing timeout (60 seconds)"));
+                const timeoutError = this.errorManager.createError(
+                    ErrorStatus.externalServiceError,
+                    "Video processing timeout (60 seconds)"
+                );
+                reject(timeoutError);
             }, 60000);
 
             // Clear timeout on completion or error
@@ -891,7 +925,11 @@ export class DatasetService {
             ffmpeg.getAvailableFormats((err) => {
                 if (err) {
                     errorLogger.logDatabaseError("FFMPEG_CHECK", "system", `FFmpeg not available: ${err.message}`);
-                    reject(new Error(`FFmpeg is not available: ${err.message}`));
+                    const error = this.errorManager.createError(
+                        ErrorStatus.externalServiceError,
+                        `FFmpeg is not available: ${err.message}`
+                    );
+                    reject(error);
                 } else {
                     resolve();
                 }

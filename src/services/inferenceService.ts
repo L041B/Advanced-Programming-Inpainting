@@ -157,16 +157,20 @@ export class InferenceService {
         const operationId = `inference_on_${datasetId}`;
         InferenceService.inferenceLogger.log("Token reservation requested", { userId, amount: totalCost, type: "inference", operationId });
 
-        // Validate cost
-        type ReservationResult = string | { success: boolean; reservationId?: string; error?: string };
-        const reservationResult: ReservationResult = await InferenceService.tokenService.reserveTokens(userId, totalCost, "inference", operationId);
-
-        // Handle different response types
-        if (typeof reservationResult === "string") {
-            return InferenceService.handleStringReservationResult(reservationResult, userId, totalCost);
+        try {
+            // Try to reserve tokens
+            const reservationId = await InferenceService.tokenService.reserveTokens(userId, totalCost, "inference", operationId);
+            
+            InferenceService.inferenceLogger.log("Tokens reserved successfully", { userId, reservationId, amount: totalCost });
+            return reservationId;
+        } catch (error) {
+            // Handle standardized errors
+            const err = error as Error & { errorType?: ErrorStatus };
+            InferenceService.errorLogger.logDatabaseError("RESERVE_TOKENS", "token_service", err.message);
+            
+            // Re-throw known structured errors
+            throw error;
         }
-
-        return InferenceService.handleObjectReservationResult(reservationResult, userId, totalCost);
     }
 
     // Handles string responses from the token reservation service
@@ -259,47 +263,25 @@ export class InferenceService {
         userId: string,
         dataset: Dataset
     ): Promise<string> {
-        // Queue job with the inference proxy
         InferenceService.inferenceLogger.log("Queuing inference job", { inferenceId: inferenceRecord.id, userId });
-        const jobResult = await InferenceService.proxy.processDataset(
-            inferenceRecord.id,
-            userId,
-            dataset.data,
-            inferenceRecord.parameters || {}
-        );
+        
+        try {
+            // Queue job with proxy
+            const jobId = await InferenceService.proxy.processDataset(
+                inferenceRecord.id,
+                userId,
+                dataset.data,
+                inferenceRecord.parameters || {}
+            );
 
-        // Handle different response types
-        if (typeof jobResult === "string") {
-            if (jobResult.startsWith("Error:")) {
-                InferenceService.errorLogger.logDatabaseError("QUEUE_JOB", "inference_proxy", jobResult);
-                throw InferenceService.errorManager.createError(ErrorStatus.jobAdditionFailedError, jobResult);
-            }
-            // Return the string job ID 
-            return jobResult;
-        } else if (
-            // Object with success flag
-            typeof jobResult === "object" &&
-            jobResult !== null &&
-            "success" in jobResult &&
-            (jobResult as { success: boolean }).success &&
-            "jobId" in jobResult
-        ) {
-            // Return the job ID as string 
-            return (jobResult as { jobId: string }).jobId;
-        } else {
-            InferenceService.errorLogger.logDatabaseError(
-                "QUEUE_JOB",
-                "inference_proxy",
-                (typeof jobResult === "object" && jobResult !== null && "error" in jobResult)
-                    ? (jobResult as { error?: string }).error || "Failed to queue job"
-                    : "Failed to queue job"
-            );
-            throw InferenceService.errorManager.createError(
-                ErrorStatus.jobAdditionFailedError,
-                (typeof jobResult === "object" && jobResult !== null && "error" in jobResult)
-                    ? (jobResult as { error?: string }).error || "Failed to queue inference job"
-                    : "Failed to queue inference job"
-            );
+            return jobId;
+        } catch (error) {
+            // Handle standardized errors
+            const err = error as Error & { errorType?: ErrorStatus };
+            InferenceService.errorLogger.logDatabaseError("QUEUE_JOB", "inference_proxy", err.message);
+            
+            // Re-throw known structured errors
+            throw error;
         }
     }
 

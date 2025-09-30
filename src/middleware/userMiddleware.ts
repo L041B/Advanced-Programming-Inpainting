@@ -49,28 +49,30 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
     const body = req.body as { name?: string; surname?: string };
     let { name, surname } = body;
     const nameRegex = /^[a-zA-Z\s'-]+$/; 
+    const hasLetterRegex = /[a-zA-Z]/; // Must contain at least one letter
     const multipleSpacesRegex = /\s{2,}/; // Check for 2 or more consecutive spaces
+    const consecutiveSpecialCharsRegex = /[-']{2,}/; // Check for consecutive hyphens or apostrophes
     
     // Trim inputs if they are strings
     if (typeof name === "string") name = name.trim();
     if (typeof surname === "string") surname = surname.trim();
     
     // Validate format if fields are present and not empty after trimming
-    if (name && (!nameRegex.test(name) || name.length === 0)) {
-        errorLogger.logValidationError("nameFormat", `name: ${name}`, "Invalid name format");
+    if (name && (!nameRegex.test(name) || name.length === 0 || !hasLetterRegex.test(name))) {
+        errorLogger.logValidationError("nameFormat", `name: ${name}`, "Invalid name format - must contain at least one letter");
         const error = errorManager.createError(
             ErrorStatus.invalidFormat,
-            "Name must contain only letters, spaces, hyphens, or apostrophes and cannot be empty or contain only spaces"
+            "Name must contain at least one letter and can only include letters, spaces, hyphens, or apostrophes"
         );
         next(error);
         return;
     }
     
-    if (surname && (!nameRegex.test(surname) || surname.length === 0)) {
-        errorLogger.logValidationError("nameFormat", `surname: ${surname}`, "Invalid surname format");
+    if (surname && (!nameRegex.test(surname) || surname.length === 0 || !hasLetterRegex.test(surname))) {
+        errorLogger.logValidationError("nameFormat", `surname: ${surname}`, "Invalid surname format - must contain at least one letter");
         const error = errorManager.createError(
             ErrorStatus.invalidFormat,
-            "Surname must contain only letters, spaces, hyphens, or apostrophes and cannot be empty or contain only spaces"
+            "Surname must contain at least one letter and can only include letters, spaces, hyphens, or apostrophes"
         );
         next(error);
         return;
@@ -97,6 +99,27 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
         return;
     }
 
+    // Check for consecutive hyphens or apostrophes
+    if (name && consecutiveSpecialCharsRegex.test(name)) {
+        errorLogger.logValidationError("nameFormat", `name: ${name}`, "Name contains consecutive hyphens or apostrophes");
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            "Name cannot contain consecutive hyphens or apostrophes"
+        );
+        next(error);
+        return;
+    }
+
+    if (surname && consecutiveSpecialCharsRegex.test(surname)) {
+        errorLogger.logValidationError("nameFormat", `surname: ${surname}`, "Surname contains consecutive hyphens or apostrophes");
+        const error = errorManager.createError(
+            ErrorStatus.invalidFormat,
+            "Surname cannot contain consecutive hyphens or apostrophes"
+        );
+        next(error);
+        return;
+    }
+
     // Update body with trimmed values
     req.body = { ...body, name, surname };
     next();
@@ -104,27 +127,79 @@ export const validateNameFormat = (req: Request, res: Response, next: NextFuncti
 
 // validateEmailFormat is a middleware function that checks the format of the email field if present
 export const validateEmailFormat = (req: Request, res: Response, next: NextFunction): void => {
-    const body = req.body as { email?: string };
-    let { email } = body;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
-    
-    // Trim email input if it's a string
-    if (typeof email === "string") email = email.trim();
-    
-    // Validate format if email is present and not empty after trimming
-    if (email && (!emailRegex.test(email) || email.length === 0)) {
-        errorLogger.logValidationError("emailFormat", email, "Invalid email format or empty email");
-        const error = errorManager.createError(
-            ErrorStatus.emailNotValid,
-            "Email format is invalid or cannot be empty or contain only spaces"
-        );
-        next(error);
-        return;
-    }
+    try {
+        const body = req.body as { email?: string };
+        let { email } = body;
+        // Basic regex for email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/; 
+        
+        // Trim email input if it's a string
+        if (typeof email === "string") email = email.trim();
+        
+        // Skip validation if email is not present
+        if (!email) {
+            req.body = { ...body, email };
+            next();
+            return;
+        }
 
-    // Update body with trimmed and lowercased email
-    req.body = { ...body, email: email ? email.toLowerCase() : email };
-    next();
+        // Validate email format
+        if (!emailRegex.test(email)) {
+            errorLogger.logValidationError("emailFormat", email, "Invalid email format");
+            const error = errorManager.createError(
+                ErrorStatus.emailNotValid,
+                "Email format is invalid. Please provide a valid email address with a proper domain"
+            );
+            next(error);
+            return;
+        }
+
+        // Additional validation for email length
+        if (email.length < 5 || email.length > 254) {
+            errorLogger.logValidationError("emailFormat", email, "Email length out of bounds");
+            const error = errorManager.createError(
+                ErrorStatus.emailNotValid,
+                "Email address must be between 5 and 254 characters long."
+            );
+            next(error);
+            return;
+        }
+
+        // Additional validation for email structure
+        const parts = email.split("@");
+        if (parts.length !== 2 || parts[0].length === 0 || parts[1].length === 0) {
+            errorLogger.logValidationError("emailFormat", email, "Invalid email structure");
+            const error = errorManager.createError(
+                ErrorStatus.emailNotValid,
+                "Email format is invalid. Please provide a valid email address."
+            );
+            next(error);
+            return;
+        }
+
+        const domainParts = parts[1].split(".");
+        if (domainParts.length < 2 || domainParts.some(part => part.length === 0)) {
+            errorLogger.logValidationError("emailFormat", email, "Invalid domain structure");
+            const error = errorManager.createError(
+                ErrorStatus.emailNotValid,
+                "Email domain is invalid. Please provide a valid domain."
+            );
+            next(error);
+            return;
+        }
+
+        // Update body with trimmed and lowercased email
+        req.body = { ...body, email: email.toLowerCase() };
+        next();
+    } catch (error) {
+        // Catch any unexpected errors and convert them to 400 errors
+        errorLogger.logValidationError("emailFormat", "validation_error", "Email validation failed unexpectedly");
+        const managedError = errorManager.createError(
+            ErrorStatus.emailNotValid,
+            "Email validation failed. Please provide a valid email address."
+        );
+        next(managedError);
+    }
 };
 
 // validatePasswordStrength is a middleware function that checks the strength of the password if present.

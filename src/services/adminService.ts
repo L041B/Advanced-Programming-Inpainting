@@ -191,50 +191,8 @@ export class AdminService {
                 { limit, offset }
             );
 
-
-            // Fetch user info for each transaction 
-            const transactionsWithUser = await Promise.all(transactions.map(async (t) => {
-                let userInfo;
-                if (t.userId) {
-                    const user = await this.userRepository.getUserById(t.userId);
-                    userInfo = user ? {
-                        id: user.id,
-                        name: user.name,
-                        surname: user.surname,
-                        email: user.email,
-                        tokens: user.tokens,
-                        role: user.role
-                    } : {
-                        id: "",
-                        name: "Deleted User",
-                        surname: "",
-                        email: "user-deleted@system.local",
-                        tokens: 0,
-                        role: "user"
-                    };
-                } else {
-                    userInfo = {
-                        id: "",
-                        name: "Deleted User",
-                        surname: "",
-                        email: "user-deleted@system.local",
-                        tokens: 0,
-                        role: "user"
-                    };
-                }
-                return {
-                    id: t.id,
-                    operationType: t.operationType,
-                    operationId: t.operationId ?? "",
-                    amount: t.amount ?? null,
-                    status: t.status,
-                    description: t.description ?? "",
-                    createdAt: t.createdAt,
-                    user: userInfo
-                };
-            }));
             // Format transactions and calculate summary
-            const formattedTransactions = this.formatTransactions(transactionsWithUser);
+            const formattedTransactions = this.formatTransactions(transactions);
             const summary = this.calculateTransactionSummary(formattedTransactions);
  
             return {
@@ -296,10 +254,10 @@ export class AdminService {
     private formatTransactions(transactions: Array<{
         id: string;
         operationType: string;
-        operationId: string;
+        operationId: string | null;
         amount: TransactionNumeric;
         status: string;
-        description: string;
+        description: string | null;
         createdAt: Date;
         user?: {
             id: string;
@@ -338,10 +296,10 @@ export class AdminService {
             return {
                 id: transaction.id,
                 operationType: transaction.operationType,
-                operationId: transaction.operationId,
+                operationId: transaction.operationId ?? "",
                 amount: transaction.amount !== null && transaction.amount !== undefined ? Number(transaction.amount) : null,
                 status: transaction.status,
-                description: transaction.description,
+                description: transaction.description ?? "",
                 createdAt: transaction.createdAt,
                 user: {
                     id: user.id,

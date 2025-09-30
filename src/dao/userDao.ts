@@ -96,7 +96,7 @@ export class UserDao {
                     // Check if the new email is already in use
                     const existingUser = await User.findOne({ where: { email: userData.email }, transaction: t });
                     if (existingUser) {
-                        this.errorLogger.logValidationError("email", userData.email, "Email already in use by another account");
+                        this.errorLogger.logValidationError("email", userData.email, "Email already in use by another account during update");
                         throw this.errorManager.createError(ErrorStatus.userAlreadyExistsError, "Email already in use by another account");
                     }
                 }
@@ -116,6 +116,16 @@ export class UserDao {
                 if (error instanceof Error && error.message.includes("hash")) {
                     this.errorLogger.logDatabaseError("password_hashing", "User", error.message);
                     throw this.errorManager.createError(ErrorStatus.passwordHashingFailedError);
+                }
+                // Handle database constraint violations (email uniqueness at DB level)
+                if (error instanceof Error && (
+                    error.message.includes("unique constraint") ||
+                    error.message.includes("duplicate key") ||
+                    error.message.toLowerCase().includes("unique_violation") ||
+                    (error.message.toLowerCase().includes("email") && error.message.toLowerCase().includes("unique"))
+                )) {
+                    this.errorLogger.logValidationError("email", userData.email || "unknown", "Database constraint violation - email already exists");
+                    throw this.errorManager.createError(ErrorStatus.userAlreadyExistsError, "Email already in use by another account");
                 }
                 this.errorLogger.logDatabaseError("update", "User", (error as Error).message);
                 throw this.errorManager.createError(ErrorStatus.userUpdateFailedError);

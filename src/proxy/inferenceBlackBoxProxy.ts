@@ -52,8 +52,14 @@ export class InferenceBlackBoxProxy {
                 parameters
             });
 
-            // Return job ID as string
-            return job.id?.toString() || "";
+            // Ensure job ID is available
+            const jobId = job.id?.toString();
+            if (!jobId) {
+                this.errorLogger.logDatabaseError("QUEUE_INFERENCE_JOB", "inference_queue", "Failed to get job ID after queuing");
+                throw this.errorManager.createError(ErrorStatus.jobAdditionFailedError, "Failed to get job ID after queuing.");
+            }
+
+            return jobId;
 
         } catch (error) {
             // Handle standardized errors 

@@ -71,6 +71,62 @@ const checkCreateInferenceFields = (req: AuthRequest, res: Response, next: NextF
         return next(errorManager.createError(ErrorStatus.invalidFormat, "\"parameters\" must be a JSON object if provided."));
     }
 
+    // Validate that all parameter values are strings
+    if (parameters && typeof parameters === "object") {
+        // Define supported output formats
+        const SUPPORTED_OUTPUT_FORMATS = ["png", "jpg", "jpeg", "mp4", "avi"];
+        const ALLOWED_PARAMETER_KEYS = ["quality", "blendMode", "outputFormat", "customParameter"];
+        
+        // Check for invalid parameter keys
+        const parameterKeys = Object.keys(parameters);
+        const invalidKeys = parameterKeys.filter(key => !ALLOWED_PARAMETER_KEYS.includes(key));
+        
+        if (invalidKeys.length > 0) {
+            errorLogger.logValidationError(
+                "parameters",
+                `Invalid keys: ${invalidKeys.join(", ")}`,
+                `Parameters can only contain these keys: ${ALLOWED_PARAMETER_KEYS.join(", ")}`
+            );
+            return next(errorManager.createError(
+                ErrorStatus.invalidFormat,
+                `Invalid parameter: ${invalidKeys.join(", ")}. Allowed parameters are: ${ALLOWED_PARAMETER_KEYS.join(", ")}`
+            ));
+        }
+        
+        for (const [key, value] of Object.entries(parameters)) {
+            if (typeof value !== "string") {
+                errorLogger.logValidationError(
+                    `parameters.${key}`,
+                    typeof value === "object" ? JSON.stringify(value) : String(value),
+                    `Parameter "${key}" must be a string value`
+                );
+                return next(errorManager.createError(
+                    ErrorStatus.invalidFormat, 
+                    `Parameters must be a string value. Received: ${typeof value}`
+                ));
+            }
+            
+            // Special validation for outputFormat parameter
+            if (key === "outputFormat") {
+                // Remove leading dot if present and convert to lowercase for comparison
+                const normalizedFormat = value.toLowerCase().replace(/^\./, "");
+                
+                if (!SUPPORTED_OUTPUT_FORMATS.includes(normalizedFormat)) {
+                    const displayFormats = SUPPORTED_OUTPUT_FORMATS.map(format => `.${format}`);
+                    errorLogger.logValidationError(
+                        `parameters.${key}`,
+                        value,
+                        `Parameter "outputFormat" must be one of: ${displayFormats.join(", ")}`
+                    );
+                    return next(errorManager.createError(
+                        ErrorStatus.invalidFormat,
+                        `Parameter "outputFormat" must be one of the supported formats: ${displayFormats.join(", ")}. Received: ${value}`
+                    ));
+                }
+            }
+        }
+    }
+
     // Update body with trimmed values
     req.body = { ...body, datasetName, modelId, parameters };
     next();

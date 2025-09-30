@@ -201,7 +201,6 @@ export class InferenceController {
                 );
             }
 
-            InferenceController.inferenceLogger.logInferenceRetrieval(id, userId);
             res.status(200).json({
                 success: true,
                 message: "Inference retrieved successfully",
@@ -339,8 +338,6 @@ export class InferenceController {
                 );
             }
 
-            InferenceController.inferenceLogger.logOutputFileServed(filePath);
-
             const { FileStorage } = await import("../utils/fileStorage");
             
             // Read and stream the file
@@ -365,7 +362,7 @@ export class InferenceController {
                     "Content-Length": fileBuffer.length.toString(),
                     "Content-Disposition": `attachment; filename="${decodedFilename}"`
                 });
-                
+                // Log the successful file serving
                 InferenceController.inferenceLogger.logOutputFileServed(filePath);
                 res.send(fileBuffer);
             } catch (fileError) {

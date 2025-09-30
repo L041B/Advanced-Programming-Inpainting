@@ -186,20 +186,18 @@ export class UserController {
     public updateUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
         const startTime = Date.now();
         this.apiLogger.logRequest(req);
- 
-        // Validate input data
+
         try {
             const userId = req.params.userId;
             const { name, surname, email, password } = req.body as { name: string; surname: string; email: string; password?: string };
            
             // Update user data in the repository
             const updatedUser = await this.userRepository.updateUser(userId, { name, surname, email, password });
- 
+
             // Log which fields were part of the update request payload.
             const updatedFields = Object.keys(req.body as Record<string, unknown>).filter(key => ["name", "surname", "email", "password"].includes(key));
             this.userLogger.logUserUpdate(userId, updatedFields);
- 
-            // If the user does not exist, return a 404 error.
+
             res.status(200).json({
                 success: true,
                 message: "User updated successfully",
@@ -208,6 +206,23 @@ export class UserController {
             this.apiLogger.logResponse(req, res, Date.now() - startTime);
         } catch (error) {
             this.apiLogger.logError(req, error as Error);
+            
+            // Handle specific database errors
+            const err = error as Error & { errorType?: ErrorStatus };
+            
+            // Check if it's an email duplication error
+            if (err.errorType === ErrorStatus.userAlreadyExistsError) {
+                next(error);
+                return;
+            }
+            
+            // Check for user not found error
+            if (err.errorType === ErrorStatus.userNotFoundError) {
+                next(error);
+                return;
+            }
+            
+            // For other errors, use the generic user update error
             const managedError = this.errorManager.createError(ErrorStatus.userUpdateFailedError);
             next(managedError);
         }
@@ -301,57 +316,5 @@ export class UserController {
             next(managedError);
         }
     };
- 
-    // Add new method to handle token cost calculation for operations
-    private buildUploadInfo(operationData: { single_image?: number; video_frame?: number; zip_file?: number }) {
-        const uploadInfo: {
-            images?: number;
-            videos?: { frames: number }[];
-            zipFiles?: number;
-            isZipUpload?: boolean;
-        } = {};
-        // Build upload info based on provided operation data
-        if ("single_image" in operationData) {
-            uploadInfo.images = operationData.single_image;
-        }
-        // Handle video frames
-        if ("video_frame" in operationData) {
-            uploadInfo.videos = [{ frames: operationData.video_frame! }];
-        }
-        // Handle zip files
-        if ("zip_file" in operationData) {
-            uploadInfo.zipFiles = operationData.zip_file;
-            uploadInfo.isZipUpload = true;
-        }
-        return uploadInfo;
-    }
- 
-    // New method to build dataset content structure for inference requests
-    private buildInferenceContent(operationData: { single_image?: number; video_frame?: number }) {
-        let datasetContent: { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number; uploadIndex?: string | number }>, type?: string } = {};
-        // Build dataset content based on provided operation data
-        if ("single_image" in operationData && operationData.single_image) {
-            datasetContent.pairs = Array.from({ length: operationData.single_image }, (_, i) => ({
-                imagePath: `image_${i}`,
-                maskPath: `mask_${i}`,
-                uploadIndex: i
-            }));
-            datasetContent.type = "image";
-        }
-        // Handle video frames
-        if ("video_frame" in operationData && operationData.video_frame) {
-            datasetContent.pairs = [
-                ...(datasetContent.pairs || []),
-                ...Array.from({ length: operationData.video_frame }, (_, i) => ({
-                    imagePath: `video_frame_${i}`,
-                    maskPath: `mask_${i}`,
-                    frameIndex: i,
-                    uploadIndex: "video1"
-                }))
-            ];
-            datasetContent.type = "video-frames";
-        }
-        return datasetContent;
-    }
  
 }

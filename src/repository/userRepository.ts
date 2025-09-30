@@ -1,6 +1,9 @@
 // Import the Sequelize User model and the User Data Access Object (DAO).
 import { User } from "../models/User";
 import { UserDao } from "../dao/userDao";
+import { ErrorManager } from "../factory/errorManager";
+import { ErrorStatus } from "../factory/status";
+import { loggerFactory, UserRouteLogger } from "../factory/loggerFactory";
 
 // Define a simple interface for user data.
 export interface UserData {
@@ -14,9 +17,11 @@ export interface UserData {
 export class UserRepository {
     private static instance: UserRepository;
     private readonly userDao: UserDao;
+    private readonly logger: UserRouteLogger;
 
     private constructor() {
         this.userDao = UserDao.getInstance();
+        this.logger = loggerFactory.createUserLogger();
     }
 
     // Get the singleton instance of UserRepository
@@ -53,13 +58,20 @@ export class UserRepository {
 
     // Check if user has admin role
     public async isAdmin(userId: string): Promise<boolean> {
-        try {
-            const user = await this.userDao.findById(userId);
-            return user?.role === "admin" || false;
-        } catch (error) {
-            console.error("Error checking admin role:", error);
-            return false;
+        const user = await this.userDao.findById(userId);
+        // If user not found, log and throw error
+        if (!user) {
+            this.logger.log("User not found during admin check", { userId });
+            throw ErrorManager.getInstance().createError(
+                ErrorStatus.userNotFoundError,
+                `User with ID ${userId} not found`
+            );
         }
+        // Check if user is admin
+        const isAdmin = user.role === "admin";
+        this.logger.log("Admin role check completed", { userId, isAdmin });
+        
+        return isAdmin;
     }
 
     // Updates an existing user in the database.

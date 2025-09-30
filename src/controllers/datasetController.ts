@@ -661,7 +661,6 @@ export class DatasetController {
         name: string;
         tags: string[];
         itemCount: number;
-        type: string;
         createdAt: Date;
         updatedAt: Date;
         changes: {
@@ -670,7 +669,7 @@ export class DatasetController {
             previousName: string | undefined;
         };
     } {
-        // Extract item count and type from dataset data
+        // Extract item count from dataset data
         const datasetData = updatedDataset.data as { pairs?: Array<{ imagePath: string; maskPath: string; frameIndex?: number }>; type?: string } | null;
         const itemCount = datasetData?.pairs?.length || 0;
 
@@ -679,7 +678,6 @@ export class DatasetController {
             name: updatedDataset.name,
             tags: updatedDataset.tags,
             itemCount,
-            type: datasetData?.type || "empty",
             createdAt: updatedDataset.createdAt,
             updatedAt: updatedDataset.updatedAt,
             changes: {
@@ -721,9 +719,15 @@ export class DatasetController {
                 reservedAmount: tokenInfo.tokenSpent
             };
         } catch (error) {
-            // Log error but do not fail the upload
-            DatasetController.errorLogger.logDatabaseError("TOKEN_TRANSACTION", "tokens", 
-                error instanceof Error ? error.message : "Token transaction processing failed");
+            // Log critical error
+            DatasetController.errorLogger.logDatabaseError("CRITICAL_TOKEN_TRANSACTION", "tokens", 
+                `CRITICAL: Token transaction failed after successful upload. ReservationId: ${result.reservationId}, UserId: ${userId}, Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+            
+            // Throw error to fail the entire operation
+            throw DatasetController.errorManager.createError(
+                ErrorStatus.tokenConfirmationFailedError,
+                "Upload completed but token transaction failed. Please contact support."
+            );
         }
     }
 
@@ -735,47 +739,48 @@ export class DatasetController {
         const { TokenService } = await import("../services/tokenService");
         const tokenService = TokenService.getInstance();
 
-        // Confirm token usage
         try {
+            // Attempt to confirm token usage
             const confirmResult = await tokenService.confirmTokenUsage(result.reservationId);
 
+            // Validate the confirmation result
             if (typeof confirmResult.tokensSpent === "number" && typeof confirmResult.remainingBalance === "number") {
+                DatasetController.datasetLogger.log("Token transaction confirmed successfully", {
+                    reservationId: result.reservationId,
+                    tokensSpent: confirmResult.tokensSpent,
+                    remainingBalance: confirmResult.remainingBalance,
+                    userId
+                });
+
                 return {
-                    tokenSpent: confirmResult.tokensSpent || 0,
-                    userTokens: confirmResult.remainingBalance || 0
+                    tokenSpent: confirmResult.tokensSpent,
+                    userTokens: confirmResult.remainingBalance
                 };
             } else {
-                return await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
+                // Invalid confirmation result
+                throw new Error(`Invalid confirmation result: tokensSpent=${confirmResult.tokensSpent}, remainingBalance=${confirmResult.remainingBalance}`);
             }
         } catch (error) {
-            DatasetController.errorLogger.logDatabaseError("PROCESS_TOKEN_TRANSACTION", "tokens", error instanceof Error ? error.message : "Error during token transaction");
-            return await DatasetController.getTokenInfoFromTransaction(tokenService, userId);
-        }
-    }
+            // Log critical error with full context
+            DatasetController.errorLogger.logDatabaseError("CRITICAL_TOKEN_CONFIRMATION_FAILED", "tokens", 
+                `CRITICAL: Token confirmation failed. ReservationId: ${result.reservationId}, UserId: ${userId}, TokenCost: ${result.tokenCost}, ProcessedItems: ${result.processedItems}, Error: ${error instanceof Error ? error.message : "Unknown error"}`);
 
-    // Fallback method to get token info from recent transactions
-    private static async getTokenInfoFromTransaction(tokenService: import("../services/tokenService").TokenService, userId: string): Promise<{ tokenSpent: number; userTokens: number }> {
-        const transactionHistoryResult = await tokenService.getUserTransactionHistory(userId, 1);
-        let tokenSpent = 0;
-
-        // Check if the last transaction was a dataset upload within the last 5 seconds
-        if (Array.isArray(transactionHistoryResult) && transactionHistoryResult.length > 0) {
-            const lastTransaction = transactionHistoryResult[0];
-            
-            if (lastTransaction.operationType === "dataset_upload") {
-                const transactionTime = new Date(lastTransaction.createdAt).getTime();
-                const now = Date.now();
-                
-                if ((now - transactionTime) < 5000) {
-                    tokenSpent = Math.abs(Number(lastTransaction.amount));
-                }
+            // Attempt to refund the reservation as compensation
+            try {
+                await tokenService.refundTokens(result.reservationId);
+                DatasetController.datasetLogger.log("Token refund successful after confirmation failure", {
+                    reservationId: result.reservationId,
+                    userId,
+                    refundedAmount: result.tokenCost
+                });
+            } catch (refundError) {
+                // Log refund failure
+                DatasetController.errorLogger.logDatabaseError("CRITICAL_TOKEN_REFUND_FAILED", "tokens", 
+                    `CRITICAL: Both token confirmation and refund failed. MANUAL INTERVENTION REQUIRED. ReservationId: ${result.reservationId}, UserId: ${userId}, TokenCost: ${result.tokenCost}, RefundError: ${refundError instanceof Error ? refundError.message : "Unknown refund error"}`);
             }
+
+            // Re-throw the error to fail the operation
+            throw error;
         }
-
-        // Get current user token balance
-        const balanceResult = await tokenService.getUserTokenBalance(userId) as { success?: boolean; balance?: number };
-        const userTokens = balanceResult.success ? balanceResult.balance || 0 : 0;
-
-        return { tokenSpent, userTokens };
     }
 }

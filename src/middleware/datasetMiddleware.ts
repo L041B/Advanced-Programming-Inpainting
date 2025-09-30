@@ -52,14 +52,14 @@ export class DatasetMiddleware {
         fileFilter: (request, uploadedFile, callback) => {
             try {
                 // Validate file type based on extension and MIME type
-                const supportedExtensions = /jpeg|jpg|png|mp4|avi|mov|zip/;
+                const supportedExtensions = /jpeg|jpg|png|mp4|avi|zip/;
                 const extensionCheck = supportedExtensions.test(
                     path.extname(uploadedFile.originalname).toLowerCase()
                 );
                 
                 const supportedMimeTypes = [
                     "image/jpeg", "image/jpg", "image/png",
-                    "video/mp4", "video/avi",
+                    "video/mp4", "video/x-msvideo",
                     "application/zip"
                 ];
                 const mimeTypeCheck = supportedMimeTypes.includes(uploadedFile.mimetype);

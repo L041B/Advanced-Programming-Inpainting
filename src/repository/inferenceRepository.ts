@@ -42,17 +42,6 @@ export class InferenceRepository {
                 hasModelId: !!data.modelId
             });
             
-            // Validate required fields before passing to DAO
-            if (!data.userId || !data.datasetId || !data.modelId) {
-                this.inferenceLogger.log("Repository validation failed", { 
-                    userId: data.userId, 
-                    datasetId: data.datasetId, 
-                    modelId: data.modelId,
-                    error: "Missing required fields in repository" 
-                });
-                throw new Error(`Repository validation failed: Missing userId (${!!data.userId}), datasetId (${!!data.datasetId}), or modelId (${!!data.modelId})`);
-            }
-            
             const inference = await this.inferenceDao.create({
                 ...data,
                 status: "PENDING"
@@ -65,7 +54,6 @@ export class InferenceRepository {
             
             return inference;
         } catch (error) {
-            // Let DAO errors bubble up with proper logging
             const err = error as Error & { errorType?: string };
             this.inferenceLogger.log("Repository inference creation failed", { 
                 userId: data.userId, 
@@ -113,8 +101,9 @@ export class InferenceRepository {
 
     // Updates an existing inference in the database.
     public async updateInference(id: string, data: Partial<InferenceData>): Promise<Inference> {
-        // DAO handles logging and errors now, just pass through
         return await this.inferenceDao.update(id, data);
     }
 }
+                 
+
 

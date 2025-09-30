@@ -3,11 +3,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { User } from "../models/User";
 import { loggerFactory, ApiRouteLogger, ErrorRouteLogger } from "../factory/loggerFactory";
+import { ErrorManager } from "../factory/errorManager";
 import { ErrorStatus } from "../factory/status";
 
-// Initialize loggers.
+// Initialize loggers and error manager.
 const authLogger: ApiRouteLogger = loggerFactory.createApiLogger();
 const errorLogger: ErrorRouteLogger = loggerFactory.createErrorLogger();
+const errorManager = ErrorManager.getInstance();
 
 // Extend the Express Request interface to include custom properties `user` and `token`.
 interface AuthenticatedRequest extends Request {
@@ -17,20 +19,6 @@ interface AuthenticatedRequest extends Request {
     };
     token?: string;
 }
-
-// Custom error interface
-interface AuthError extends Error {
-    status: number;
-    errorType: ErrorStatus;
-}
-
-// Helper function to create auth errors
-const createAuthError = (message: string, errorType: ErrorStatus, status: number): AuthError => {
-    const error = new Error(message) as AuthError;
-    error.status = status;
-    error.errorType = errorType;
-    return error;
-};
 
 // Check authorization header.
 export const checkAuthHeader = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
@@ -46,10 +34,9 @@ export const checkAuthHeader = (req: AuthenticatedRequest, res: Response, next: 
         });
         
         // Create and pass a standardized error to the next middleware
-        const error = createAuthError(
-            "Access token required",
+        const error = errorManager.createError(
             ErrorStatus.jwtNotValid,
-            401
+            "Access token required"
         );
         next(error);
         return;
@@ -69,10 +56,9 @@ export const extractToken = (req: AuthenticatedRequest, res: Response, next: Nex
             ip: req.ip
         });
         
-        const error = createAuthError(
-            "Invalid token format",
+        const error = errorManager.createError(
             ErrorStatus.jwtNotValid,
-            401
+            "Invalid token format"
         );
         next(error);
         return;
@@ -91,10 +77,9 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
     if (!secret) {
         // Log fatal error and create a standardized error response
         errorLogger.log("FATAL: JWT_SECRET is not defined in environment variables.", { component: "authMiddleware" });
-        const error = createAuthError(
-            "Server security configuration error.",
+        const error = errorManager.createError(
             ErrorStatus.creationInternalServerError,
-            500
+            "Server security configuration error."
         );
         next(error);
         return;
@@ -124,10 +109,9 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
         // Log the specific reason for token verification failure
         authLogger.log("Token verification failed", { reason, ip: req.ip, path: req.path });
         
-        const authError = createAuthError(
-            "Invalid or expired token",
+        const authError = errorManager.createError(
             ErrorStatus.jwtNotValid,
-            403
+            "Invalid or expired token"
         );
         next(authError);
         return; 
@@ -145,10 +129,9 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
                 ip: req.ip
             });
             // If userId is missing, treat as invalid token
-            const error = createAuthError(
-                "Invalid token - user not found",
+            const error = errorManager.createError(
                 ErrorStatus.jwtNotValid,
-                401
+                "Invalid token - user not found"
             );
             next(error);
             return;
@@ -164,10 +147,9 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
             });
             
             // If user does not exist, treat as invalid token
-            const error = createAuthError(
-                "Invalid token - user not found",
+            const error = errorManager.createError(
                 ErrorStatus.jwtNotValid,
-                401
+                "Invalid token - user not found"
             );
             next(error);
             return;
@@ -185,10 +167,9 @@ export const verifyUserExists = async (req: AuthenticatedRequest, res: Response,
         errorLogger.logDatabaseError("VERIFY_USER_EXISTS", "users", err.message);
         
         // Pass a standardized error to the next middleware
-        const authError = createAuthError(
-            "User verification failed",
+        const authError = errorManager.createError(
             ErrorStatus.readInternalServerError,
-            500
+            "User verification failed"
         );
         next(authError);
     }
@@ -206,10 +187,9 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
             reason: "checkUserAuthorization was called on a route without a userId in params or body.",
             path: req.path,
         });
-        const error = createAuthError(
-            "Access denied",
+        const error = errorManager.createError(
             ErrorStatus.userNotAuthorized,
-            403
+            "Access denied"
         );
         next(error);
         return;
@@ -224,10 +204,9 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
             ip: req.ip
         });
         
-        const error = createAuthError(
-            "Access denied",
+        const error = errorManager.createError(
             ErrorStatus.userNotAuthorized,
-            403
+            "Access denied"
         );
         next(error);
         return;
@@ -237,7 +216,6 @@ export const checkUserAuthorization = (req: AuthenticatedRequest, res: Response,
     authLogger.log("Authorization check successful", { authenticatedUserId: req.user.userId, authorized: true });
     next();
 };
-
 
 // Composed middleware functions using the chain
 export const authenticateToken = [
@@ -249,3 +227,5 @@ export const authenticateToken = [
 
 // This chain checks if a user is authorized to access a resource related to another user's ID.
 export const authorizeUser = [checkUserAuthorization];
+
+
