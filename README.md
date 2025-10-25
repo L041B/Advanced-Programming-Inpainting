@@ -1,4 +1,4 @@
-# P.A. Inpainting
+# Advanced Programming Inpainting
 
 <div align="center">
   <!-- Technology badges with logos and links -->
@@ -80,7 +80,7 @@
  
 ## Introduction
  
-**P.A. Inpainting** is a Node.js backend service. It supports dataset and inference management for images, masks, and videos, using a queue-based architecture for scalable processing. The system enforces a token-based credit model for users, with costs per operation and admin recharge capabilities.
+**Advanced Programming Inpainting** is a Node.js backend service. It supports dataset and inference management for images, masks, and videos, using a queue-based architecture for scalable processing. The system enforces a token-based credit model for users, with costs per operation and admin recharge capabilities.
  
 ---
  
